@@ -12,11 +12,17 @@ with source URL, author and license. Nothing enters the repo without an entry.
 
 ## Models
 
-_None yet. The T-rex is a placeholder box model._
+| Item | Source | Author | License | How used |
+|---|---|---|---|---|
+| `geckolib/models/entity/trex.geo.json` (placeholder box T-rex) | Original to this repo | Dino Dread project | CC0 | T-rex placeholder model |
+| `geckolib/animations/entity/trex.animation.json` (placeholder) | Original to this repo | Dino Dread project | CC0 | T-rex placeholder animations |
 
 ## Textures
 
-_None yet._
+| Item | Source | Author | License | How used |
+|---|---|---|---|---|
+| `textures/entity/trex.png` (solid colour) | Generated for this repo | Dino Dread project | CC0 | T-rex placeholder texture |
+| `textures/item/trex_spawn_egg.png` | Generated for this repo | Dino Dread project | CC0 | T-rex spawn egg icon |
 
 ## Sounds
 

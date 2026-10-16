@@ -105,7 +105,10 @@ Mojang removed obfuscation in 26.1: vanilla classes use official names, and the 
 
 ## Tooling under evaluation
 **local-vibes** — https://github.com/OpenSourceWTF/local-vibes
-- **INSTALLED 2026-10-16, MCP-only, trial pending.** Audited at commit `3d4080d`; lockfile clean
+- **INSTALLED 2026-10-16, MCP-only. TRIAL PASSED 2026-10-16** (lang entries on a throwaway branch:
+  4 iterations, diff exactly as specced, only the target file touched, `.\gradlew build` green,
+  merged). Tool name in Claude Code: `mcp__local-vibes__delegate` (deferred; load via ToolSearch).
+  Audited at commit `3d4080d`; lockfile clean
   (no install scripts, registry URLs only). Cloned to `D:\Documents\Claude Code\_tools\local-vibes`
   (outside this repo), built with `npm ci --ignore-scripts` + `tsc`. Registered via the gitignored
   `.mcp.json` in this repo. NOT installed: the plugin, skill and hook.
@@ -137,5 +140,7 @@ inherit MCP servers. Only the main session can delegate.
 **Considered and not chosen:** Hermes Agent (Nous Research). It's a general personal-assistant
 harness, not coding-focused, and its local-model support is thinly documented.
 
-Until local-vibes passes its trial task and is trusted, use the `tasks/` handoff workflow above
+local-vibes passed its trial, so `delegate` is the default for mechanical work; keep reviewing every
+diff. Specs still live in `tasks/` (the task text passed to `delegate` should point at the spec file).
+Fall back to the `tasks/` handoff workflow above
 when the `delegate` tool is unavailable.
