@@ -20,6 +20,8 @@ public class TRex extends Monster implements GeoEntity {
     private static final double ATTACK_DAMAGE = 20.0;
     private static final double FOLLOW_RANGE = 64.0;
     private static final double STEP_HEIGHT = 1.5;
+    // Multiplies the base hitbox (ModEntities) and the rendered model together. Vanilla attribute range is 0.0625..16.
+    private static final double SCALE = 3.0;
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 
@@ -34,7 +36,8 @@ public class TRex extends Monster implements GeoEntity {
             .add(Attributes.KNOCKBACK_RESISTANCE, KNOCKBACK_RESISTANCE)
             .add(Attributes.ATTACK_DAMAGE, ATTACK_DAMAGE)
             .add(Attributes.FOLLOW_RANGE, FOLLOW_RANGE)
-            .add(Attributes.STEP_HEIGHT, STEP_HEIGHT);
+            .add(Attributes.STEP_HEIGHT, STEP_HEIGHT)
+            .add(Attributes.SCALE, SCALE);
     }
 
     @Override

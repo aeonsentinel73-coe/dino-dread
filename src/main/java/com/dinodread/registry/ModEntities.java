@@ -12,7 +12,7 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 public final class ModEntities {
     public static final DeferredRegister.Entities ENTITY_TYPES = DeferredRegister.createEntities(DinoDread.MODID);
 
-    // Hitbox in blocks.
+    // Base hitbox in blocks, before the TRex SCALE attribute (3x) is applied: in game it is 9 wide x 12 tall.
     private static final float TREX_WIDTH = 3.0F;
     private static final float TREX_HEIGHT = 4.0F;
     private static final float TREX_EYE_HEIGHT = 3.6F;
