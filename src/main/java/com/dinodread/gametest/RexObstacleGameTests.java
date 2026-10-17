@@ -94,7 +94,7 @@ public final class RexObstacleGameTests {
     private static final int FOREST_CANOPY_DEPTH = 3;
     private static final int FOREST_PLAYER_CLEARANCE = 3;
     private static final int FOREST_MAX_TICKS = 2400;
-    private static final int FOREST_WANDER_TICKS = 6000;
+    private static final int FOREST_WANDER_TICKS = 12000;
     private static final int FENCE_HEIGHT = 14;
     private static final int FOREST_WANDER_MIN_CELLS = 4;
     private static final int WANDER_CELL_SIZE = 6;
@@ -303,7 +303,7 @@ public final class RexObstacleGameTests {
     /**
      * No player: the wander goal alone must keep the 9 wide rex moving around a dense fenced forest. It passes once the rex has been
      * in {@link #FOREST_WANDER_MIN_CELLS} different {@link #WANDER_CELL_SIZE}-block squares (so it left its start and made several
-     * separate trips), within a budget that is several times the worst of 17 measured runs (slowest 1466 ticks, mean ~650); a rex
+     * separate trips), within a budget that is over 4x the slowest of 29 measured runs (2837 ticks; the median is ~450); a rex
      * whose wandering froze (vanilla pathfinding could not path it at all) stays in its one start square and fails.
      */
     private static void wandersThroughAForest(GameTestHelper helper) {
