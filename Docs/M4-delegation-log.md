@@ -58,3 +58,29 @@ parallelism (Claude waits, nothing else). Review cost per piece was small becaus
 - 17 GameTests (5 earlier + the framework default + 11 new: wooden house, wooden house at an angle, trees, forest, 3- and 4-block ledges (the 4-block one needs the hop), stone house, mobGriefing off,
   block breaker rules, stuck detector escalation, forest wander). Against the unchanged M3 rex the 4 behaviour tests failed for the right reasons (blocked at wall/trees/ledge, frozen at stone).
 - Final: `.\gradlew runGameTestServer --rerun-tasks` run 6 times in a row after the last change: 6/6 runs, 17/17 tests each (earlier code states: 5/5 with 13 tests, then 3/5 on the first unfenced fixture of the forest-wander test and 0/8 on the fenced one before P5, see above). `.\gradlew build` green; `.\gradlew runServer` reaches `Done` with no client-class errors.
+
+## Follow-up: the `trex_wanders_through_a_forest` flake (found by an independent 5x run, ~1 in 6 failing)
+- **Diagnosis (Claude):** 16 temporary copies of the test in one run plus per-100-tick state logs (position, idle ticks, running goals, number of wander starts, `hasQuarry`).
+  It was **not a stall**: `hasQuarry` was never true, the goal kept restarting, nothing froze. The rex simply roamed slowly: about 3 wander starts in 3000 ticks instead of ~12,
+  with each wander typically ending by pushing against a tree or the fence for the whole stuck ladder. The 40-block threshold sat right at the edge of that slow distribution
+  (reaching it took 1750-2800 ticks of a 3000 budget, ~4 of 17 samples missed).
+- **A real bug, mine (spec 008):** `wanderIntervalTicks` is documented as "average ticks between wander destinations" (120), but `Mob` only evaluates a non-running goal's `canUse()`
+  every second tick, so `nextInt(120) == 0` fired on average every ~240 ticks. Vanilla `RandomStrollGoal` compensates with `reducedTickDelay(interval)`; my spec for task 008 did not.
+  Fixed by task `010-wander-interval.md` (Qwen, 1 round, 4 iterations, exactly as specified): `nextInt(reducedTickDelay(interval))`.
+- **A wrong hypothesis, tried and reverted:** task `009-wander-give-up-early.md` made wander drop a blocked destination at the first stuck level instead of after the whole ladder.
+  Qwen implemented it exactly (1 round, 4 iterations) but the measured result was worse (10 of 17 samples missed the old threshold): quick abandons just add more ~240-tick waits.
+  Reverted; the spec file is kept and marked as such.
+- **Test made bounded instead of lowering a number:** the test now passes when the rex has been in 4 different 6x6-block areas (it left its start and made several separate trips),
+  with a 6000-tick budget. Measured over 17 samples after the fix: 4 areas reached after 232-1466 ticks (mean ~650), so the budget is >4x the worst; a rex that cannot move
+  (the earlier vanilla-pathfinding freeze) stays in one area and fails.
+- Unseen-in-client risks of the real 9x12 hitbox (spawn-egg placement, bite reach, eye height, step height, pushing, break performance) are listed under "Risks to check by eye" below.
+- **Result:** the full suite, 12 consecutive `.\gradlew runGameTestServer --rerun-tasks` runs after the last code change: 12/12 runs green, 17/17 tests each.
+
+## Risks to check by eye (real 9x12 hitbox; none of this was seen in a real client)
+Now that the hitbox really is 9 wide x 12 tall (it was 3 x 4 for all of M1-M3, so nobody has played it this way): **spawn eggs** place a 9x12 box with no obstruction check, so an egg used in a
+house, forest or cave spawns the rex inside blocks (suffocation damage, stuck), spawn it in the open; **bite reach** (`biteReach` = 3) is measured from the hitbox edge, so it now bites
+players up to ~7.5 blocks from its centre and as high as 15 blocks up (a player on a tree or roof is in reach), while **charge/sight/hearing distances** are still measured from its centre;
+**eye height** is now 10.8 blocks (it was 3.6), so it sees over fences and low buildings but its line of sight to players inside houses is blocked by roofs, and M3's sight tuning was done on the small box;
+**step height 3.0** makes it climb 3-block ledges and walls in one smooth snap, which may look odd for a 12-tall mob (and it will step over low garden walls); **pushing/collisions** with
+players and mobs now use the big box (players may be shoved while standing "inside" it); players and arrows hit a much bigger target; and a hunt that flattens a forest or house (90-750 blocks, each with
+item drops and block updates, leaf decay) may cost TPS on a real server (`breakDropsItems`, `blocksPerBreak`, `breakIntervalTicks` are the knobs). F3+B should now show the hitbox matching the model.
