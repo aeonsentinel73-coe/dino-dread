@@ -29,6 +29,7 @@ public final class RexConfig {
     public static final ModConfigSpec.DoubleValue WANDER_SPEED_MULTIPLIER;
     public static final ModConfigSpec.IntValue WANDER_INTERVAL_TICKS;
     public static final ModConfigSpec.IntValue WANDER_RANGE;
+    public static final ModConfigSpec.DoubleValue WANDER_ARRIVAL_DISTANCE;
     public static final ModConfigSpec.DoubleValue STALK_SPEED_MULTIPLIER;
     public static final ModConfigSpec.DoubleValue CHARGE_SPEED_MULTIPLIER;
     public static final ModConfigSpec.DoubleValue CHARGE_DISTANCE;
@@ -127,6 +128,9 @@ public final class RexConfig {
         WANDER_RANGE = BUILDER
                 .comment("How far in blocks a wander destination can be from the T-rex.")
                 .defineInRange("wanderRange", 24, 4, 64);
+        WANDER_ARRIVAL_DISTANCE = BUILDER
+                .comment("How close, in blocks, to its wander destination counts as having arrived.")
+                .defineInRange("wanderArrivalDistance", 6.0, 1.0, 32.0);
         STALK_SPEED_MULTIPLIER = BUILDER
                 .comment("Speed multiplier while stalking or investigating a noise (approaching without full speed).")
                 .defineInRange("stalkSpeedMultiplier", 0.8, 0.1, 4.0);

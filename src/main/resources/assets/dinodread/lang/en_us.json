@@ -42,6 +42,7 @@
   "dinodread.configuration.wanderSpeedMultiplier": "Wander Speed",
   "dinodread.configuration.wanderIntervalTicks": "Wander Interval (ticks)",
   "dinodread.configuration.wanderRange": "Wander Range",
+  "dinodread.configuration.wanderArrivalDistance": "Wander Arrival Distance",
   "dinodread.configuration.stalkSpeedMultiplier": "Stalk Speed",
   "dinodread.configuration.chargeSpeedMultiplier": "Charge Speed",
   "dinodread.configuration.chargeDistance": "Charge Distance",
