@@ -74,6 +74,9 @@ public class TRexHuntGoal extends Goal {
         LivingEntity target = rex.getTarget();
         boolean visible = target != null && senses.isTargetVisible();
         Vec3 destination = visible ? target.position() : senses.getLastKnownPos();
+        if (destination == null && target != null) {
+            destination = target.position(); // target set by something else: head for it
+        }
         if (destination == null) {
             return;
         }

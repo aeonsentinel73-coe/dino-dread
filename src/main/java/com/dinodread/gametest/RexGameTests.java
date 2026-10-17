@@ -46,6 +46,7 @@ public final class RexGameTests {
         DeferredRegister.create(Registries.TEST_FUNCTION, DinoDread.MODID);
 
     private static final String HUNT = "trex_hunts_player";
+    private static final String WANDER = "trex_wanders";
     private static final String HEARS = "trex_hears_footsteps";
     private static final String SNEAK = "trex_barely_hears_sneaking";
 
@@ -55,11 +56,13 @@ public final class RexGameTests {
     private static final int ARENA_FRONT = 60;
     private static final int ARENA_HEIGHT = 16;
     private static final int LOG_INTERVAL_TICKS = 20;
+    private static final double WANDER_MIN_DISTANCE = 6.0;
     private static final float FACING_SOUTH = 0.0F;
     private static final float FACING_NORTH = 180.0F;
 
     static {
         FUNCTIONS.register(HUNT, () -> RexGameTests::huntsPlayer);
+        FUNCTIONS.register(WANDER, () -> RexGameTests::wanders);
         FUNCTIONS.register(HEARS, () -> RexGameTests::hearsFootsteps);
         FUNCTIONS.register(SNEAK, () -> RexGameTests::barelyHearsSneaking);
     }
@@ -73,6 +76,7 @@ public final class RexGameTests {
 
     private static void registerTests(RegisterGameTestsEvent event) {
         addTest(event, HUNT, 900);
+        addTest(event, WANDER, 2400);
         addTest(event, HEARS, 100);
         addTest(event, SNEAK, 100);
     }
@@ -105,6 +109,19 @@ public final class RexGameTests {
                 "player untouched; rex state=" + rex.getHuntState() + " distance=" + rex.distanceTo(player));
             DinoDread.LOGGER.info("[gametest] hunt finished at tick {}: playerHealth={} alive={}", helper.getTick(), player.getHealth(), player.isAlive());
             cleanUp(helper, rex, player);
+        });
+    }
+
+    /** With nobody around, the T-rex still roams. */
+    private static void wanders(GameTestHelper helper) {
+        buildArena(helper);
+        TRex rex = spawnRex(helper, FACING_SOUTH);
+        Vec3 start = rex.position();
+        helper.succeedWhen(() -> {
+            double moved = rex.position().subtract(start).horizontalDistance();
+            helper.assertTrue(moved >= WANDER_MIN_DISTANCE, "rex only wandered " + String.format("%.1f", moved) + " blocks");
+            DinoDread.LOGGER.info("[gametest] wander moved {} blocks by tick {}", String.format("%.1f", moved), helper.getTick());
+            rex.discard();
         });
     }
 

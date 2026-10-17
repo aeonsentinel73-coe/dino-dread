@@ -157,3 +157,8 @@ Do not add goals, AI, sounds, tests, or any other file.
 - `en_us.json` is valid JSON.
 - (Claude runs `.\gradlew build` afterwards; you cannot.)
 - Reply with a short list of files created/edited plus any deviation from this spec and why (ideally none).
+
+## Post-review changes (made by Claude after the delegate finished; the code, not this spec, is authoritative)
+- Added `WANDER_RANGE` (`wanderRange`, int, 24, 4..64) and `USE_PATHFINDING` (`usePathfinding`, boolean, false) in `behavior`.
+- Retuned defaults after measuring in GameTests: `wanderSpeedMultiplier` 0.6, `stalkSpeedMultiplier` 0.8, `chargeSpeedMultiplier` 1.4
+  (mob speed scales with the square of the speed attribute: about 43 blocks/s x speed^2).
