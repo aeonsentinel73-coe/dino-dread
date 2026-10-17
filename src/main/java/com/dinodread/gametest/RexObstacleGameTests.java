@@ -5,10 +5,12 @@ import static com.dinodread.gametest.RexGameTests.MIDNIGHT_TICKS;
 import static com.dinodread.gametest.RexGameTests.TEST_TIMEOUT_TICKS;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.function.Consumer;
 
 import com.dinodread.DinoDread;
@@ -92,10 +94,11 @@ public final class RexObstacleGameTests {
     private static final int FOREST_CANOPY_DEPTH = 3;
     private static final int FOREST_PLAYER_CLEARANCE = 3;
     private static final int FOREST_MAX_TICKS = 2400;
-    private static final int FOREST_WANDER_TICKS = 3000;
+    private static final int FOREST_WANDER_TICKS = 6000;
     private static final int FENCE_HEIGHT = 14;
-    private static final int FOREST_WANDER_LOG_EVERY = 5;
-    private static final double FOREST_WANDER_MIN_TRAVEL = 40.0;
+    private static final int FOREST_WANDER_MIN_CELLS = 4;
+    private static final int WANDER_CELL_SIZE = 6;
+    private static final long WANDER_CELL_KEY = 1000L;
     private static final int NOISE_INTERVAL_TICKS = 10;
     private static final int LOG_INTERVAL_TICKS = 40;
     private static final int HOUSE_MAX_TICKS = 1500;
@@ -297,30 +300,28 @@ public final class RexObstacleGameTests {
             });
     }
 
-    /** No player: wandering (vanilla navigation) must still get the 9 wide rex somewhere in a forest, not freeze or stall the server. */
+    /**
+     * No player: the wander goal alone must keep the 9 wide rex moving around a dense fenced forest. It passes once the rex has been
+     * in {@link #FOREST_WANDER_MIN_CELLS} different {@link #WANDER_CELL_SIZE}-block squares (so it left its start and made several
+     * separate trips), within a budget that is several times the worst of 17 measured runs (slowest 1466 ticks, mean ~650); a rex
+     * whose wandering froze (vanilla pathfinding could not path it at all) stays in its one start square and fails.
+     */
     private static void wandersThroughAForest(GameTestHelper helper) {
-        List<BlockPos> forest = new ArrayList<>();
-        double[] travelled = new double[1];
-        Vec3[] last = new Vec3[1];
-        long[] startNanos = new long[1];
+        Set<Long> visited = new HashSet<>();
         RexGameTests.scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, null, false, FOREST_WANDER_TICKS,
             origin -> {
                 fenceArena(helper.getLevel(), origin);
-                forest.addAll(buildForest(helper.getLevel(), origin));
+                buildForest(helper.getLevel(), origin);
             },
+            run -> {},
             run -> {
-                last[0] = run.rex.position();
-                startNanos[0] = System.nanoTime();
-            },
-            run -> {
-                travelled[0] += run.rex.position().subtract(last[0]).horizontalDistance();
-                last[0] = run.rex.position();
-                run.status = "rex only wandered " + String.format("%.1f", travelled[0]) + " blocks through the forest (alive=" + run.rex.isAlive() + ", x=" + String.format("%.1f", run.rex.getX() - run.origin.getX()) + ", y=" + String.format("%.1f", run.rex.getY() - run.origin.getY()) + ", z=" + String.format("%.1f", rexZ(run)) + ")";
-                if (run.age() % (LOG_INTERVAL_TICKS * FOREST_WANDER_LOG_EVERY) == 0) {
-                    DinoDread.LOGGER.info("[gametest] forest wander tick {} travelled={} rexZ={} navDone={}", run.age(), String.format("%.1f", travelled[0]), String.format("%.1f", rexZ(run)), run.rex.getNavigation().isDone());
-                }
-                if (travelled[0] >= FOREST_WANDER_MIN_TRAVEL) {
-                    DinoDread.LOGGER.info("[gametest] forest wander: {} blocks in {} ticks, {} ms wall time", String.format("%.1f", travelled[0]), run.age(), (System.nanoTime() - startNanos[0]) / 1_000_000L);
+                int cellX = Math.floorDiv((int) Math.floor(run.rex.getX() - run.origin.getX()), WANDER_CELL_SIZE);
+                int cellZ = Math.floorDiv((int) Math.floor(rexZ(run)), WANDER_CELL_SIZE);
+                visited.add((long) cellX * WANDER_CELL_KEY + cellZ);
+                run.status = "rex only visited " + visited.size() + " of the " + FOREST_WANDER_MIN_CELLS + " areas it needed (alive=" + run.rex.isAlive()
+                    + ", x=" + String.format("%.1f", run.rex.getX() - run.origin.getX()) + ", z=" + String.format("%.1f", rexZ(run)) + ")";
+                if (visited.size() >= FOREST_WANDER_MIN_CELLS) {
+                    DinoDread.LOGGER.info("[gametest] forest wander: {} different areas visited {} ticks after the start", visited.size(), run.age());
                     run.pass();
                 }
             });

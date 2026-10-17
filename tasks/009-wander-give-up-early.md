@@ -29,3 +29,5 @@ Update the class javadoc: replace the sentence "...picking another when it arriv
 ## Acceptance check
 - `.\gradlew build` passes (Claude runs it).
 - GameTests (Claude runs them repeatedly): `trex_wanders` and `trex_wanders_through_a_forest` pass, and every other GameTest still passes.
+
+> **Outcome: tried and reverted.** Implemented exactly as written, but in the forest-wander GameTest it made wandering worse (10 of 17 samples missed the old 40-block threshold, versus 4 of 17 before): each early abandon costs a new ~240-tick wait for the next wander start, so the rex roams less. The real cause of the slow wander was task 010.

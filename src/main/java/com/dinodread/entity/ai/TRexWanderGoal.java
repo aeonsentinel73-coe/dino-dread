@@ -30,7 +30,8 @@ public class TRexWanderGoal extends Goal {
 
     @Override
     public boolean canUse() {
-        return !rex.getSenses().hasQuarry() && rex.getRandom().nextInt(RexConfig.WANDER_INTERVAL_TICKS.get()) == 0;
+        // canUse runs every second tick, so halve the interval to keep the configured average.
+        return !rex.getSenses().hasQuarry() && rex.getRandom().nextInt(reducedTickDelay(RexConfig.WANDER_INTERVAL_TICKS.get())) == 0;
     }
 
     @Override
