@@ -112,8 +112,14 @@ Mojang removed obfuscation in 26.1: vanilla classes use official names, and the 
   (no install scripts, registry URLs only). Cloned to `D:\Documents\Claude Code\_tools\local-vibes`
   (outside this repo), built with `npm ci --ignore-scripts` + `tsc`. Registered via the gitignored
   `.mcp.json` in this repo. NOT installed: the plugin, skill and hook.
-- Backend: LM Studio ("Bionic") at `http://127.0.0.1:1235/v1`, model `qwen3.8-27b`
-  (Qwen3.8-27B UD-Q6_K_M GGUF in `D:\Documents\Models\`). The server must be running.
+- Backend (since 2026-10-16): **Hermes Desktop** must be running; it serves Qwen3.8-27B UD-Q6_K_M through
+  its own `llama-server` (ctx 98304, q8_0 KV). Its address and API key change on every Hermes launch,
+  so `.mcp.json` points at `D:\Documents\Claude Code\_tools\lv-hermes-launch.mjs`, which reads Hermes's
+  `%LOCALAPPDATA%\hermes\runtimes\llamacpp\server.json` at MCP startup (never logs the key), sets thinking
+  off, bash off, concurrency 1, then starts local-vibes. Tested end to end over MCP stdio in a sandbox.
+  If Hermes is restarted mid-session, restart the Claude session so the launcher re-reads the key.
+  If `delegate` returns "401 Invalid API Key" or a connection error, Hermes isn't running or has restarted.
+  (Old LM Studio/Bionic setup, port 1235, is retired.)
 - **`LOCAL_VIBES_ALLOW_BASH=0`: keep it that way.** The upstream bash tool only sets `cwd`; it is
   not a sandbox. With bash off the model cannot run Gradle, so Claude runs `.\gradlew build` itself.
 - File tools are confined to `working_dir` by a path-prefix check only, and `.git/` is writable.
