@@ -1,4 +1,24 @@
 {
   "entity.dinodread.trex": "Tyrannosaurus Rex",
-  "item.dinodread.trex_spawn_egg": "Tyrannosaurus Rex Spawn Egg"
+  "item.dinodread.trex_spawn_egg": "Tyrannosaurus Rex Spawn Egg",
+
+  "dinodread.configuration.title": "Dino Dread Atmosphere",
+  "dinodread.configuration.section.dinodread.client.toml": "Dino Dread Atmosphere",
+  "dinodread.configuration.section.dinodread.client.toml.title": "Dino Dread Atmosphere",
+  "dinodread.configuration.fog": "Fog",
+  "dinodread.configuration.darkness": "Darkness",
+  "dinodread.configuration.masterEnabled": "Atmosphere Enabled",
+  "dinodread.configuration.overworldOnly": "Overworld Only",
+  "dinodread.configuration.fogEnabled": "Fog Enabled",
+  "dinodread.configuration.fogDayEndDistance": "Day Fog End Distance",
+  "dinodread.configuration.fogNightEndDistance": "Night Fog End Distance",
+  "dinodread.configuration.fogStartFraction": "Fog Start Fraction",
+  "dinodread.configuration.fogColorBlend": "Fog Color Strength",
+  "dinodread.configuration.fogDayColor": "Day Fog Color",
+  "dinodread.configuration.fogNightColor": "Night Fog Color",
+  "dinodread.configuration.fogHidesSky": "Fog Hides Sky",
+  "dinodread.configuration.darknessEnabled": "Darkness Enabled",
+  "dinodread.configuration.daySkyLightScale": "Day Sky Light",
+  "dinodread.configuration.nightSkyLightScale": "Night Sky Light",
+  "dinodread.configuration.ambientLightScale": "Ambient Light"
 }
