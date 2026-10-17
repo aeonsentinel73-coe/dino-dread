@@ -68,17 +68,17 @@ public final class RexGameTests {
     private static final String DAYLIGHT = "trex_dulled_by_daylight";
 
     // Flat stone arena, in blocks around the test origin: x in [-ARENA_HALF_WIDTH, +], z in [-ARENA_BACK, ARENA_FRONT].
-    private static final int ARENA_HALF_WIDTH = 12;
+    static final int ARENA_HALF_WIDTH = 12;
     private static final int ARENA_BACK = 12;
-    private static final int ARENA_FRONT = 60;
+    static final int ARENA_FRONT = 60;
     private static final int ARENA_HEIGHT = 16;
     private static final int LOG_INTERVAL_TICKS = 20;
     private static final double WANDER_MIN_DISTANCE = 6.0;
-    private static final float FACING_SOUTH = 0.0F;
+    static final float FACING_SOUTH = 0.0F;
     private static final float FACING_NORTH = 180.0F;
     // The tick loop runs flat out (thousands of ticks a second) while chunk entities load on an IO thread, so the wait
     // for the arena is paced and limited in wall-clock time, not ticks.
-    private static final int TEST_TIMEOUT_TICKS = 200_000;
+    static final int TEST_TIMEOUT_TICKS = 200_000;
     private static final long ARENA_READY_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(30);
     private static final long ARENA_POLL_NANOS = TimeUnit.MILLISECONDS.toNanos(1);
     private static final int HUNT_MAX_TICKS = 900;
@@ -89,7 +89,7 @@ public final class RexGameTests {
     private static final double PLAYER_NEAR_DISTANCE = 15.0;
     // Overworld day cycle clock values: 6000 is noon, 18000 is midnight (data/minecraft/timeline/day.json).
     private static final long NOON_TICKS = 6000L;
-    private static final long MIDNIGHT_TICKS = 18000L;
+    static final long MIDNIGHT_TICKS = 18000L;
     // After the clock is set, the environment attributes need a tick or two before the sky light factor follows.
     private static final int CLOCK_SETTLE_TICKS = 3;
     private static final double DAYLIGHT_TEST_DISTANCE = 35.0;
@@ -120,13 +120,13 @@ public final class RexGameTests {
         addTest(event, DAYLIGHT, TEST_TIMEOUT_TICKS);
     }
 
-    private static void addTest(RegisterGameTestsEvent event, String name, int maxTicks) {
+    static void addTest(RegisterGameTestsEvent event, String name, int maxTicks) {
         Holder<TestEnvironmentDefinition<?>> environment = event.registerEnvironment(id(name));
         TestData<Holder<TestEnvironmentDefinition<?>>> data = new TestData<>(environment, Identifier.withDefaultNamespace("empty"), maxTicks, 0, true);
         event.registerTest(id(name), new FunctionGameTestInstance(ResourceKey.create(Registries.TEST_FUNCTION, id(name)), data));
     }
 
-    private static Identifier id(String name) {
+    static Identifier id(String name) {
         return Identifier.fromNamespaceAndPath(DinoDread.MODID, name);
     }
 
@@ -234,7 +234,7 @@ public final class RexGameTests {
             });
     }
 
-    private static void stepNoise(Run run) {
+    static void stepNoise(Run run) {
         run.helper.getLevel().gameEvent(GameEvent.STEP, run.player.position(), GameEvent.Context.of(run.player));
     }
 
@@ -244,7 +244,13 @@ public final class RexGameTests {
      * {@code maxTicks} ticks have passed since the start.
      */
     private static void scenario(GameTestHelper helper, long clockTicks, float rexYaw, @Nullable Vec3 playerPos, boolean playerSneaking, int maxTicks, Consumer<Run> onStart, Consumer<Run> step) {
+        scenario(helper, clockTicks, rexYaw, playerPos, playerSneaking, maxTicks, origin -> {}, onStart, step);
+    }
+
+    /** As above, but {@code structure} gets the arena origin right after the flat arena is built, to add obstacles. */
+    static void scenario(GameTestHelper helper, long clockTicks, float rexYaw, @Nullable Vec3 playerPos, boolean playerSneaking, int maxTicks, Consumer<BlockPos> structure, Consumer<Run> onStart, Consumer<Run> step) {
         BlockPos origin = buildArena(helper);
+        structure.accept(origin);
         helper.setTime(clockTicks);
         Run run = new Run(helper, origin);
         long waitStart = System.nanoTime();
@@ -291,7 +297,8 @@ public final class RexGameTests {
     }
 
     /** State of one running test. */
-    private static final class Run {
+    static final class Run {
+        final List<Runnable> cleanups = new ArrayList<>();
         final GameTestHelper helper;
         final BlockPos origin;
         @Nullable TRex rex;
@@ -331,6 +338,7 @@ public final class RexGameTests {
 
         private void cleanUp() {
             done = true;
+            cleanups.forEach(Runnable::run);
             if (rex != null) {
                 rex.discard();
             }
