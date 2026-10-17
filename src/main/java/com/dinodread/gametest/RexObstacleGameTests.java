@@ -12,6 +12,9 @@ import java.util.function.Consumer;
 
 import com.dinodread.DinoDread;
 import com.dinodread.entity.ai.RexBlockBreaker;
+import com.dinodread.entity.ai.RexStuckDetector;
+import com.dinodread.entity.ai.RexStuckDetector.Level;
+import com.dinodread.config.RexConfig;
 import com.dinodread.gametest.RexGameTests.Run;
 
 import net.minecraft.core.BlockPos;
@@ -46,6 +49,7 @@ public final class RexObstacleGameTests {
     private static final String TREES = "trex_pushes_through_trees";
     private static final String LEDGE = "trex_climbs_ledge";
     private static final String BREAKER = "trex_block_breaker_follows_the_rules";
+    private static final String STUCK = "trex_stuck_detector_escalates";
 
     // House: a hollow box with a flat roof, door gap in the wall facing the rex. Offsets are from the arena origin;
     // the rex starts at z=0 and comes from lower z. The door is 1 wide, far too narrow for the 9 wide body.
@@ -79,6 +83,7 @@ public final class RexObstacleGameTests {
     private static final int NO_GRIEF_WATCH_TICKS = 600;
     private static final int BREAKER_WATCH_TICKS = 30;
     private static final int BREAKER_MAX_TICKS = 60;
+    private static final double STUCK_TEST_DISTANCE = 50.0;
     // Rex centre z at which its front edge (4.5 blocks ahead) touches the house wall, with a little slack.
     private static final double HOUSE_WALL_CONTACT_Z = HOUSE_FRONT_Z - 4.5 - 1.5;
 
@@ -89,6 +94,7 @@ public final class RexObstacleGameTests {
         FUNCTIONS.register(TREES, () -> RexObstacleGameTests::pushesThroughTrees);
         FUNCTIONS.register(LEDGE, () -> RexObstacleGameTests::climbsLedge);
         FUNCTIONS.register(BREAKER, () -> RexObstacleGameTests::blockBreakerFollowsTheRules);
+        FUNCTIONS.register(STUCK, () -> RexObstacleGameTests::stuckDetectorEscalates);
     }
 
     private RexObstacleGameTests() {}
@@ -105,6 +111,7 @@ public final class RexObstacleGameTests {
         RexGameTests.addTest(event, TREES, TEST_TIMEOUT_TICKS);
         RexGameTests.addTest(event, LEDGE, TEST_TIMEOUT_TICKS);
         RexGameTests.addTest(event, BREAKER, TEST_TIMEOUT_TICKS);
+        RexGameTests.addTest(event, STUCK, TEST_TIMEOUT_TICKS);
     }
 
     /** Wooden house with a too-narrow door, player inside: the rex breaks wall blocks and bites the player. */
@@ -262,6 +269,76 @@ public final class RexObstacleGameTests {
                     run.pass();
                 }
             });
+    }
+
+    /**
+     * Pure logic test of {@link RexStuckDetector}, no entity: a destination that never gets closer escalates FREE, BREAK, HOP, SIDESTEP,
+     * GIVE_UP at the configured thresholds (levels only change on check ticks); the sidestep direction alternates; real progress,
+     * {@code markProgress()} and {@code reset()} all bring it back to FREE.
+     */
+    private static void stuckDetectorEscalates(GameTestHelper helper) {
+        int check = RexConfig.STUCK_CHECK_INTERVAL_TICKS.get();
+        int breakAfter = RexConfig.STUCK_BREAK_AFTER_TICKS.get();
+        int hopAfter = RexConfig.STUCK_HOP_AFTER_TICKS.get();
+        int sidestepAfter = RexConfig.STUCK_SIDESTEP_AFTER_TICKS.get();
+        int giveUpAfter = RexConfig.STUCK_GIVE_UP_AFTER_TICKS.get();
+        int switchTicks = RexConfig.STUCK_SIDESTEP_SWITCH_TICKS.get();
+        if (!(breakAfter < hopAfter && hopAfter < sidestepAfter && sidestepAfter < giveUpAfter)) {
+            helper.fail("test setup: stuck thresholds must be increasing in the config");
+        }
+
+        RexStuckDetector detector = new RexStuckDetector();
+        for (int tick = 1; tick <= giveUpAfter + 2 * check; tick++) {
+            Level level = detector.tick(STUCK_TEST_DISTANCE);
+            int stuckTicks = tick / check * check;
+            Level expected = stuckTicks >= giveUpAfter ? Level.GIVE_UP : stuckTicks >= sidestepAfter ? Level.SIDESTEP
+                : stuckTicks >= hopAfter ? Level.HOP : stuckTicks >= breakAfter ? Level.BREAK : Level.FREE;
+            if (level != expected) {
+                helper.fail("tick " + tick + ": expected " + expected + " but got " + level);
+            }
+            if (level == Level.SIDESTEP) {
+                double expectedSign = (stuckTicks - sidestepAfter) / switchTicks % 2 == 0 ? 1.0 : -1.0;
+                if (detector.getSidestepSign() != expectedSign) {
+                    helper.fail("tick " + tick + ": sidestep sign should be " + expectedSign + " but is " + detector.getSidestepSign());
+                }
+            }
+        }
+        if (detector.getLevel() != Level.GIVE_UP) {
+            helper.fail("getLevel() should report GIVE_UP after being stuck for a long time, got " + detector.getLevel());
+        }
+
+        // Closing in by clearly more than the minimum progress at every check never counts as stuck.
+        RexStuckDetector moving = new RexStuckDetector();
+        double distance = STUCK_TEST_DISTANCE;
+        for (int tick = 1; tick <= giveUpAfter * 2; tick++) {
+            if (tick % check == 0) {
+                distance -= 2.0 * RexConfig.STUCK_MIN_PROGRESS.get();
+            }
+            if (moving.tick(distance) != Level.FREE) {
+                helper.fail("tick " + tick + ": a rex that keeps closing in must stay FREE, got " + moving.getLevel());
+            }
+        }
+
+        // markProgress() and reset() both drop straight back to FREE and need a fresh stretch of being stuck to escalate again.
+        RexStuckDetector other = new RexStuckDetector();
+        for (int tick = 1; tick <= hopAfter; tick++) {
+            other.tick(STUCK_TEST_DISTANCE);
+        }
+        if (other.getLevel().ordinal() < Level.HOP.ordinal()) {
+            helper.fail("test setup: should be at least HOP after " + hopAfter + " stuck ticks, got " + other.getLevel());
+        }
+        other.markProgress();
+        if (other.tick(STUCK_TEST_DISTANCE) != Level.FREE) {
+            helper.fail("markProgress() should bring the level back to FREE, got " + other.getLevel());
+        }
+        for (int tick = 1; tick <= hopAfter; tick++) {
+            other.tick(STUCK_TEST_DISTANCE);
+        }
+        other.reset();
+        if (other.getLevel() != Level.FREE || other.tick(STUCK_TEST_DISTANCE) != Level.FREE) {
+            helper.fail("reset() should bring the level back to FREE, got " + other.getLevel());
+        }
+        helper.succeed();
     }
 
     // ---- scenario helpers ----
