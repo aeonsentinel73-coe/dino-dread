@@ -53,5 +53,7 @@
   "dinodread.configuration.investigateReachDistance": "Noise Arrival Distance",
   "dinodread.configuration.biteReach": "Bite Reach",
   "dinodread.configuration.biteWindupTicks": "Bite Windup (ticks)",
-  "dinodread.configuration.biteCooldownTicks": "Bite Cooldown (ticks)"
+  "dinodread.configuration.biteCooldownTicks": "Bite Cooldown (ticks)",
+  "dinodread.configuration.daytime": "Daytime",
+  "dinodread.configuration.dayAggression": "Daytime Aggression"
 }

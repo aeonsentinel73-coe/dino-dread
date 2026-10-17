@@ -65,6 +65,7 @@ public final class RexGameTests {
     private static final String WANDER = "trex_wanders";
     private static final String HEARS = "trex_hears_footsteps";
     private static final String SNEAK = "trex_barely_hears_sneaking";
+    private static final String DAYLIGHT = "trex_dulled_by_daylight";
 
     // Flat stone arena, in blocks around the test origin: x in [-ARENA_HALF_WIDTH, +], z in [-ARENA_BACK, ARENA_FRONT].
     private static final int ARENA_HALF_WIDTH = 12;
@@ -86,12 +87,21 @@ public final class RexGameTests {
     private static final double HEARS_MIN_APPROACH = 3.0;
     private static final double PLAYER_BEHIND_DISTANCE = 40.0;
     private static final double PLAYER_NEAR_DISTANCE = 15.0;
+    // Overworld day cycle clock values: 6000 is noon, 18000 is midnight (data/minecraft/timeline/day.json).
+    private static final long NOON_TICKS = 6000L;
+    private static final long MIDNIGHT_TICKS = 18000L;
+    // After the clock is set, the environment attributes need a tick or two before the sky light factor follows.
+    private static final int CLOCK_SETTLE_TICKS = 3;
+    private static final double DAYLIGHT_TEST_DISTANCE = 35.0;
+    private static final int DAYLIGHT_WATCH_TICKS = 20;
+    private static final int DAYLIGHT_MAX_TICKS = 60;
 
     static {
         FUNCTIONS.register(HUNT, () -> RexGameTests::huntsPlayer);
         FUNCTIONS.register(WANDER, () -> RexGameTests::wanders);
         FUNCTIONS.register(HEARS, () -> RexGameTests::hearsFootsteps);
         FUNCTIONS.register(SNEAK, () -> RexGameTests::barelyHearsSneaking);
+        FUNCTIONS.register(DAYLIGHT, () -> RexGameTests::daylightDullsSenses);
     }
 
     private RexGameTests() {}
@@ -107,6 +117,7 @@ public final class RexGameTests {
         addTest(event, WANDER, TEST_TIMEOUT_TICKS);
         addTest(event, HEARS, TEST_TIMEOUT_TICKS);
         addTest(event, SNEAK, TEST_TIMEOUT_TICKS);
+        addTest(event, DAYLIGHT, TEST_TIMEOUT_TICKS);
     }
 
     private static void addTest(RegisterGameTestsEvent event, String name, int maxTicks) {
@@ -122,7 +133,7 @@ public final class RexGameTests {
     /** On flat open ground a T-rex that can see a survival player stalks, charges and bites it. */
     private static void huntsPlayer(GameTestHelper helper) {
         float[] startHealth = new float[1];
-        scenario(helper, FACING_SOUTH, new Vec3(0.5, 0, 30.5), false, HUNT_MAX_TICKS,
+        scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, new Vec3(0.5, 0, 30.5), false, HUNT_MAX_TICKS,
             run -> startHealth[0] = run.player.getHealth(),
             run -> {
                 run.status = "player untouched; rex state=" + run.rex.getHuntState() + " distance=" + String.format("%.1f", run.rex.distanceTo(run.player));
@@ -140,7 +151,7 @@ public final class RexGameTests {
     /** With nobody around, the T-rex still roams. */
     private static void wanders(GameTestHelper helper) {
         Vec3[] start = new Vec3[1];
-        scenario(helper, FACING_SOUTH, null, false, WANDER_MAX_TICKS,
+        scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, null, false, WANDER_MAX_TICKS,
             run -> start[0] = run.rex.position(),
             run -> {
                 double moved = run.rex.position().subtract(start[0]).horizontalDistance();
@@ -160,7 +171,7 @@ public final class RexGameTests {
     private static void hearsFootsteps(GameTestHelper helper) {
         double[] startDistance = new double[1];
         boolean[] investigated = new boolean[1];
-        scenario(helper, FACING_NORTH, new Vec3(0.5, 0, PLAYER_BEHIND_DISTANCE + 0.5), false, LISTEN_MAX_TICKS,
+        scenario(helper, MIDNIGHT_TICKS, FACING_NORTH, new Vec3(0.5, 0, PLAYER_BEHIND_DISTANCE + 0.5), false, LISTEN_MAX_TICKS,
             run -> {
                 run.check(run.rex.distanceTo(run.player) < RexConfig.HEARING_RADIUS.get(), "test setup: player must be inside the hearing radius");
                 run.check(!run.rex.getSenses().hasQuarry(), "test setup: rex must start with no quarry");
@@ -181,7 +192,7 @@ public final class RexGameTests {
 
     /** Sneaking shrinks the hearing radius: inaudible at 40 blocks, audible at 15. Both noises are made in the spawn tick. */
     private static void barelyHearsSneaking(GameTestHelper helper) {
-        scenario(helper, FACING_NORTH, new Vec3(0.5, 0, PLAYER_BEHIND_DISTANCE + 0.5), true, LISTEN_MAX_TICKS,
+        scenario(helper, MIDNIGHT_TICKS, FACING_NORTH, new Vec3(0.5, 0, PLAYER_BEHIND_DISTANCE + 0.5), true, LISTEN_MAX_TICKS,
             run -> {
                 double sneakRadius = RexConfig.HEARING_RADIUS.get() * RexConfig.SNEAK_HEARING_MULTIPLIER.get();
                 run.check(PLAYER_BEHIND_DISTANCE > sneakRadius, "test setup: the far position must be outside the sneak hearing radius");
@@ -198,6 +209,31 @@ public final class RexGameTests {
             run -> {});
     }
 
+    /**
+     * In daylight the T-rex is calmer: a player in view but beyond the reduced daytime sight range is not seen, and a
+     * noise beyond the reduced daytime hearing radius is not heard, although both would be in range at night.
+     */
+    private static void daylightDullsSenses(GameTestHelper helper) {
+        scenario(helper, NOON_TICKS, FACING_SOUTH, new Vec3(0.5, 0, DAYLIGHT_TEST_DISTANCE + 0.5), false, DAYLIGHT_MAX_TICKS,
+            run -> {
+                double dayAggression = RexConfig.DAY_AGGRESSION.get();
+                run.check(DAYLIGHT_TEST_DISTANCE < RexConfig.SIGHT_RANGE.get(), "test setup: the player must be inside the night sight range");
+                run.check(DAYLIGHT_TEST_DISTANCE > RexConfig.SIGHT_RANGE.get() * dayAggression, "test setup: the player must be outside the daytime sight range");
+                run.check(DAYLIGHT_TEST_DISTANCE < RexConfig.HEARING_RADIUS.get(), "test setup: the noise must be inside the night hearing radius");
+                run.check(DAYLIGHT_TEST_DISTANCE > RexConfig.HEARING_RADIUS.get() * dayAggression, "test setup: the noise must be outside the daytime hearing radius");
+                run.check(!run.rex.getSenses().hasQuarry(), "test setup: rex must start with no quarry");
+                stepNoise(run);
+                run.check(!run.rex.getSenses().hasQuarry(), "in daylight a noise beyond the reduced hearing radius should not be heard");
+            },
+            run -> {
+                run.status = "daytime sight check";
+                run.check(!run.rex.getSenses().hasQuarry(), "in daylight a player beyond the reduced sight range should not be seen");
+                if (run.age() >= DAYLIGHT_WATCH_TICKS) {
+                    run.pass();
+                }
+            });
+    }
+
     private static void stepNoise(Run run) {
         run.helper.getLevel().gameEvent(GameEvent.STEP, run.player.position(), GameEvent.Context.of(run.player));
     }
@@ -207,8 +243,9 @@ public final class RexGameTests {
      * given), runs {@code onStart} once, then runs {@code step} every tick until it calls {@link Run#pass()} or
      * {@code maxTicks} ticks have passed since the start.
      */
-    private static void scenario(GameTestHelper helper, float rexYaw, @Nullable Vec3 playerPos, boolean playerSneaking, int maxTicks, Consumer<Run> onStart, Consumer<Run> step) {
+    private static void scenario(GameTestHelper helper, long clockTicks, float rexYaw, @Nullable Vec3 playerPos, boolean playerSneaking, int maxTicks, Consumer<Run> onStart, Consumer<Run> step) {
         BlockPos origin = buildArena(helper);
+        helper.setTime(clockTicks);
         Run run = new Run(helper, origin);
         long waitStart = System.nanoTime();
         helper.onEachTick(() -> {
@@ -217,6 +254,9 @@ public final class RexGameTests {
             }
 
             if (run.rex == null) {
+                if (helper.getTick() < CLOCK_SETTLE_TICKS) {
+                    return;
+                }
                 if (!arenaReady(helper.getLevel(), origin)) {
                     if (System.nanoTime() - waitStart > ARENA_READY_TIMEOUT_NANOS) {
                         run.fail("arena chunks never became entity-ticking: " + describeArena(helper.getLevel(), origin));

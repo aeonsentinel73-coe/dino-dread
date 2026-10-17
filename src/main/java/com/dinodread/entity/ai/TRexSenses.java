@@ -86,7 +86,7 @@ public class TRexSenses {
             scanForPlayers(level);
         }
 
-        if (hasQuarry() && ticksSinceContact > RexConfig.GIVE_UP_TICKS.get()) {
+        if (hasQuarry() && ticksSinceContact > RexConfig.GIVE_UP_TICKS.get() * rex.activity()) {
             forget();
         }
     }
@@ -97,7 +97,7 @@ public class TRexSenses {
             return;
         }
 
-        double radius = RexConfig.HEARING_RADIUS.get() * (player.isSteppingCarefully() ? RexConfig.SNEAK_HEARING_MULTIPLIER.get() : 1.0);
+        double radius = RexConfig.HEARING_RADIUS.get() * rex.activity() * (player.isSteppingCarefully() ? RexConfig.SNEAK_HEARING_MULTIPLIER.get() : 1.0);
         if (rex.distanceToSqr(noisePos) > radius * radius) {
             return;
         }
@@ -142,7 +142,7 @@ public class TRexSenses {
             return false;
         }
 
-        double range = RexConfig.SIGHT_RANGE.get() * (player.isSteppingCarefully() ? RexConfig.SNEAK_SIGHT_MULTIPLIER.get() : 1.0);
+        double range = RexConfig.SIGHT_RANGE.get() * rex.activity() * (player.isSteppingCarefully() ? RexConfig.SNEAK_SIGHT_MULTIPLIER.get() : 1.0);
         if (rex.distanceToSqr(player) > range * range) {
             return false;
         }

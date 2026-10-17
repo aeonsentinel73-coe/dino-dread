@@ -3,6 +3,8 @@ package com.dinodread.client;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
 
+import com.dinodread.world.DayNight;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.state.LightmapRenderState;
@@ -11,17 +13,11 @@ import net.minecraft.world.level.Level;
 
 /** Shared helpers for the atmosphere hooks ({@link AtmosphereEvents} and the lightmap mixin). Client only. */
 public final class AtmosphereEffects {
-    /**
-     * Vanilla overworld SKY_LIGHT_FACTOR at full night (data/minecraft/timeline/day.json); full day is 1.0.
-     * Used only to turn a sky-light factor into a 0 (day) .. 1 (night) blend.
-     */
-    private static final float VANILLA_NIGHT_SKY_FACTOR = 0.24F;
-
     private AtmosphereEffects() {}
 
-    /** 0 in full daylight, 1 at full night, from a SKY_LIGHT_FACTOR value. */
+    /** 0 in full daylight, 1 at full night, from a SKY_LIGHT_FACTOR value (shared with the server-side T-rex AI). */
     public static float nightFactor(float skyLightFactor) {
-        return Mth.clamp((1.0F - skyLightFactor) / (1.0F - VANILLA_NIGHT_SKY_FACTOR), 0.0F, 1.0F);
+        return DayNight.nightFactor(skyLightFactor);
     }
 
     /** True when the master switch is on and the level is one we apply effects in. */

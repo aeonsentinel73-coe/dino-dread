@@ -5,6 +5,7 @@ import com.dinodread.entity.ai.HuntState;
 import com.dinodread.entity.ai.TRexHuntGoal;
 import com.dinodread.entity.ai.TRexSenses;
 import com.dinodread.entity.ai.TRexWanderGoal;
+import com.dinodread.world.DayNight;
 
 import com.geckolib.animatable.GeoEntity;
 import com.geckolib.animatable.instance.AnimatableInstanceCache;
@@ -12,6 +13,7 @@ import com.geckolib.animatable.manager.AnimatableManager;
 import com.geckolib.util.GeckoLibUtil;
 
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
@@ -56,6 +58,14 @@ public class TRex extends Monster implements GeoEntity {
 
     public void setHuntState(HuntState huntState) {
         this.huntState = huntState;
+    }
+
+    /**
+     * How alert the T-rex is right now: 1.0 at night, {@link RexConfig#DAY_AGGRESSION} in full daylight, blended at dusk
+     * and dawn. Scales sight range, hearing radius, charge distance and duration, and how long it keeps hunting.
+     */
+    public double activity() {
+        return Mth.lerp(DayNight.nightFactor(level(), position()), RexConfig.DAY_AGGRESSION.get(), 1.0);
     }
 
     /** True if the target is within bite reach, measured from the edge of the (scaled) hitbox. */

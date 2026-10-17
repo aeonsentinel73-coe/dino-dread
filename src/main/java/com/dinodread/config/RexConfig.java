@@ -40,6 +40,8 @@ public final class RexConfig {
     public static final ModConfigSpec.IntValue BITE_WINDUP_TICKS;
     public static final ModConfigSpec.IntValue BITE_COOLDOWN_TICKS;
 
+    public static final ModConfigSpec.DoubleValue DAY_AGGRESSION;
+
     public static final ModConfigSpec SPEC;
 
     static {
@@ -77,7 +79,7 @@ public final class RexConfig {
         BUILDER.push("senses");
         SIGHT_RANGE = BUILDER
                 .comment("How far the T-rex can see a player (needs line of sight), in blocks.")
-                .defineInRange("sightRange", 48.0, 4.0, 256.0);
+                .defineInRange("sightRange", 40.0, 4.0, 256.0);
         SIGHT_FOV_DEGREES = BUILDER
                 .comment("Width of the T-rex's field of view in degrees. 360 = sees all around.")
                 .defineInRange("sightFieldOfViewDegrees", 270.0, 30.0, 360.0);
@@ -87,7 +89,7 @@ public final class RexConfig {
         HEARING_RADIUS = BUILDER
                 .comment("How far the T-rex hears a player's noises (steps, mining, placing, ...), in blocks. 0 = deaf.",
                         "Vanilla makes no footstep noise for a sneaking player on the ground, so sneaking is silent for steps.")
-                .defineInRange("hearingRadius", 64.0, 0.0, 256.0);
+                .defineInRange("hearingRadius", 52.0, 0.0, 256.0);
         SNEAK_HEARING_MULTIPLIER = BUILDER
                 .comment("Multiplier on hearing radius for a sneaking player.")
                 .defineInRange("sneakHearingMultiplier", 0.35, 0.0, 1.0);
@@ -117,13 +119,13 @@ public final class RexConfig {
                 .defineInRange("stalkTicksBeforeCharge", 100, 0, 2400);
         CHARGE_MAX_TICKS = BUILDER
                 .comment("Longest a single charge lasts before the T-rex drops back to stalking.")
-                .defineInRange("chargeMaxTicks", 200, 20, 2400);
+                .defineInRange("chargeMaxTicks", 120, 20, 2400);
         CHARGE_COOLDOWN_TICKS = BUILDER
                 .comment("Ticks after a charge ends before it can charge again.")
                 .defineInRange("chargeCooldownTicks", 100, 0, 2400);
         GIVE_UP_TICKS = BUILDER
                 .comment("Ticks without seeing or hearing its target before the T-rex gives up and goes back to wandering.")
-                .defineInRange("giveUpTicks", 400, 20, 12000);
+                .defineInRange("giveUpTicks", 240, 20, 12000);
         USE_PATHFINDING = BUILDER
                 .comment("Use vanilla pathfinding while hunting. Off = walk straight at the target, which is reliable on open ground",
                         "but ignores terrain. Vanilla pathfinding is slow and unreliable for a body this wide (milestone 4 replaces both).")
@@ -140,6 +142,14 @@ public final class RexConfig {
         BITE_COOLDOWN_TICKS = BUILDER
                 .comment("Ticks between bites.")
                 .defineInRange("biteCooldownTicks", 40, 5, 400);
+        BUILDER.pop();
+
+        BUILDER.push("daytime");
+        DAY_AGGRESSION = BUILDER
+                .comment("How active the T-rex is in full daylight compared with night (1 = no difference, lower = calmer).",
+                        "Scales sight range, hearing radius, charge distance, charge duration and how long it keeps hunting.",
+                        "Dusk and dawn blend between the two.")
+                .defineInRange("dayAggression", 0.6, 0.0, 1.0);
         BUILDER.pop();
 
         SPEC = BUILDER.build();

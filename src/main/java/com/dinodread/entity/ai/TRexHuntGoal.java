@@ -124,10 +124,11 @@ public class TRexHuntGoal extends Goal {
             }
         } else {
             stalkSeenTicks++;
-            boolean close = rex.distanceTo(target) <= RexConfig.CHARGE_DISTANCE.get();
+            double activity = rex.activity();
+            boolean close = rex.distanceTo(target) <= RexConfig.CHARGE_DISTANCE.get() * activity;
             boolean watchedLongEnough = stalkSeenTicks >= RexConfig.STALK_TICKS_BEFORE_CHARGE.get();
             if (chargeCooldownTicks == 0 && (close || watchedLongEnough)) {
-                chargeTicks = RexConfig.CHARGE_MAX_TICKS.get();
+                chargeTicks = Math.max(1, (int) Math.round(RexConfig.CHARGE_MAX_TICKS.get() * activity));
                 stalkSeenTicks = 0;
             }
         }
