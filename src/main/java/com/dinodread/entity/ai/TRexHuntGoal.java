@@ -17,16 +17,16 @@ import net.minecraft.world.phys.Vec3;
  * The T-rex's whole hunt as one small state machine (see {@link HuntState}): investigate a noise or last known
  * position, stalk a target it can see, charge once it is close (or has watched it long enough), and bite
  * whenever it is in reach. Senses live in {@link TRexSenses}; every number comes from {@link RexConfig}.
- * Movement uses vanilla navigation with a straight-line fallback; wide-body pathing is milestone 4.
+ * Movement steers straight at the destination; the T-rex is far too wide for vanilla pathfinding, so it clears its way by breaking
+ * allow-listed blocks ({@link RexBlockBreaker}) and, when it stops making progress, hops, sidesteps and finally gives up ({@link RexStuckDetector}),
+ * all through the shared {@link RexMover}.
  */
 public class TRexHuntGoal extends Goal {
-    // How often the path is rebuilt. Wide-body path searches are not cheap, so not every tick.
-    private static final int PATH_RECALC_INTERVAL_TICKS = 10;
     private static final float LOOK_SPEED_DEGREES = 30.0F;
     private static final int NOT_BITING = -1;
 
     private final TRex rex;
-    private int pathRecalcTicks;
+    private final RexMover mover;
     private int stalkSeenTicks;
     private int chargeTicks;
     private int chargeCooldownTicks;
@@ -35,6 +35,7 @@ public class TRexHuntGoal extends Goal {
 
     public TRexHuntGoal(TRex rex) {
         this.rex = rex;
+        this.mover = new RexMover(rex);
         this.setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.LOOK));
     }
 
@@ -55,7 +56,7 @@ public class TRexHuntGoal extends Goal {
 
     @Override
     public void start() {
-        pathRecalcTicks = 0;
+        mover.reset();
         stalkSeenTicks = 0;
         chargeTicks = 0;
         biteWindupTicks = NOT_BITING;
@@ -63,6 +64,7 @@ public class TRexHuntGoal extends Goal {
 
     @Override
     public void stop() {
+        mover.reset();
         rex.getNavigation().stop();
         rex.setAggressive(false);
         rex.setHuntState(HuntState.WANDER);
@@ -97,16 +99,21 @@ public class TRexHuntGoal extends Goal {
             tickBite(target);
         }
 
+        boolean inBiteRange = visible && rex.isInBiteRange(target);
         double horizontalDistanceSqr = rex.position().subtract(destination).horizontalDistanceSqr();
         double arrival = RexConfig.INVESTIGATE_REACH_DISTANCE.get();
         if (state == HuntState.INVESTIGATE && horizontalDistanceSqr <= arrival * arrival) {
             // Nothing here: stand and stare until it gives up or hears something else.
+            mover.reset();
             rex.getNavigation().stop();
             return;
         }
 
         double speed = state == HuntState.CHARGE ? RexConfig.CHARGE_SPEED_MULTIPLIER.get() : RexConfig.STALK_SPEED_MULTIPLIER.get();
-        driveTo(destination, speed);
+        if (mover.driveTo(destination, speed, inBiteRange, true) == RexStuckDetector.Level.GIVE_UP) {
+            rex.getSenses().forget();
+            rex.getNavigation().stop();
+        }
     }
 
     private HuntState updateState(@Nullable LivingEntity target, boolean visible) {
@@ -156,23 +163,6 @@ public class TRexHuntGoal extends Goal {
                 rex.swingForAttack(InteractionHand.MAIN_HAND);
                 rex.doHurtTarget(level, target);
             }
-        }
-    }
-
-    private void driveTo(Vec3 destination, double speed) {
-        if (!RexConfig.USE_PATHFINDING.get()) {
-            rex.getMoveControl().setWantedPosition(destination.x, destination.y, destination.z, speed);
-            return;
-        }
-
-        if (--pathRecalcTicks <= 0) {
-            pathRecalcTicks = PATH_RECALC_INTERVAL_TICKS;
-            rex.getNavigation().moveTo(destination.x, destination.y, destination.z, speed);
-        }
-
-        // No path (or the path ran out short of the target): push straight at it.
-        if (rex.getNavigation().isDone()) {
-            rex.getMoveControl().setWantedPosition(destination.x, destination.y, destination.z, speed);
         }
     }
 }

@@ -31,6 +31,9 @@ public class TRex extends Monster implements GeoEntity {
 
     public TRex(EntityType<? extends TRex> type, Level level) {
         super(type, level);
+        // The scale attribute comes from the attribute defaults, which never fire the "scale changed" update that
+        // resizes the hitbox: without this the model is 3x but the hitbox stays at the unscaled 3 x 4 blocks.
+        refreshDimensions();
     }
 
     // Runs from the Mob constructor, before the fields above are initialized: goals must only touch them lazily.

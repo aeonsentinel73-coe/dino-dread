@@ -13,6 +13,7 @@ import net.neoforged.neoforge.common.NeoForge;
 import com.dinodread.config.RexConfig;
 import com.dinodread.entity.ai.TRexSenses;
 import com.dinodread.gametest.RexGameTests;
+import com.dinodread.gametest.RexObstacleGameTests;
 import com.dinodread.registry.ModEntities;
 import com.dinodread.registry.ModItems;
 
@@ -31,6 +32,7 @@ public class DinoDread {
         modEventBus.addListener(ModItems::addToCreativeTabs);
         NeoForge.EVENT_BUS.addListener(TRexSenses::onGameEvent);
         RexGameTests.register(modEventBus);
+        RexObstacleGameTests.register(modEventBus);
         LOGGER.info("Dino Dread loading");
     }
 }

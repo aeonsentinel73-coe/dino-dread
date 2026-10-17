@@ -1,5 +1,7 @@
 package com.dinodread.config;
 
+import java.util.List;
+
 import net.neoforged.neoforge.common.ModConfigSpec;
 
 /**
@@ -27,6 +29,7 @@ public final class RexConfig {
     public static final ModConfigSpec.DoubleValue WANDER_SPEED_MULTIPLIER;
     public static final ModConfigSpec.IntValue WANDER_INTERVAL_TICKS;
     public static final ModConfigSpec.IntValue WANDER_RANGE;
+    public static final ModConfigSpec.DoubleValue WANDER_ARRIVAL_DISTANCE;
     public static final ModConfigSpec.DoubleValue STALK_SPEED_MULTIPLIER;
     public static final ModConfigSpec.DoubleValue CHARGE_SPEED_MULTIPLIER;
     public static final ModConfigSpec.DoubleValue CHARGE_DISTANCE;
@@ -41,6 +44,26 @@ public final class RexConfig {
     public static final ModConfigSpec.IntValue BITE_COOLDOWN_TICKS;
 
     public static final ModConfigSpec.DoubleValue DAY_AGGRESSION;
+
+    public static final ModConfigSpec.BooleanValue GRIEFING_ENABLED;
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> BREAKABLE_BLOCKS;
+    public static final ModConfigSpec.BooleanValue BREAK_BLOCK_ENTITIES;
+    public static final ModConfigSpec.DoubleValue MAX_BREAK_HARDNESS;
+    public static final ModConfigSpec.IntValue BREAK_INTERVAL_TICKS;
+    public static final ModConfigSpec.IntValue BLOCKS_PER_BREAK;
+    public static final ModConfigSpec.DoubleValue BREAK_REACH;
+    public static final ModConfigSpec.BooleanValue BREAK_DROPS_ITEMS;
+
+    public static final ModConfigSpec.IntValue STUCK_CHECK_INTERVAL_TICKS;
+    public static final ModConfigSpec.DoubleValue STUCK_MIN_PROGRESS;
+    public static final ModConfigSpec.IntValue STUCK_BREAK_AFTER_TICKS;
+    public static final ModConfigSpec.IntValue STUCK_HOP_AFTER_TICKS;
+    public static final ModConfigSpec.IntValue STUCK_SIDESTEP_AFTER_TICKS;
+    public static final ModConfigSpec.IntValue STUCK_GIVE_UP_AFTER_TICKS;
+    public static final ModConfigSpec.IntValue STUCK_SIDESTEP_SWITCH_TICKS;
+    public static final ModConfigSpec.DoubleValue STUCK_SIDESTEP_DISTANCE;
+    public static final ModConfigSpec.DoubleValue STUCK_HOP_VELOCITY;
+    public static final ModConfigSpec.DoubleValue STUCK_HOP_FORWARD_VELOCITY;
 
     public static final ModConfigSpec SPEC;
 
@@ -68,8 +91,8 @@ public final class RexConfig {
                 .defineInRange("followRange", 64.0, 8.0, 128.0);
         STEP_HEIGHT = BUILDER
                 .gameRestart()
-                .comment("Step height attribute in blocks: how high it walks up without jumping.")
-                .defineInRange("stepHeight", 1.5, 0.0, 4.0);
+                .comment("Step height attribute in blocks: how high it walks up without jumping. The T-rex is 12 blocks tall, so 3 is a normal stride for it.")
+                .defineInRange("stepHeight", 3.0, 0.0, 4.0);
         SCALE = BUILDER
                 .gameRestart()
                 .comment("Scale attribute: multiplies the base hitbox and the model.")
@@ -105,6 +128,9 @@ public final class RexConfig {
         WANDER_RANGE = BUILDER
                 .comment("How far in blocks a wander destination can be from the T-rex.")
                 .defineInRange("wanderRange", 24, 4, 64);
+        WANDER_ARRIVAL_DISTANCE = BUILDER
+                .comment("How close, in blocks, to its wander destination counts as having arrived.")
+                .defineInRange("wanderArrivalDistance", 6.0, 1.0, 32.0);
         STALK_SPEED_MULTIPLIER = BUILDER
                 .comment("Speed multiplier while stalking or investigating a noise (approaching without full speed).")
                 .defineInRange("stalkSpeedMultiplier", 0.8, 0.1, 4.0);
@@ -142,6 +168,71 @@ public final class RexConfig {
         BITE_COOLDOWN_TICKS = BUILDER
                 .comment("Ticks between bites.")
                 .defineInRange("biteCooldownTicks", 40, 5, 400);
+        BUILDER.pop();
+
+        BUILDER.push("obstacles");
+        GRIEFING_ENABLED = BUILDER
+                .comment("Master switch for block breaking. Off = the T-rex never breaks any block. The mobGriefing game rule is honored too (rule off = no breaking).")
+                .define("griefingEnabled", true);
+        BREAKABLE_BLOCKS = BUILDER
+                .comment("Blocks the T-rex may break while pushing through obstacles. Entries are block ids (minecraft:glass) or block tags with a leading # (#minecraft:logs). Anything not matched is never broken. Stone, dirt and ores are deliberately absent.")
+                .defineListAllowEmpty("breakableBlocks",
+                        List.of("#minecraft:logs", "#minecraft:planks", "#minecraft:leaves", "#minecraft:wooden_doors",
+                                "#minecraft:wooden_trapdoors", "#minecraft:wooden_stairs", "#minecraft:wooden_slabs",
+                                "#minecraft:wooden_fences", "#c:glass_blocks", "#c:glass_panes"),
+                        () -> "minecraft:oak_planks",
+                        element -> element instanceof String);
+        BREAK_BLOCK_ENTITIES = BUILDER
+                .comment("Allow breaking blocks that hold data (chests, furnaces, signs...) when they match the list above. Off = those blocks are never broken.")
+                .define("breakBlockEntities", false);
+        MAX_BREAK_HARDNESS = BUILDER
+                .comment("Blocks harder than this (vanilla hardness: planks 2, logs 2, glass 0.3, obsidian 50) are never broken, even if listed.")
+                .defineInRange("maxBreakHardness", 5.0, 0.0, 3600000.0);
+        BREAK_INTERVAL_TICKS = BUILDER
+                .comment("Ticks between break actions while the T-rex is pushing against obstacles.")
+                .defineInRange("breakIntervalTicks", 4, 1, 200);
+        BLOCKS_PER_BREAK = BUILDER
+                .comment("Most blocks removed in one break action.")
+                .defineInRange("blocksPerBreak", 6, 1, 256);
+        BREAK_REACH = BUILDER
+                .comment("How far in front of its hitbox, in blocks, the T-rex breaks blocks.")
+                .defineInRange("breakReach", 1.5, 0.5, 16.0);
+        BREAK_DROPS_ITEMS = BUILDER
+                .comment("Broken blocks drop their items.")
+                .define("breakDropsItems", true);
+        BUILDER.pop();
+
+        BUILDER.push("stuck");
+        STUCK_CHECK_INTERVAL_TICKS = BUILDER
+                .comment("How often, in ticks, the T-rex checks whether it is getting closer to where it is going.")
+                .defineInRange("stuckCheckIntervalTicks", 10, 2, 100);
+        STUCK_MIN_PROGRESS = BUILDER
+                .comment("Blocks it must have closed in on its destination since the last check to count as making progress.")
+                .defineInRange("stuckMinProgress", 0.5, 0.05, 10.0);
+        STUCK_BREAK_AFTER_TICKS = BUILDER
+                .comment("Ticks without progress before it starts breaking blocks even when it is not touching a wall.")
+                .defineInRange("stuckBreakAfterTicks", 20, 1, 1200);
+        STUCK_HOP_AFTER_TICKS = BUILDER
+                .comment("Ticks without progress before it starts hopping (to get over ledges). Should be above the break value.")
+                .defineInRange("stuckHopAfterTicks", 60, 1, 1200);
+        STUCK_SIDESTEP_AFTER_TICKS = BUILDER
+                .comment("Ticks without progress before it starts walking sideways to go round the obstacle. Should be above the hop value.")
+                .defineInRange("stuckSidestepAfterTicks", 100, 1, 1200);
+        STUCK_GIVE_UP_AFTER_TICKS = BUILDER
+                .comment("Ticks without progress before it gives up on its current target. Should be above the sidestep value.")
+                .defineInRange("stuckGiveUpAfterTicks", 220, 1, 6000);
+        STUCK_SIDESTEP_SWITCH_TICKS = BUILDER
+                .comment("While sidestepping it switches between left and right every this many ticks.")
+                .defineInRange("stuckSidestepSwitchTicks", 40, 5, 400);
+        STUCK_SIDESTEP_DISTANCE = BUILDER
+                .comment("How far to the side, in blocks, a sidestep aims.")
+                .defineInRange("stuckSidestepDistance", 12.0, 2.0, 64.0);
+        STUCK_HOP_VELOCITY = BUILDER
+                .comment("Upward speed of a hop in blocks per tick (0.42 is a player jump; 0.9 clears roughly 4 blocks).")
+                .defineInRange("stuckHopVelocity", 0.9, 0.1, 3.0);
+        STUCK_HOP_FORWARD_VELOCITY = BUILDER
+                .comment("Forward speed of a hop in blocks per tick.")
+                .defineInRange("stuckHopForwardVelocity", 0.3, 0.0, 2.0);
         BUILDER.pop();
 
         BUILDER.push("daytime");
