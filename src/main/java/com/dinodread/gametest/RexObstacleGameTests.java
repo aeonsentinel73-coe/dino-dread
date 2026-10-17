@@ -93,6 +93,7 @@ public final class RexObstacleGameTests {
     private static final int FOREST_PLAYER_CLEARANCE = 3;
     private static final int FOREST_MAX_TICKS = 2400;
     private static final int FOREST_WANDER_TICKS = 3000;
+    private static final int FENCE_HEIGHT = 14;
     private static final int FOREST_WANDER_LOG_EVERY = 5;
     private static final double FOREST_WANDER_MIN_TRAVEL = 40.0;
     private static final int NOISE_INTERVAL_TICKS = 10;
@@ -303,7 +304,10 @@ public final class RexObstacleGameTests {
         Vec3[] last = new Vec3[1];
         long[] startNanos = new long[1];
         RexGameTests.scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, null, false, FOREST_WANDER_TICKS,
-            origin -> forest.addAll(buildForest(helper.getLevel(), origin)),
+            origin -> {
+                fenceArena(helper.getLevel(), origin);
+                forest.addAll(buildForest(helper.getLevel(), origin));
+            },
             run -> {
                 last[0] = run.rex.position();
                 startNanos[0] = System.nanoTime();
@@ -311,9 +315,9 @@ public final class RexObstacleGameTests {
             run -> {
                 travelled[0] += run.rex.position().subtract(last[0]).horizontalDistance();
                 last[0] = run.rex.position();
-                run.status = "rex only wandered " + String.format("%.1f", travelled[0]) + " blocks through the forest";
+                run.status = "rex only wandered " + String.format("%.1f", travelled[0]) + " blocks through the forest (alive=" + run.rex.isAlive() + ", x=" + String.format("%.1f", run.rex.getX() - run.origin.getX()) + ", y=" + String.format("%.1f", run.rex.getY() - run.origin.getY()) + ", z=" + String.format("%.1f", rexZ(run)) + ")";
                 if (run.age() % (LOG_INTERVAL_TICKS * FOREST_WANDER_LOG_EVERY) == 0) {
-                    DinoDread.LOGGER.info("[gametest] forest wander tick {} travelled={} rexZ={} broken={}", run.age(), String.format("%.1f", travelled[0]), String.format("%.1f", rexZ(run)), countBroken(run, forest));
+                    DinoDread.LOGGER.info("[gametest] forest wander tick {} travelled={} rexZ={} navDone={}", run.age(), String.format("%.1f", travelled[0]), String.format("%.1f", rexZ(run)), run.rex.getNavigation().isDone());
                 }
                 if (travelled[0] >= FOREST_WANDER_MIN_TRAVEL) {
                     DinoDread.LOGGER.info("[gametest] forest wander: {} blocks in {} ticks, {} ms wall time", String.format("%.1f", travelled[0]), run.age(), (System.nanoTime() - startNanos[0]) / 1_000_000L);
@@ -556,6 +560,24 @@ public final class RexObstacleGameTests {
             }
         }
         return placed;
+    }
+
+    /** Stone walls just outside the arena so a wandering rex stays inside it (beyond the arena is ordinary generated terrain). */
+    private static void fenceArena(ServerLevel level, BlockPos origin) {
+        BlockState stone = Blocks.STONE.defaultBlockState();
+        int minX = -RexGameTests.ARENA_HALF_WIDTH - 1;
+        int maxX = RexGameTests.ARENA_HALF_WIDTH + 1;
+        int minZ = -RexGameTests.ARENA_BACK - 1;
+        int maxZ = RexGameTests.ARENA_FRONT + 1;
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                if (x == minX || x == maxX || z == minZ || z == maxZ) {
+                    for (int y = -1; y < FENCE_HEIGHT; y++) {
+                        level.setBlock(origin.offset(x, y, z), stone, Block.UPDATE_CLIENTS);
+                    }
+                }
+            }
+        }
     }
 
     private static List<BlockPos> buildLedge(ServerLevel level, BlockPos origin, int height) {

@@ -69,7 +69,7 @@ public final class RexGameTests {
 
     // Flat stone arena, in blocks around the test origin: x in [-ARENA_HALF_WIDTH, +], z in [-ARENA_BACK, ARENA_FRONT].
     static final int ARENA_HALF_WIDTH = 12;
-    private static final int ARENA_BACK = 12;
+    static final int ARENA_BACK = 12;
     static final int ARENA_FRONT = 60;
     private static final int ARENA_HEIGHT = 16;
     private static final int LOG_INTERVAL_TICKS = 20;
