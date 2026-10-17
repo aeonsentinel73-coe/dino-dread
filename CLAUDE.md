@@ -150,3 +150,13 @@ local-vibes passed its trial, so `delegate` is the default for mechanical work; 
 diff. Specs still live in `tasks/` (the task text passed to `delegate` should point at the spec file).
 Fall back to the `tasks/` handoff workflow above
 when the `delegate` tool is unavailable.
+
+## Delegation findings (M4 experiment, 2026-10-17; details in `Docs/M4-delegation-log.md`)
+- Qwen3.8-27B wrote all of M4 (config, block breaker, stuck detector, hunt integration, a refactor, a new wander goal): 6 pieces, 7 delegate calls, 0 take-overs,
+  no wrong-version or invented APIs. Cost: the specs were near-pseudocode (ordered steps, every symbol/import verified by Claude, worked examples) and about as long as the code.
+- Delegate: anything specced as ordered steps with listed symbols; new classes with a fixed public surface; config/lang tables; **pure refactors** (spec shorter than the diff, best saving).
+- Keep for Claude: deciding what to measure and the design (Qwen's blind design was over-complex and broke the rate limit), challenging premises (the "9x12" hitbox was really 3x4;
+  found only because Claude logged it), and writing/diagnosing the acceptance GameTests and flaky fixtures.
+- Every spec needs an explicit PROCEDURE ("read these files, write the whole file in one go, do NOT search the filesystem or grep for Minecraft symbols, finish in <15 tool calls"):
+  without it one call burned 40 iterations and wrote nothing.
+- Write the GameTests first and check they fail on the old code; they made accept/reject mechanical. Nothing was verified in `runClient` (feel, visuals, spawn-egg placement of the real 9x12 box).
