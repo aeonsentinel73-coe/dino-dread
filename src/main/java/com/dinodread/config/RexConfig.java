@@ -26,6 +26,7 @@ public final class RexConfig {
 
     public static final ModConfigSpec.DoubleValue WANDER_SPEED_MULTIPLIER;
     public static final ModConfigSpec.IntValue WANDER_INTERVAL_TICKS;
+    public static final ModConfigSpec.IntValue WANDER_RANGE;
     public static final ModConfigSpec.DoubleValue STALK_SPEED_MULTIPLIER;
     public static final ModConfigSpec.DoubleValue CHARGE_SPEED_MULTIPLIER;
     public static final ModConfigSpec.DoubleValue CHARGE_DISTANCE;
@@ -33,6 +34,7 @@ public final class RexConfig {
     public static final ModConfigSpec.IntValue CHARGE_MAX_TICKS;
     public static final ModConfigSpec.IntValue CHARGE_COOLDOWN_TICKS;
     public static final ModConfigSpec.IntValue GIVE_UP_TICKS;
+    public static final ModConfigSpec.BooleanValue USE_PATHFINDING;
     public static final ModConfigSpec.DoubleValue INVESTIGATE_REACH_DISTANCE;
     public static final ModConfigSpec.DoubleValue BITE_REACH;
     public static final ModConfigSpec.IntValue BITE_WINDUP_TICKS;
@@ -83,7 +85,8 @@ public final class RexConfig {
                 .comment("Multiplier on sight range against a sneaking player.")
                 .defineInRange("sneakSightMultiplier", 0.5, 0.0, 1.0);
         HEARING_RADIUS = BUILDER
-                .comment("How far the T-rex hears a player's noises (steps, mining, placing...), in blocks. 0 = deaf.")
+                .comment("How far the T-rex hears a player's noises (steps, mining, placing, ...), in blocks. 0 = deaf.",
+                        "Vanilla makes no footstep noise for a sneaking player on the ground, so sneaking is silent for steps.")
                 .defineInRange("hearingRadius", 64.0, 0.0, 256.0);
         SNEAK_HEARING_MULTIPLIER = BUILDER
                 .comment("Multiplier on hearing radius for a sneaking player.")
@@ -93,16 +96,19 @@ public final class RexConfig {
         BUILDER.push("behavior");
         WANDER_SPEED_MULTIPLIER = BUILDER
                 .comment("Speed multiplier while wandering.")
-                .defineInRange("wanderSpeedMultiplier", 0.5, 0.1, 4.0);
+                .defineInRange("wanderSpeedMultiplier", 0.6, 0.1, 4.0);
         WANDER_INTERVAL_TICKS = BUILDER
                 .comment("Average ticks between choosing a new wander destination.")
                 .defineInRange("wanderIntervalTicks", 120, 20, 1200);
+        WANDER_RANGE = BUILDER
+                .comment("How far in blocks a wander destination can be from the T-rex.")
+                .defineInRange("wanderRange", 24, 4, 64);
         STALK_SPEED_MULTIPLIER = BUILDER
                 .comment("Speed multiplier while stalking or investigating a noise (approaching without full speed).")
-                .defineInRange("stalkSpeedMultiplier", 0.6, 0.1, 4.0);
+                .defineInRange("stalkSpeedMultiplier", 0.8, 0.1, 4.0);
         CHARGE_SPEED_MULTIPLIER = BUILDER
                 .comment("Speed multiplier while charging.")
-                .defineInRange("chargeSpeedMultiplier", 1.6, 0.1, 4.0);
+                .defineInRange("chargeSpeedMultiplier", 1.4, 0.1, 4.0);
         CHARGE_DISTANCE = BUILDER
                 .comment("Distance in blocks at which a stalking T-rex that can see its target starts charging.")
                 .defineInRange("chargeDistance", 24.0, 2.0, 128.0);
@@ -118,6 +124,10 @@ public final class RexConfig {
         GIVE_UP_TICKS = BUILDER
                 .comment("Ticks without seeing or hearing its target before the T-rex gives up and goes back to wandering.")
                 .defineInRange("giveUpTicks", 400, 20, 12000);
+        USE_PATHFINDING = BUILDER
+                .comment("Use vanilla pathfinding while hunting. Off = walk straight at the target, which is reliable on open ground",
+                        "but ignores terrain. Vanilla pathfinding is slow and unreliable for a body this wide (milestone 4 replaces both).")
+                .define("usePathfinding", false);
         INVESTIGATE_REACH_DISTANCE = BUILDER
                 .comment("How close to a heard noise counts as having arrived.")
                 .defineInRange("investigateReachDistance", 6.0, 1.0, 32.0);
