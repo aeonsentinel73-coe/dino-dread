@@ -5,10 +5,13 @@ import static com.dinodread.gametest.RexGameTests.MIDNIGHT_TICKS;
 import static com.dinodread.gametest.RexGameTests.TEST_TIMEOUT_TICKS;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 import com.dinodread.DinoDread;
+import com.dinodread.entity.ai.RexBlockBreaker;
 import com.dinodread.gametest.RexGameTests.Run;
 
 import net.minecraft.core.BlockPos;
@@ -42,6 +45,7 @@ public final class RexObstacleGameTests {
     private static final String NO_GRIEF = "trex_respects_mob_griefing_off";
     private static final String TREES = "trex_pushes_through_trees";
     private static final String LEDGE = "trex_climbs_ledge";
+    private static final String BREAKER = "trex_block_breaker_follows_the_rules";
 
     // House: a hollow box with a flat roof, door gap in the wall facing the rex. Offsets are from the arena origin;
     // the rex starts at z=0 and comes from lower z. The door is 1 wide, far too narrow for the 9 wide body.
@@ -73,6 +77,8 @@ public final class RexObstacleGameTests {
     private static final int STONE_SETTLE_TICKS = 300;
     private static final double STONE_MIN_TRAVEL = 20.0;
     private static final int NO_GRIEF_WATCH_TICKS = 600;
+    private static final int BREAKER_WATCH_TICKS = 30;
+    private static final int BREAKER_MAX_TICKS = 60;
     // Rex centre z at which its front edge (4.5 blocks ahead) touches the house wall, with a little slack.
     private static final double HOUSE_WALL_CONTACT_Z = HOUSE_FRONT_Z - 4.5 - 1.5;
 
@@ -82,6 +88,7 @@ public final class RexObstacleGameTests {
         FUNCTIONS.register(NO_GRIEF, () -> RexObstacleGameTests::respectsMobGriefingOff);
         FUNCTIONS.register(TREES, () -> RexObstacleGameTests::pushesThroughTrees);
         FUNCTIONS.register(LEDGE, () -> RexObstacleGameTests::climbsLedge);
+        FUNCTIONS.register(BREAKER, () -> RexObstacleGameTests::blockBreakerFollowsTheRules);
     }
 
     private RexObstacleGameTests() {}
@@ -97,6 +104,7 @@ public final class RexObstacleGameTests {
         RexGameTests.addTest(event, NO_GRIEF, TEST_TIMEOUT_TICKS);
         RexGameTests.addTest(event, TREES, TEST_TIMEOUT_TICKS);
         RexGameTests.addTest(event, LEDGE, TEST_TIMEOUT_TICKS);
+        RexGameTests.addTest(event, BREAKER, TEST_TIMEOUT_TICKS);
     }
 
     /** Wooden house with a too-narrow door, player inside: the rex breaks wall blocks and bites the player. */
@@ -207,6 +215,50 @@ public final class RexObstacleGameTests {
                 logProgress(run, broken);
                 if (bitten(run, startHealth[0])) {
                     DinoDread.LOGGER.info("[gametest] ledge: player bitten {} ticks after the start, rex y={}", run.age(), run.rex.getY() - run.origin.getY());
+                    run.pass();
+                }
+            });
+    }
+
+    /**
+     * Unit-level check of {@link RexBlockBreaker} on a rex with its AI off: in a row just in front of it, wood, glass and leaves
+     * go, while stone, dirt, a chest and bedrock stay; so does wood beyond the break reach and a plank under its feet.
+     */
+    private static void blockBreakerFollowsTheRules(GameTestHelper helper) {
+        // Offsets from the arena origin; the rex (9 wide) stands at (0.5, 0, 0.5), so its front edge is at z=5 and the default reach is 1.5.
+        Map<BlockPos, BlockState> shouldBreak = new LinkedHashMap<>();
+        shouldBreak.put(new BlockPos(-4, 1, 5), Blocks.OAK_PLANKS.defaultBlockState());
+        shouldBreak.put(new BlockPos(-3, 1, 5), Blocks.GLASS.defaultBlockState());
+        shouldBreak.put(new BlockPos(-2, 1, 5), Blocks.OAK_LEAVES.defaultBlockState().setValue(LeavesBlock.PERSISTENT, true));
+        shouldBreak.put(new BlockPos(-1, 1, 5), Blocks.OAK_LOG.defaultBlockState());
+        shouldBreak.put(new BlockPos(0, 1, 6), Blocks.OAK_PLANKS.defaultBlockState());
+        Map<BlockPos, BlockState> shouldStay = new LinkedHashMap<>();
+        shouldStay.put(new BlockPos(0, 1, 5), Blocks.STONE.defaultBlockState());
+        shouldStay.put(new BlockPos(1, 1, 5), Blocks.CHEST.defaultBlockState());
+        shouldStay.put(new BlockPos(2, 1, 5), Blocks.BEDROCK.defaultBlockState());
+        shouldStay.put(new BlockPos(3, 1, 5), Blocks.DIRT.defaultBlockState());
+        shouldStay.put(new BlockPos(0, 1, 7), Blocks.OAK_PLANKS.defaultBlockState());
+        shouldStay.put(new BlockPos(-4, -1, 0), Blocks.OAK_PLANKS.defaultBlockState());
+        RexBlockBreaker[] breaker = new RexBlockBreaker[1];
+        RexGameTests.scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, null, false, BREAKER_MAX_TICKS,
+            origin -> {
+                ServerLevel level = helper.getLevel();
+                shouldBreak.forEach((offset, state) -> level.setBlock(origin.offset(offset), state, Block.UPDATE_CLIENTS));
+                shouldStay.forEach((offset, state) -> level.setBlock(origin.offset(offset), state, Block.UPDATE_CLIENTS));
+            },
+            run -> {
+                run.rex.setNoAi(true);
+                breaker[0] = new RexBlockBreaker(run.rex);
+            },
+            run -> {
+                breaker[0].tick(new Vec3(0.0, 0.0, 1.0), true);
+                run.status = "breaker test still running";
+                if (run.age() >= BREAKER_WATCH_TICKS) {
+                    ServerLevel level = run.helper.getLevel();
+                    shouldBreak.forEach((offset, state) ->
+                        run.check(level.getBlockState(run.origin.offset(offset)).isAir(), state.getBlock() + " at offset " + offset + " should have been broken"));
+                    shouldStay.forEach((offset, state) ->
+                        run.check(level.getBlockState(run.origin.offset(offset)).is(state.getBlock()), state.getBlock() + " at offset " + offset + " should NOT have been broken"));
                     run.pass();
                 }
             });
