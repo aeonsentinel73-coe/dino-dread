@@ -108,7 +108,9 @@ Mojang removed obfuscation in 26.1: vanilla classes use official names, and the 
 - **INSTALLED 2026-10-16, MCP-only. TRIAL PASSED 2026-10-16** (lang entries on a throwaway branch:
   4 iterations, diff exactly as specced, only the target file touched, `.\gradlew build` green,
   merged). Tool name in Claude Code: `mcp__local-vibes__delegate` (deferred; load via ToolSearch).
-  Audited at commit `3d4080d`; lockfile clean
+  Audited at commit `3d4080d` (+ one local patch, 2026-10-17: `agent.ts` adds a `usage:` line, i.e. summed
+  prompt/completion tokens, peak context and seconds, to every delegate result; saved as
+  `_tools\local-vibes-usage-metrics.patch`, re-apply it after any upstream update); lockfile clean
   (no install scripts, registry URLs only). Cloned to `D:\Documents\Claude Code\_tools\local-vibes`
   (outside this repo), built with `npm ci --ignore-scripts` + `tsc`. Registered via the gitignored
   `.mcp.json` in this repo. NOT installed: the plugin, skill and hook.
