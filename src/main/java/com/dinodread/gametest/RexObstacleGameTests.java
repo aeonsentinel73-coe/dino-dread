@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.function.Consumer;
 
 import com.dinodread.DinoDread;
@@ -50,6 +51,10 @@ public final class RexObstacleGameTests {
     private static final String LEDGE = "trex_climbs_ledge";
     private static final String BREAKER = "trex_block_breaker_follows_the_rules";
     private static final String STUCK = "trex_stuck_detector_escalates";
+    private static final String TALL_LEDGE = "trex_hops_over_tall_ledge";
+    private static final String FOREST = "trex_crosses_a_forest";
+    private static final String ANGLE = "trex_breaks_into_house_from_an_angle";
+    private static final String FOREST_WANDER = "trex_wanders_through_a_forest";
 
     // House: a hollow box with a flat roof, door gap in the wall facing the rex. Offsets are from the arena origin;
     // the rex starts at z=0 and comes from lower z. The door is 1 wide, far too narrow for the 9 wide body.
@@ -71,7 +76,25 @@ public final class RexObstacleGameTests {
     // Ledge: a stone plateau across the whole arena, starting at LEDGE_FRONT_Z, LEDGE_HEIGHT blocks high.
     private static final int LEDGE_FRONT_Z = 14;
     private static final int LEDGE_HEIGHT = 3;
+    private static final int TALL_LEDGE_HEIGHT = 4;
 
+    private static final double ANGLE_REX_X = -7.5;
+    private static final double ANGLE_PLAYER_X = 4.5;
+    private static final double REX_START_Z = 0.5;
+    // Forest: a jittered grid of trees; the canopy is a block of leaves around the top FOREST_CANOPY_DEPTH layers of each trunk.
+    private static final long FOREST_SEED = 20261017L;
+    private static final int FOREST_FIRST_Z = 8;
+    private static final int FOREST_LAST_Z = 50;
+    private static final int FOREST_SPACING = 5;
+    private static final int FOREST_JITTER = 1;
+    private static final int FOREST_MIN_TRUNK = 5;
+    private static final int FOREST_TRUNK_VARIATION = 3;
+    private static final int FOREST_CANOPY_DEPTH = 3;
+    private static final int FOREST_PLAYER_CLEARANCE = 3;
+    private static final int FOREST_MAX_TICKS = 2400;
+    private static final int FOREST_WANDER_TICKS = 3000;
+    private static final int FOREST_WANDER_LOG_EVERY = 5;
+    private static final double FOREST_WANDER_MIN_TRAVEL = 40.0;
     private static final int NOISE_INTERVAL_TICKS = 10;
     private static final int LOG_INTERVAL_TICKS = 40;
     private static final int HOUSE_MAX_TICKS = 1500;
@@ -95,6 +118,10 @@ public final class RexObstacleGameTests {
         FUNCTIONS.register(LEDGE, () -> RexObstacleGameTests::climbsLedge);
         FUNCTIONS.register(BREAKER, () -> RexObstacleGameTests::blockBreakerFollowsTheRules);
         FUNCTIONS.register(STUCK, () -> RexObstacleGameTests::stuckDetectorEscalates);
+        FUNCTIONS.register(TALL_LEDGE, () -> RexObstacleGameTests::hopsOverTallLedge);
+        FUNCTIONS.register(FOREST, () -> RexObstacleGameTests::crossesAForest);
+        FUNCTIONS.register(ANGLE, () -> RexObstacleGameTests::breaksIntoHouseFromAnAngle);
+        FUNCTIONS.register(FOREST_WANDER, () -> RexObstacleGameTests::wandersThroughAForest);
     }
 
     private RexObstacleGameTests() {}
@@ -112,16 +139,30 @@ public final class RexObstacleGameTests {
         RexGameTests.addTest(event, LEDGE, TEST_TIMEOUT_TICKS);
         RexGameTests.addTest(event, BREAKER, TEST_TIMEOUT_TICKS);
         RexGameTests.addTest(event, STUCK, TEST_TIMEOUT_TICKS);
+        RexGameTests.addTest(event, TALL_LEDGE, TEST_TIMEOUT_TICKS);
+        RexGameTests.addTest(event, FOREST, TEST_TIMEOUT_TICKS);
+        RexGameTests.addTest(event, ANGLE, TEST_TIMEOUT_TICKS);
+        RexGameTests.addTest(event, FOREST_WANDER, TEST_TIMEOUT_TICKS);
     }
 
     /** Wooden house with a too-narrow door, player inside: the rex breaks wall blocks and bites the player. */
     private static void breaksIntoWoodenHouse(GameTestHelper helper) {
+        enterWoodenHouse(helper, 0.5, 0.5);
+    }
+
+    /** Same house, but the rex starts off to one side and the player stands off-centre, so it arrives at an angle and not at the door. */
+    private static void breaksIntoHouseFromAnAngle(GameTestHelper helper) {
+        enterWoodenHouse(helper, ANGLE_REX_X, ANGLE_PLAYER_X);
+    }
+
+    private static void enterWoodenHouse(GameTestHelper helper, double rexX, double playerX) {
         List<BlockPos> house = new ArrayList<>();
         float[] startHealth = new float[1];
-        RexGameTests.scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, new Vec3(0.5, 0, PLAYER_Z), false, HOUSE_MAX_TICKS,
+        RexGameTests.scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, new Vec3(playerX, 0, PLAYER_Z), false, HOUSE_MAX_TICKS,
             origin -> house.addAll(buildHouse(helper.getLevel(), origin, Blocks.OAK_PLANKS.defaultBlockState(), Blocks.OAK_LOG.defaultBlockState())),
             run -> {
                 startHealth[0] = run.player.getHealth();
+                run.rex.snapTo(run.helper.absoluteVec(new Vec3(rexX, 0, REX_START_Z)));
                 DinoDread.LOGGER.info("[gametest] rex body: width={} height={} scale={} stepHeight={}", run.rex.getBbWidth(), run.rex.getBbHeight(), run.rex.getScale(), run.rex.maxUpStep());
             },
             run -> {
@@ -209,10 +250,19 @@ public final class RexObstacleGameTests {
 
     /** A 3 block stone ledge (not breakable) between rex and player: the rex has to climb it, and must not dig it away. */
     private static void climbsLedge(GameTestHelper helper) {
+        climbLedge(helper, LEDGE_HEIGHT);
+    }
+
+    /** A ledge taller than the step height (3): stepping is not enough, the stuck recovery has to hop. */
+    private static void hopsOverTallLedge(GameTestHelper helper) {
+        climbLedge(helper, TALL_LEDGE_HEIGHT);
+    }
+
+    private static void climbLedge(GameTestHelper helper, int height) {
         List<BlockPos> ledge = new ArrayList<>();
         float[] startHealth = new float[1];
-        RexGameTests.scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, new Vec3(0.5, LEDGE_HEIGHT, PLAYER_Z), false, LEDGE_MAX_TICKS,
-            origin -> ledge.addAll(buildLedge(helper.getLevel(), origin)),
+        RexGameTests.scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, new Vec3(0.5, height, PLAYER_Z), false, LEDGE_MAX_TICKS,
+            origin -> ledge.addAll(buildLedge(helper.getLevel(), origin, height)),
             run -> startHealth[0] = run.player.getHealth(),
             run -> {
                 paceTheFloor(run);
@@ -222,6 +272,51 @@ public final class RexObstacleGameTests {
                 logProgress(run, broken);
                 if (bitten(run, startHealth[0])) {
                     DinoDread.LOGGER.info("[gametest] ledge: player bitten {} ticks after the start, rex y={}", run.age(), run.rex.getY() - run.origin.getY());
+                    run.pass();
+                }
+            });
+    }
+
+    /** A dense, randomly jittered forest (fixed seed) between rex and player: the rex gets through and bites the player. */
+    private static void crossesAForest(GameTestHelper helper) {
+        List<BlockPos> forest = new ArrayList<>();
+        float[] startHealth = new float[1];
+        RexGameTests.scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, new Vec3(0.5, 0, PLAYER_Z), false, FOREST_MAX_TICKS,
+            origin -> forest.addAll(buildForest(helper.getLevel(), origin)),
+            run -> startHealth[0] = run.player.getHealth(),
+            run -> {
+                paceTheFloor(run);
+                int broken = countBroken(run, forest);
+                run.status = describe(run, "rex did not get through the forest to the player", broken, startHealth[0]);
+                logProgress(run, broken);
+                if (bitten(run, startHealth[0])) {
+                    DinoDread.LOGGER.info("[gametest] forest: {} of {} blocks broken, player bitten {} ticks after the start", broken, forest.size(), run.age());
+                    run.pass();
+                }
+            });
+    }
+
+    /** No player: wandering (vanilla navigation) must still get the 9 wide rex somewhere in a forest, not freeze or stall the server. */
+    private static void wandersThroughAForest(GameTestHelper helper) {
+        List<BlockPos> forest = new ArrayList<>();
+        double[] travelled = new double[1];
+        Vec3[] last = new Vec3[1];
+        long[] startNanos = new long[1];
+        RexGameTests.scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, null, false, FOREST_WANDER_TICKS,
+            origin -> forest.addAll(buildForest(helper.getLevel(), origin)),
+            run -> {
+                last[0] = run.rex.position();
+                startNanos[0] = System.nanoTime();
+            },
+            run -> {
+                travelled[0] += run.rex.position().subtract(last[0]).horizontalDistance();
+                last[0] = run.rex.position();
+                run.status = "rex only wandered " + String.format("%.1f", travelled[0]) + " blocks through the forest";
+                if (run.age() % (LOG_INTERVAL_TICKS * FOREST_WANDER_LOG_EVERY) == 0) {
+                    DinoDread.LOGGER.info("[gametest] forest wander tick {} travelled={} rexZ={} broken={}", run.age(), String.format("%.1f", travelled[0]), String.format("%.1f", rexZ(run)), countBroken(run, forest));
+                }
+                if (travelled[0] >= FOREST_WANDER_MIN_TRAVEL) {
+                    DinoDread.LOGGER.info("[gametest] forest wander: {} blocks in {} ticks, {} ms wall time", String.format("%.1f", travelled[0]), run.age(), (System.nanoTime() - startNanos[0]) / 1_000_000L);
                     run.pass();
                 }
             });
@@ -431,12 +526,44 @@ public final class RexObstacleGameTests {
         return placed;
     }
 
-    private static List<BlockPos> buildLedge(ServerLevel level, BlockPos origin) {
+    /** Jittered grid of trees (trunk height and canopy vary), none within clear radius of the rex start or the player. */
+    private static List<BlockPos> buildForest(ServerLevel level, BlockPos origin) {
+        List<BlockPos> placed = new ArrayList<>();
+        Random random = new Random(FOREST_SEED);
+        BlockState log = Blocks.OAK_LOG.defaultBlockState();
+        BlockState leaves = Blocks.OAK_LEAVES.defaultBlockState().setValue(LeavesBlock.PERSISTENT, true);
+        for (int gridZ = FOREST_FIRST_Z; gridZ <= FOREST_LAST_Z; gridZ += FOREST_SPACING) {
+            for (int gridX = -RexGameTests.ARENA_HALF_WIDTH + 1; gridX <= RexGameTests.ARENA_HALF_WIDTH - 1; gridX += FOREST_SPACING) {
+                int x = gridX + random.nextInt(2 * FOREST_JITTER + 1) - FOREST_JITTER;
+                int z = gridZ + random.nextInt(2 * FOREST_JITTER + 1) - FOREST_JITTER;
+                int trunk = FOREST_MIN_TRUNK + random.nextInt(FOREST_TRUNK_VARIATION + 1);
+                if (Math.abs(z - PLAYER_Z) < FOREST_PLAYER_CLEARANCE && Math.abs(x) < FOREST_PLAYER_CLEARANCE) {
+                    continue;
+                }
+                for (int y = 0; y < trunk; y++) {
+                    place(level, placed, origin.offset(x, y, z), log);
+                }
+                for (int y = trunk - FOREST_CANOPY_DEPTH; y <= trunk; y++) {
+                    for (int dx = -TREE_CANOPY_RADIUS; dx <= TREE_CANOPY_RADIUS; dx++) {
+                        for (int dz = -TREE_CANOPY_RADIUS; dz <= TREE_CANOPY_RADIUS; dz++) {
+                            BlockPos pos = origin.offset(x + dx, y, z + dz);
+                            if (level.getBlockState(pos).isAir() && Math.abs(x + dx) <= RexGameTests.ARENA_HALF_WIDTH) {
+                                place(level, placed, pos, leaves);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return placed;
+    }
+
+    private static List<BlockPos> buildLedge(ServerLevel level, BlockPos origin, int height) {
         List<BlockPos> placed = new ArrayList<>();
         BlockState stone = Blocks.STONE.defaultBlockState();
         for (int x = -RexGameTests.ARENA_HALF_WIDTH; x <= RexGameTests.ARENA_HALF_WIDTH; x++) {
             for (int z = LEDGE_FRONT_Z; z <= RexGameTests.ARENA_FRONT; z++) {
-                for (int y = 0; y < LEDGE_HEIGHT; y++) {
+                for (int y = 0; y < height; y++) {
                     place(level, placed, origin.offset(x, y, z), stone);
                 }
             }
