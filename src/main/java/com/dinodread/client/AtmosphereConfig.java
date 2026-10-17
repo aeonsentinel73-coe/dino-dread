@@ -45,7 +45,7 @@ public final class AtmosphereConfig {
                 .define("fogEnabled", true);
         FOG_DAY_END_DISTANCE = BUILDER
                 .comment("Distance in blocks where fog is total during the day.")
-                .defineInRange("fogDayEndDistance", 120.0, 8.0, 1024.0);
+                .defineInRange("fogDayEndDistance", 56.0, 8.0, 1024.0);
         FOG_NIGHT_END_DISTANCE = BUILDER
                 .comment("Distance in blocks where fog is total at night.")
                 .defineInRange("fogNightEndDistance", 48.0, 8.0, 1024.0);
