@@ -46,7 +46,7 @@ public final class RexConfig {
     public static final ModConfigSpec.DoubleValue DAY_AGGRESSION;
 
     public static final ModConfigSpec.BooleanValue GRIEFING_ENABLED;
-    public static final ModConfigSpec.ConfigValue<List<? extends String>> BREAKABLE_BLOCKS;
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> UNBREAKABLE_BLOCKS;
     public static final ModConfigSpec.BooleanValue BREAK_BLOCK_ENTITIES;
     public static final ModConfigSpec.DoubleValue MAX_BREAK_HARDNESS;
     public static final ModConfigSpec.IntValue BREAK_INTERVAL_TICKS;
@@ -174,13 +174,20 @@ public final class RexConfig {
         GRIEFING_ENABLED = BUILDER
                 .comment("Master switch for block breaking. Off = the T-rex never breaks any block. The mobGriefing game rule is honored too (rule off = no breaking).")
                 .define("griefingEnabled", true);
-        BREAKABLE_BLOCKS = BUILDER
-                .comment("Blocks the T-rex may break while pushing through obstacles. Entries are block ids (minecraft:glass) or block tags with a leading # (#minecraft:logs). Anything not matched is never broken. Stone, dirt and ores are deliberately absent.")
-                .defineListAllowEmpty("breakableBlocks",
-                        List.of("#minecraft:logs", "#minecraft:planks", "#minecraft:leaves", "#minecraft:wooden_doors",
-                                "#minecraft:wooden_trapdoors", "#minecraft:wooden_stairs", "#minecraft:wooden_slabs",
-                                "#minecraft:wooden_fences", "#c:glass_blocks", "#c:glass_panes"),
-                        () -> "minecraft:oak_planks",
+        UNBREAKABLE_BLOCKS = BUILDER
+                .comment("Blocks the T-rex never breaks. Everything else it pushes against (up to maxBreakHardness) it may break, unless it holds data (see breakBlockEntities). Entries are block ids (minecraft:obsidian) or block tags with a leading # (#minecraft:dirt). Default: natural terrain (so it walks over the world instead of tunnelling through it), smooth stone, obsidian, iron blocks, concrete and End blocks.")
+                .defineListAllowEmpty("unbreakableBlocks",
+                        List.of("#minecraft:base_stone_overworld", "#minecraft:base_stone_nether", "#minecraft:dirt", "#minecraft:grass_blocks",
+                                "#minecraft:mud", "#minecraft:moss_blocks", "#minecraft:sand", "#c:gravels", "#c:ores", "#minecraft:snow",
+                                "#minecraft:ice", "#minecraft:nylium", "minecraft:dirt_path", "minecraft:farmland", "minecraft:clay",
+                                "minecraft:sandstone", "minecraft:red_sandstone", "minecraft:smooth_stone", "minecraft:smooth_stone_slab",
+                                "#c:obsidians", "#minecraft:concrete", "#minecraft:concrete_slabs", "#minecraft:concrete_stairs",
+                                "minecraft:iron_block", "minecraft:raw_iron_block", "#c:end_stones", "minecraft:end_stone_bricks",
+                                "minecraft:end_stone_brick_stairs", "minecraft:end_stone_brick_slab", "minecraft:end_stone_brick_wall",
+                                "minecraft:purpur_block", "minecraft:purpur_pillar", "minecraft:purpur_stairs", "minecraft:purpur_slab",
+                                "minecraft:end_rod", "minecraft:end_portal_frame", "minecraft:end_portal", "minecraft:end_gateway",
+                                "minecraft:chorus_plant", "minecraft:chorus_flower", "minecraft:dragon_egg"),
+                        () -> "minecraft:obsidian",
                         element -> element instanceof String);
         BREAK_BLOCK_ENTITIES = BUILDER
                 .comment("Allow breaking blocks that hold data (chests, furnaces, signs...) when they match the list above. Off = those blocks are never broken.")

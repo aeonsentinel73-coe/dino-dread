@@ -363,7 +363,7 @@ public final class RexObstacleGameTests {
      * Unit-level check of {@link RexBlockBreaker} on a rex with its AI off. In two rows (z=5 and z=6) just in front of it, player-structure
      * materials (wood, glass, leaves, cobblestone, bricks, wool, ...) go, while terrain (stone, dirt, ore, snow, natural sandstone; sand falls when placed in mid-air, so it has its own hill test),
      * the deliberately unbreakable materials (smooth stone, obsidian, iron block, concrete, End blocks), bedrock, a chest (block entity)
-     * and replaceable plants stay; so does wood beyond the break reach and a plank under its feet.
+     * stay; replaceable blocks (plants, snow layers, fluids) are never breakable; so is wood beyond the break reach and a plank under its feet.
      */
     private static void blockBreakerFollowsTheRules(GameTestHelper helper) {
         List<BlockState> breakables = List.of(
@@ -375,8 +375,7 @@ public final class RexObstacleGameTests {
             Blocks.STONE.defaultBlockState(), Blocks.DIRT.defaultBlockState(), Blocks.GRASS_BLOCK.defaultBlockState(),
             Blocks.SANDSTONE.defaultBlockState(), Blocks.COAL_ORE.defaultBlockState(), Blocks.SNOW_BLOCK.defaultBlockState(),
             Blocks.SMOOTH_STONE.defaultBlockState(), Blocks.OBSIDIAN.defaultBlockState(), Blocks.IRON_BLOCK.defaultBlockState(), Blocks.CONCRETE.pick(DyeColor.WHITE).defaultBlockState(),
-            Blocks.END_STONE.defaultBlockState(), Blocks.PURPUR_BLOCK.defaultBlockState(), Blocks.CHEST.defaultBlockState(), Blocks.BEDROCK.defaultBlockState(),
-            Blocks.SHORT_GRASS.defaultBlockState());
+            Blocks.END_STONE.defaultBlockState(), Blocks.PURPUR_BLOCK.defaultBlockState(), Blocks.CHEST.defaultBlockState(), Blocks.BEDROCK.defaultBlockState());
         // Offsets from the arena origin; the rex (9 wide) stands at (0.5, 0, 0.5), so its front edge is at z=5 and the default reach is 1.5.
         List<BlockPos> slots = new ArrayList<>();
         for (int y = 1; y <= BREAKER_ROW_LAYERS; y++) {
@@ -419,6 +418,9 @@ public final class RexObstacleGameTests {
                         run.check(level.getBlockState(run.origin.offset(offset)).isAir(), state.getBlock() + " at offset " + offset + " should have been broken"));
                     shouldStay.forEach((offset, state) ->
                         run.check(level.getBlockState(run.origin.offset(offset)).is(state.getBlock()), state.getBlock() + " at offset " + offset + " should NOT have been broken"));
+                    for (BlockState replaceable : List.of(Blocks.SHORT_GRASS.defaultBlockState(), Blocks.WATER.defaultBlockState(), Blocks.SNOW.defaultBlockState(), Blocks.FIRE.defaultBlockState())) {
+                        run.check(!breaker[0].isBreakable(level, run.origin, replaceable), replaceable.getBlock() + " is replaceable and must never be a break candidate");
+                    }
                     run.pass();
                 }
             });

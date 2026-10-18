@@ -24,19 +24,19 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.EventHooks;
 
 /**
- * The T-rex's way through obstacles: when it is pushing toward something, it breaks the allow-listed blocks
- * in the volume just ahead of its hitbox. Server-side only, rate-limited, and gated by the griefing config
- * and the mobGriefing game rule. Blocks are broken nearest-first, at most a few per break action.
+ * The T-rex's way through obstacles: when it is pushing toward something, it breaks the blocks that are not
+ * on the unbreakable list in the volume just ahead of its hitbox. Server-side only, rate-limited, and gated
+ * by the griefing config and the mobGriefing game rule. Blocks are broken nearest-first, at most a few per break action.
  */
 public class RexBlockBreaker {
     // Keeps the volume from including the block layer exactly at the hitbox edges (the floor under its feet,
     // the air layer exactly above its head).
     private static final double BLOCK_EDGE_EPSILON = 1.0E-3;
 
-    // The allow-list is parsed once and re-parsed only when the config value changes.
-    private static List<? extends String> cachedBreakableBlocks;
-    private static final Set<Block> cachedBreakableBlockIds = new HashSet<>();
-    private static final List<TagKey<Block>> cachedBreakableBlockTags = new ArrayList<>();
+    // The unbreakable list is parsed once and re-parsed only when the config value changes.
+    private static List<? extends String> cachedUnbreakableBlocks;
+    private static final Set<Block> cachedUnbreakableBlockIds = new HashSet<>();
+    private static final List<TagKey<Block>> cachedUnbreakableBlockTags = new ArrayList<>();
 
     private final TRex rex;
     private int cooldownTicks;
@@ -48,7 +48,8 @@ public class RexBlockBreaker {
     /**
      * Call once per server tick while the T-rex is pushing toward something. {@code heading} is the unit-length HORIZONTAL
      * direction (y is ignored) it is trying to move in; {@code breakNow} says whether it should be breaking this tick
-     * (it is touching a wall, or stuck). Returns how many blocks were broken this tick.
+     * (it is touching a wall, or stuck). It breaks the blocks in the volume just ahead of its hitbox that are not
+     * on the unbreakable list, nearest-first, at most a few per break action. Returns how many blocks were broken this tick.
      */
     public int tick(Vec3 heading, boolean breakNow) {
         if (cooldownTicks > 0) {
@@ -109,7 +110,7 @@ public class RexBlockBreaker {
 
     /** True if this block may be broken by the T-rex under the current config (used by tick and by tests). */
     public boolean isBreakable(ServerLevel level, BlockPos pos, BlockState state) {
-        if (state.isAir()) {
+        if (state.isAir() || state.canBeReplaced()) {
             return false;
         }
 
@@ -122,44 +123,42 @@ public class RexBlockBreaker {
             return false;
         }
 
-        return matchesAllowList(state);
+        return !matchesUnbreakableList(state);
     }
 
-    private static boolean matchesAllowList(BlockState state) {
-        List<? extends String> configured = RexConfig.BREAKABLE_BLOCKS.get();
-        if (cachedBreakableBlocks == null || !configured.equals(cachedBreakableBlocks)) {
-            cachedBreakableBlockIds.clear();
-            cachedBreakableBlockTags.clear();
+    private static boolean matchesUnbreakableList(BlockState state) {
+        List<? extends String> configured = RexConfig.UNBREAKABLE_BLOCKS.get();
+        if (cachedUnbreakableBlocks == null || !configured.equals(cachedUnbreakableBlocks)) {
+            cachedUnbreakableBlockIds.clear();
+            cachedUnbreakableBlockTags.clear();
             for (String entry : configured) {
                 if (entry.startsWith("#")) {
                     Identifier id = Identifier.tryParse(entry.substring(1));
                     if (id == null) {
-                        DinoDread.LOGGER.warn("Skipping malformed block tag entry in breakableBlocks config: {}", entry);
+                        DinoDread.LOGGER.warn("Skipping malformed block tag entry in unbreakableBlocks config: {}", entry);
                         continue;
                     }
 
-                    cachedBreakableBlockTags.add(TagKey.create(Registries.BLOCK, id));
+                    cachedUnbreakableBlockTags.add(TagKey.create(Registries.BLOCK, id));
                 } else {
                     Identifier id = Identifier.tryParse(entry);
                     if (id == null) {
-                        DinoDread.LOGGER.warn("Skipping malformed block id entry in breakableBlocks config: {}", entry);
+                        DinoDread.LOGGER.warn("Skipping malformed block id entry in unbreakableBlocks config: {}", entry);
                         continue;
                     }
 
-                    BuiltInRegistries.BLOCK.getOptional(id).ifPresent(cachedBreakableBlockIds::add);
+                    BuiltInRegistries.BLOCK.getOptional(id).ifPresent(cachedUnbreakableBlockIds::add);
                 }
             }
 
-            cachedBreakableBlocks = configured;
+            cachedUnbreakableBlocks = configured;
         }
 
-        for (Block block : cachedBreakableBlockIds) {
-            if (state.is(block)) {
-                return true;
-            }
+        if (cachedUnbreakableBlockIds.contains(state.getBlock())) {
+            return true;
         }
 
-        for (TagKey<Block> tag : cachedBreakableBlockTags) {
+        for (TagKey<Block> tag : cachedUnbreakableBlockTags) {
             if (state.is(tag)) {
                 return true;
             }

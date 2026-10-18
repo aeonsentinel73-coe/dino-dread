@@ -57,7 +57,7 @@
   "dinodread.configuration.biteCooldownTicks": "Bite Cooldown (ticks)",
   "dinodread.configuration.obstacles": "Obstacles and Block Breaking",
   "dinodread.configuration.griefingEnabled": "Block Breaking Enabled",
-  "dinodread.configuration.breakableBlocks": "Breakable Blocks",
+  "dinodread.configuration.unbreakableBlocks": "Unbreakable Blocks",
   "dinodread.configuration.breakBlockEntities": "Break Chests And Other Block Entities",
   "dinodread.configuration.maxBreakHardness": "Maximum Block Hardness",
   "dinodread.configuration.breakIntervalTicks": "Break Interval (ticks)",
