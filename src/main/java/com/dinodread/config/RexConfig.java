@@ -65,6 +65,13 @@ public final class RexConfig {
     public static final ModConfigSpec.DoubleValue STUCK_HOP_VELOCITY;
     public static final ModConfigSpec.DoubleValue STUCK_HOP_FORWARD_VELOCITY;
 
+    public static final ModConfigSpec.BooleanValue PREY_ENABLED;
+    public static final ModConfigSpec.IntValue PREY_INTERVAL_TICKS;
+    public static final ModConfigSpec.DoubleValue PREY_RANGE;
+    public static final ModConfigSpec.DoubleValue PREY_SPEED_MULTIPLIER;
+    public static final ModConfigSpec.IntValue PREY_EAT_TICKS;
+    public static final ModConfigSpec.IntValue PREY_MAX_CHASE_TICKS;
+
     public static final ModConfigSpec SPEC;
 
     static {
@@ -240,6 +247,27 @@ public final class RexConfig {
         STUCK_HOP_FORWARD_VELOCITY = BUILDER
                 .comment("Forward speed of a hop in blocks per tick.")
                 .defineInRange("stuckHopForwardVelocity", 0.3, 0.0, 2.0);
+        BUILDER.pop();
+
+        BUILDER.push("prey");
+        PREY_ENABLED = BUILDER
+                .comment("Whether the T-rex occasionally goes for animals (pigs, cows, sheep, chickens, ...) and eats them while no player is detected.")
+                .define("preyEnabled", true);
+        PREY_INTERVAL_TICKS = BUILDER
+                .comment("Average ticks between the T-rex noticing a nearby animal to eat while no player is detected.")
+                .defineInRange("preyIntervalTicks", 900, 20, 72000);
+        PREY_RANGE = BUILDER
+                .comment("How far, in blocks, from the T-rex it notices animals to eat. Tamed, leashed and name-tagged animals are never eaten.")
+                .defineInRange("preyRange", 32.0, 4.0, 128.0);
+        PREY_SPEED_MULTIPLIER = BUILDER
+                .comment("Speed multiplier while going for an animal.")
+                .defineInRange("preySpeedMultiplier", 1.0, 0.1, 4.0);
+        PREY_EAT_TICKS = BUILDER
+                .comment("Ticks it stands over a kill 'eating' before it wanders on.")
+                .defineInRange("preyEatTicks", 100, 0, 2400);
+        PREY_MAX_CHASE_TICKS = BUILDER
+                .comment("Longest it chases one animal before losing interest.")
+                .defineInRange("preyMaxChaseTicks", 400, 20, 2400);
         BUILDER.pop();
 
         BUILDER.push("daytime");
