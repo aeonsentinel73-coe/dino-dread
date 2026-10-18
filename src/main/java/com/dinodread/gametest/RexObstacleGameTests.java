@@ -119,7 +119,7 @@ public final class RexObstacleGameTests {
     private static final int BREAKER_MAX_TICKS = 60;
     private static final double PIG_X = 0.5;
     private static final double PIG_Z = 20.5;
-    private static final int PREY_MAX_TICKS = 12000;
+    private static final int PREY_MAX_TICKS = 20000;
     private static final int HUNT_PREY_MAX_TICKS = 900;
     private static final int BREAKER_ROW_LAYERS = 2;
     private static final int BREAKER_FIRST_ROW_Z = 5;
@@ -496,11 +496,14 @@ public final class RexObstacleGameTests {
         helper.succeed();
     }
 
-    /** No player anywhere: sooner or later the rex goes for a pig 20 blocks away and kills it (it is "eating"). */
+    /**
+     * No player anywhere: sooner or later the rex goes for a pig and kills it (it is "eating"). The arena is fenced so neither can wander off
+     * into unloaded chunks (a rex out there is frozen). Measured over 13 samples: eaten after 94-4711 ticks (median ~850), so 20000 is over 4x the worst.
+     */
     private static void eatsAPig(GameTestHelper helper) {
         Pig[] pig = new Pig[1];
         RexGameTests.scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, null, false, PREY_MAX_TICKS,
-            origin -> {},
+            origin -> fenceArena(helper.getLevel(), origin),
             run -> pig[0] = spawnPig(run),
             run -> {
                 run.status = "rex never ate the pig (pig alive=" + pig[0].isAlive() + ", distance=" + String.format("%.1f", run.rex.distanceTo(pig[0])) + ")";

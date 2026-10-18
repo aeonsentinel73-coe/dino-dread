@@ -152,7 +152,7 @@ Fall back to the `tasks/` handoff workflow above
 when the `delegate` tool is unavailable.
 
 ## Delegation findings (M4 experiment, 2026-10-17; details in `Docs/M4-delegation-log.md`)
-- Qwen3.8-27B wrote all of M4 (config, block breaker, stuck detector, hunt integration, a refactor, a new wander goal): 6 pieces, 7 delegate calls, 0 take-overs,
+- Qwen3.8-27B wrote all of M4 and its two follow-ups (config, block breaker, stuck detector, hunt integration, a refactor, a new wander goal, the unbreakable list, an animal-eating goal): 11 pieces in 12 task calls (one wasted, one reverted experiment), 0 take-overs,
   no wrong-version or invented APIs. Cost: the specs were near-pseudocode (ordered steps, every symbol/import verified by Claude, worked examples) and about as long as the code.
 - Delegate: anything specced as ordered steps with listed symbols; new classes with a fixed public surface; config/lang tables; **pure refactors** (spec shorter than the diff, best saving).
 - Keep for Claude: deciding what to measure and the design (Qwen's blind design was over-complex and broke the rate limit), challenging premises (the "9x12" hitbox was really 3x4;
