@@ -8,7 +8,7 @@ import net.minecraft.world.phys.Vec3;
 /**
  * The T-rex's shared steering: drive toward a destination, clearing the way. Used by both the hunt goal and
  * the wander goal. The T-rex is far too wide for vanilla pathfinding, so it steers straight at the
- * destination, breaks allow-listed blocks it pushes against ({@link RexBlockBreaker}) and, when it stops making
+ * destination, breaks the blocks it pushes against that are not on the unbreakable list ({@link RexBlockBreaker}) and, when it stops making
  * progress, hops, sidesteps and finally gives up ({@link RexStuckDetector}).
  */
 public final class RexMover {
@@ -29,7 +29,7 @@ public final class RexMover {
 
     /**
      * Steers the T-rex toward {@code destination} this tick. {@code standingStill} = it is where it wants to be (e.g. in bite
-     * range): the stuck detector is reset instead of fed. {@code allowBreaking} = it may break allow-listed blocks it pushes against.
+     * range): the stuck detector is reset instead of fed. {@code allowBreaking} = it may break the blocks it pushes against that are not on the unbreakable list.
      * Returns the stuck level this tick; {@link RexStuckDetector.Level#GIVE_UP} means it did NOT steer, the mover has reset itself,
      * and the caller must abandon this destination.
      */
