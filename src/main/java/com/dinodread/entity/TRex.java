@@ -76,6 +76,7 @@ public class TRex extends Monster implements GeoEntity {
     private final TRexVoice voice = new TRexVoice(this);
     private HuntState huntState = HuntState.WANDER;
     private int actionTicksLeft;
+    private int lastHorizontalCollisionTick = Integer.MIN_VALUE / 2;
 
     public TRex(EntityType<? extends TRex> type, Level level) {
         super(type, level);
@@ -99,9 +100,21 @@ public class TRex extends Monster implements GeoEntity {
         super.customServerAiStep(level);
         senses.tick(level);
         voice.tick(level);
+        if (horizontalCollision) {
+            lastHorizontalCollisionTick = tickCount;
+        }
         if (actionTicksLeft > 0 && --actionTicksLeft == 0) {
             entityData.set(DATA_ACTION, (byte) Action.NONE.ordinal());
         }
+    }
+
+    /**
+     * True if it ran into something horizontally during the last {@code ticks} ticks. The {@code horizontalCollision} flag itself flips
+     * on alternate ticks while the T-rex pushes against a wall, so a goal that only ticks every second tick (the default) can read
+     * "no collision" every single time; this is sampled on every tick, whatever the goals do.
+     */
+    public boolean collidedRecently(int ticks) {
+        return tickCount - lastHorizontalCollisionTick <= ticks;
     }
 
     @Override
@@ -169,9 +182,12 @@ public class TRex extends Monster implements GeoEntity {
         return Mth.lerp(DayNight.nightFactor(level(), position()), RexConfig.DAY_AGGRESSION.get(), 1.0);
     }
 
-    /** True if the target is within bite reach, measured from the edge of the (scaled) hitbox. */
+    /**
+     * True if the target is within bite reach, measured from the edge of the (scaled) hitbox, and further down by biteReachBelow: a body
+     * this wide cannot get into a narrow valley or pit, but its head can reach down into one.
+     */
     public boolean isInBiteRange(LivingEntity target) {
-        return getAttackBoundingBox(RexConfig.BITE_REACH.get()).intersects(target.getHitbox());
+        return getAttackBoundingBox(RexConfig.BITE_REACH.get()).expandTowards(0.0, -RexConfig.BITE_REACH_BELOW.get(), 0.0).intersects(target.getHitbox());
     }
 
     public static AttributeSupplier.Builder createAttributes() {

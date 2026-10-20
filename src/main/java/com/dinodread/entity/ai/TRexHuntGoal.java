@@ -111,7 +111,7 @@ public class TRexHuntGoal extends Goal {
         }
 
         double speed = state == HuntState.CHARGE ? RexConfig.CHARGE_SPEED_MULTIPLIER.get() : RexConfig.STALK_SPEED_MULTIPLIER.get();
-        if (mover.driveTo(destination, speed, inBiteRange, true) == RexStuckDetector.Level.GIVE_UP) {
+        if (mover.driveTo(destination, speed, inBiteRange, RexBlockBreaker.Policy.ANY) == RexStuckDetector.Level.GIVE_UP) {
             rex.getSenses().forget();
             rex.getNavigation().stop();
         }

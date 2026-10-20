@@ -40,6 +40,7 @@ public final class RexConfig {
     public static final ModConfigSpec.BooleanValue USE_PATHFINDING;
     public static final ModConfigSpec.DoubleValue INVESTIGATE_REACH_DISTANCE;
     public static final ModConfigSpec.DoubleValue BITE_REACH;
+    public static final ModConfigSpec.DoubleValue BITE_REACH_BELOW;
     public static final ModConfigSpec.IntValue BITE_WINDUP_TICKS;
     public static final ModConfigSpec.IntValue BITE_COOLDOWN_TICKS;
 
@@ -47,6 +48,7 @@ public final class RexConfig {
 
     public static final ModConfigSpec.BooleanValue GRIEFING_ENABLED;
     public static final ModConfigSpec.ConfigValue<List<? extends String>> UNBREAKABLE_BLOCKS;
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> FOLIAGE_BLOCKS;
     public static final ModConfigSpec.BooleanValue BREAK_BLOCK_ENTITIES;
     public static final ModConfigSpec.DoubleValue MAX_BREAK_HARDNESS;
     public static final ModConfigSpec.IntValue BREAK_INTERVAL_TICKS;
@@ -178,6 +180,9 @@ public final class RexConfig {
         BITE_REACH = BUILDER
                 .comment("Bite reach in blocks, measured from the edge of the T-rex's hitbox (so it stays correct at any scale).")
                 .defineInRange("biteReach", 3.0, 0.5, 16.0);
+        BITE_REACH_BELOW = BUILDER
+                .comment("How far below its own feet, in blocks, the T-rex can bite down at a target (on top of biteReach). A body this wide cannot get into a narrow valley or pit, but the head can reach down into it.")
+                .defineInRange("biteReachBelow", 8.0, 0.0, 32.0);
         BITE_WINDUP_TICKS = BUILDER
                 .comment("Ticks between starting a bite and the damage landing (telegraph).")
                 .defineInRange("biteWindupTicks", 10, 0, 100);
@@ -204,6 +209,12 @@ public final class RexConfig {
                                 "minecraft:end_rod", "minecraft:end_portal_frame", "minecraft:end_portal", "minecraft:end_gateway",
                                 "minecraft:chorus_plant", "minecraft:chorus_flower", "minecraft:dragon_egg"),
                         () -> "minecraft:obsidian",
+                        element -> element instanceof String);
+        FOLIAGE_BLOCKS = BUILDER
+                .comment("Trees and the like. While the T-rex is not hunting a player (wandering, or going for an animal) these are the only blocks it breaks, so a tree line is never a trap and everything else is left alone then. Hunting a player uses unbreakableBlocks instead. Entries are block ids (minecraft:oak_leaves) or block tags with a leading # (#minecraft:leaves).")
+                .defineListAllowEmpty("foliageBlocks",
+                        List.of("#minecraft:leaves", "#minecraft:logs"),
+                        () -> "minecraft:oak_leaves",
                         element -> element instanceof String);
         BREAK_BLOCK_ENTITIES = BUILDER
                 .comment("Allow breaking blocks that hold data (chests, furnaces, signs...) when they match the list above. Off = those blocks are never broken.")

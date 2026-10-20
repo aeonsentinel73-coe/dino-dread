@@ -75,10 +75,12 @@ public final class RexTerrainGameTests {
     private static final int CAGE_OUTER_RADIUS = 7;
     private static final int CAGE_HEIGHT = 10;
     private static final int LOG_POST_SPACING = 3;
-    // The wall is two blocks thick, so a rex that has pushed through it stands with its centre at least this far from where it started.
-    private static final double ESCAPE_DISTANCE = 11.0;
+    // The wall's outer face is 8 blocks from the origin, 7.5 from the rex's centre at its start. A centre that far out has pushed through the whole
+    // wall; much further is not possible here, because the arena floor ends 13 blocks out and beyond it is natural terrain.
+    private static final double ESCAPE_DISTANCE = 7.5;
     private static final int ESCAPE_MAX_TICKS = 4000;
     private static final int PLANK_WATCH_TICKS = 1500;
+    private static final int LEAF_CAGE_LOG_DENSE_TICKS = 600;
 
     static {
         FUNCTIONS.register(GENTLE_HILL, () -> RexTerrainGameTests::huntsUpAGentleHill);
@@ -152,14 +154,17 @@ public final class RexTerrainGameTests {
     private static void wandersOutOfALeafCage(GameTestHelper helper) {
         BlockState leaves = Blocks.OAK_LEAVES.defaultBlockState().setValue(LeavesBlock.PERSISTENT, true);
         BlockState log = Blocks.OAK_LOG.defaultBlockState();
+        List<BlockPos> cage = new ArrayList<>();
         RexGameTests.scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, null, false, ESCAPE_MAX_TICKS,
-            origin -> buildCage(helper.getLevel(), origin, (x, z) -> x % LOG_POST_SPACING == 0 && z % LOG_POST_SPACING == 0 ? log : leaves),
+            origin -> cage.addAll(buildCage(helper.getLevel(), origin, (x, z) -> x % LOG_POST_SPACING == 0 && z % LOG_POST_SPACING == 0 ? log : leaves)),
             run -> {},
             run -> {
                 double fromStart = Math.max(Math.abs(run.rex.getX() - run.origin.getX() - 0.5), Math.abs(run.rex.getZ() - run.origin.getZ() - 0.5));
-                run.status = "rex never got out of the leaf cage (furthest from start: " + String.format("%.1f", fromStart) + " blocks, needs " + ESCAPE_DISTANCE + ")";
-                if (run.age() % (LOG_INTERVAL_TICKS * 5) == 0) {
-                    DinoDread.LOGGER.info("[gametest] leaf cage tick {}: {}", run.age(), run.status);
+                long broken = cage.stream().filter(pos -> run.helper.getLevel().getBlockState(pos).isAir()).count();
+                run.status = "rex never got out of the leaf cage (distance from start: " + String.format("%.1f", fromStart) + " blocks, needs " + ESCAPE_DISTANCE
+                    + "; " + broken + " of " + cage.size() + " cage blocks broken; collided=" + run.rex.horizontalCollision + ")";
+                if (run.age() % LOG_INTERVAL_TICKS == 0 && (run.age() < LEAF_CAGE_LOG_DENSE_TICKS || run.age() % (LOG_INTERVAL_TICKS * 5) == 0)) {
+                    DinoDread.LOGGER.info("[gametest] leaf cage tick {}: {} state={}", run.age(), run.status, run.rex.getHuntState());
                 }
                 if (fromStart >= ESCAPE_DISTANCE) {
                     DinoDread.LOGGER.info("[gametest] leaf cage: out {} ticks after the start", run.age());

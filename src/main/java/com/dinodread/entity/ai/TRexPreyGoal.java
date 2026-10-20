@@ -105,7 +105,7 @@ public class TRexPreyGoal extends Goal {
             return;
         }
 
-        if (mover.driveTo(prey.position(), RexConfig.PREY_SPEED_MULTIPLIER.get(), false, false) == RexStuckDetector.Level.GIVE_UP) {
+        if (mover.driveTo(prey.position(), RexConfig.PREY_SPEED_MULTIPLIER.get(), false, RexBlockBreaker.Policy.FOLIAGE) == RexStuckDetector.Level.GIVE_UP) {
             prey = null;
         }
     }

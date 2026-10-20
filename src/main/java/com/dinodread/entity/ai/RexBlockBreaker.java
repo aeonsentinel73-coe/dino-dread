@@ -33,10 +33,18 @@ public class RexBlockBreaker {
     // the air layer exactly above its head).
     private static final double BLOCK_EDGE_EPSILON = 1.0E-3;
 
-    // The unbreakable list is parsed once and re-parsed only when the config value changes.
-    private static List<? extends String> cachedUnbreakableBlocks;
-    private static final Set<Block> cachedUnbreakableBlockIds = new HashSet<>();
-    private static final List<TagKey<Block>> cachedUnbreakableBlockTags = new ArrayList<>();
+    /** Which blocks the T-rex may break right now. */
+    public enum Policy {
+        /** Nothing. */
+        NONE,
+        /** Only foliage (the foliageBlocks config): what it breaks when it is not hunting a player, so a tree line is never a trap. */
+        FOLIAGE,
+        /** Anything not on the unbreakable list: what it breaks when it is hunting a player. */
+        ANY
+    }
+
+    private static final BlockList UNBREAKABLE = new BlockList("unbreakableBlocks");
+    private static final BlockList FOLIAGE = new BlockList("foliageBlocks");
 
     private final TRex rex;
     private int cooldownTicks;
@@ -52,12 +60,17 @@ public class RexBlockBreaker {
      * on the unbreakable list, nearest-first, at most a few per break action. Returns how many blocks were broken this tick.
      */
     public int tick(Vec3 heading, boolean breakNow) {
+        return tick(heading, breakNow, Policy.ANY);
+    }
+
+    /** As {@link #tick(Vec3, boolean)}, but {@code policy} says which blocks it may break. */
+    public int tick(Vec3 heading, boolean breakNow, Policy policy) {
         if (cooldownTicks > 0) {
             cooldownTicks--;
             return 0;
         }
 
-        if (!breakNow) {
+        if (!breakNow || policy == Policy.NONE) {
             return 0;
         }
 
@@ -84,7 +97,7 @@ public class RexBlockBreaker {
         List<BlockPos> candidates = new ArrayList<>();
         for (BlockPos pos : BlockPos.betweenClosed(minX, minY, minZ, maxX, maxY, maxZ)) {
             BlockState state = level.getBlockState(pos);
-            if (state.isAir() || !isBreakable(level, pos, state)) {
+            if (state.isAir() || !isBreakable(level, pos, state) || (policy == Policy.FOLIAGE && !FOLIAGE.matches(RexConfig.FOLIAGE_BLOCKS.get(), state))) {
                 continue;
             }
 
@@ -123,47 +136,58 @@ public class RexBlockBreaker {
             return false;
         }
 
-        return !matchesUnbreakableList(state);
+        return !UNBREAKABLE.matches(RexConfig.UNBREAKABLE_BLOCKS.get(), state);
     }
 
-    private static boolean matchesUnbreakableList(BlockState state) {
-        List<? extends String> configured = RexConfig.UNBREAKABLE_BLOCKS.get();
-        if (cachedUnbreakableBlocks == null || !configured.equals(cachedUnbreakableBlocks)) {
-            cachedUnbreakableBlockIds.clear();
-            cachedUnbreakableBlockTags.clear();
-            for (String entry : configured) {
-                if (entry.startsWith("#")) {
-                    Identifier id = Identifier.tryParse(entry.substring(1));
-                    if (id == null) {
-                        DinoDread.LOGGER.warn("Skipping malformed block tag entry in unbreakableBlocks config: {}", entry);
-                        continue;
-                    }
+    /** A config list of block ids and #tags, parsed once and re-parsed only when the config value changes. */
+    private static final class BlockList {
+        private final String configName;
+        private List<? extends String> cached;
+        private final Set<Block> ids = new HashSet<>();
+        private final List<TagKey<Block>> tags = new ArrayList<>();
 
-                    cachedUnbreakableBlockTags.add(TagKey.create(Registries.BLOCK, id));
-                } else {
-                    Identifier id = Identifier.tryParse(entry);
-                    if (id == null) {
-                        DinoDread.LOGGER.warn("Skipping malformed block id entry in unbreakableBlocks config: {}", entry);
-                        continue;
-                    }
+        BlockList(String configName) {
+            this.configName = configName;
+        }
 
-                    BuiltInRegistries.BLOCK.getOptional(id).ifPresent(cachedUnbreakableBlockIds::add);
+        boolean matches(List<? extends String> configured, BlockState state) {
+            if (cached == null || !configured.equals(cached)) {
+                ids.clear();
+                tags.clear();
+                for (String entry : configured) {
+                    if (entry.startsWith("#")) {
+                        Identifier id = Identifier.tryParse(entry.substring(1));
+                        if (id == null) {
+                            DinoDread.LOGGER.warn("Skipping malformed block tag entry in {} config: {}", configName, entry);
+                            continue;
+                        }
+
+                        tags.add(TagKey.create(Registries.BLOCK, id));
+                    } else {
+                        Identifier id = Identifier.tryParse(entry);
+                        if (id == null) {
+                            DinoDread.LOGGER.warn("Skipping malformed block id entry in {} config: {}", configName, entry);
+                            continue;
+                        }
+
+                        BuiltInRegistries.BLOCK.getOptional(id).ifPresent(ids::add);
+                    }
+                }
+
+                cached = configured;
+            }
+
+            if (ids.contains(state.getBlock())) {
+                return true;
+            }
+
+            for (TagKey<Block> tag : tags) {
+                if (state.is(tag)) {
+                    return true;
                 }
             }
 
-            cachedUnbreakableBlocks = configured;
+            return false;
         }
-
-        if (cachedUnbreakableBlockIds.contains(state.getBlock())) {
-            return true;
-        }
-
-        for (TagKey<Block> tag : cachedUnbreakableBlockTags) {
-            if (state.is(tag)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 }

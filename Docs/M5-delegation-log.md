@@ -31,6 +31,29 @@ The diff matched the spec line for line; no take-over was needed.
   five in the first round (including 11 footsteps in 18 blocks at vanilla's stride versus about 3 with ours) and three in the
   second (daylight, hunting and cooldown suppression), so each test can actually fail.
 
+## Playtest 1 follow-up (2026-10-20)
+
+Feedback from the first real-client session: shake too faint (5x), footsteps too quiet, "his pathing really struggles with hills", "a hard
+time escaping trees", and "he started to break the tree in front of him, but when it was just a few floating leaves left he got stuck".
+
+| Piece | Who | Delegate calls | Iterations | Prompt tokens | Completion tokens | Peak context | Time |
+|---|---|---|---|---|---|---|---|
+| `foliageBlocks` and `biteReachBelow` config entries and labels (tasks/015) | Qwen3.8-27B | 1 | 7 | 51,167 | 1,722 | 11,585 | 35 s |
+
+Claude wrote `RexTerrainGameTests` first (hill ramps, rolling hills, a leaf-and-log cage, a plank cage) and ran it against the old
+code: the plain ramps already passed (the M4 "sand hill" had only ever been a straight ledge), and two tests failed. What they found:
+
+- **Valleys, not slopes.** A 9-wide body cannot get down into a valley narrower than itself, so it straddled the dip with the player 6 blocks below,
+  out of bite reach (3 blocks). Fix: `biteReachBelow` (8) extends the bite reach downward.
+- **Trees were a trap once the hunt ended.** Wandering and chasing animals could not break anything, so a rex that lost its player in a
+  forest (leaves block sight, sneaking makes no noise, 240 ticks and it forgets) was boxed in by the last leaves and logs. Fix: a
+  break policy (`RexBlockBreaker.Policy`): hunting breaks anything not unbreakable, wandering and prey break only `foliageBlocks`
+  (leaves and logs), so a player's planks and glass stay safe (the plank-cage test guards that).
+- **A phase-lock hid the collisions.** `horizontalCollision` flips every other tick while pushing at a wall, and the wander goal only ticks
+  every second tick, so it read "no collision" every time and broke blocks only when the stuck detector escalated (6 blocks per 40 ticks
+  against 48 for a hunt). Fix: `TRex.collidedRecently()` samples every tick, and the wander goal ticks every tick. Cage escape went from
+  about 2000 ticks to about 500.
+
 ## Not verified
 
 Nothing has been heard or felt in a real client: how the placeholder sounds sound, whether the shake strengths feel right,
