@@ -1,0 +1,18 @@
+{
+  "entity.trex.roar": {
+    "subtitle": "subtitles.dinodread.entity.trex.roar",
+    "sounds": ["dinodread:entity/trex/roar1", "dinodread:entity/trex/roar2"]
+  },
+  "entity.trex.roar_distant": {
+    "subtitle": "subtitles.dinodread.entity.trex.roar_distant",
+    "sounds": ["dinodread:entity/trex/roar_distant1"]
+  },
+  "entity.trex.step": {
+    "subtitle": "subtitles.dinodread.entity.trex.step",
+    "sounds": ["dinodread:entity/trex/step1", "dinodread:entity/trex/step2", "dinodread:entity/trex/step3"]
+  },
+  "entity.trex.bite": {
+    "subtitle": "subtitles.dinodread.entity.trex.bite",
+    "sounds": ["dinodread:entity/trex/bite1"]
+  }
+}

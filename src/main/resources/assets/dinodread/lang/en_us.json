@@ -2,6 +2,11 @@
   "entity.dinodread.trex": "Tyrannosaurus Rex",
   "item.dinodread.trex_spawn_egg": "Tyrannosaurus Rex Spawn Egg",
 
+  "subtitles.dinodread.entity.trex.roar": "Tyrannosaurus Rex roars",
+  "subtitles.dinodread.entity.trex.roar_distant": "Distant roar",
+  "subtitles.dinodread.entity.trex.step": "Heavy footsteps",
+  "subtitles.dinodread.entity.trex.bite": "Tyrannosaurus Rex bites",
+
   "dinodread.configuration.title": "Dino Dread",
   "dinodread.configuration.section.dinodread.client.toml": "Dino Dread Atmosphere",
   "dinodread.configuration.section.dinodread.client.toml.title": "Dino Dread Atmosphere",
@@ -82,6 +87,14 @@
   "dinodread.configuration.preySpeedMultiplier": "Prey Speed Multiplier",
   "dinodread.configuration.preyEatTicks": "Eating Time (ticks)",
   "dinodread.configuration.preyMaxChaseTicks": "Longest Chase (ticks)",
+  "dinodread.configuration.audio": "Sound",
+  "dinodread.configuration.footstepVolume": "Footstep Volume",
+  "dinodread.configuration.footstepStrideBlocks": "Footstep Stride (blocks)",
+  "dinodread.configuration.roarVolume": "Roar Volume",
+  "dinodread.configuration.roarCooldownTicks": "Roar Cooldown (ticks)",
+  "dinodread.configuration.distantRoarEnabled": "Distant Roars",
+  "dinodread.configuration.distantRoarIntervalTicks": "Distant Roar Interval (ticks)",
+  "dinodread.configuration.distantRoarVolume": "Distant Roar Volume",
   "dinodread.configuration.daytime": "Daytime",
   "dinodread.configuration.dayAggression": "Daytime Aggression"
 }

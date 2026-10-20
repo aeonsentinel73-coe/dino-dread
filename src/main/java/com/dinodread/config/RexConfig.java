@@ -72,6 +72,14 @@ public final class RexConfig {
     public static final ModConfigSpec.IntValue PREY_EAT_TICKS;
     public static final ModConfigSpec.IntValue PREY_MAX_CHASE_TICKS;
 
+    public static final ModConfigSpec.DoubleValue FOOTSTEP_VOLUME;
+    public static final ModConfigSpec.DoubleValue FOOTSTEP_STRIDE_BLOCKS;
+    public static final ModConfigSpec.DoubleValue ROAR_VOLUME;
+    public static final ModConfigSpec.IntValue ROAR_COOLDOWN_TICKS;
+    public static final ModConfigSpec.BooleanValue DISTANT_ROAR_ENABLED;
+    public static final ModConfigSpec.IntValue DISTANT_ROAR_INTERVAL_TICKS;
+    public static final ModConfigSpec.DoubleValue DISTANT_ROAR_VOLUME;
+
     public static final ModConfigSpec SPEC;
 
     static {
@@ -268,6 +276,30 @@ public final class RexConfig {
         PREY_MAX_CHASE_TICKS = BUILDER
                 .comment("Longest it chases one animal before losing interest.")
                 .defineInRange("preyMaxChaseTicks", 400, 20, 2400);
+        BUILDER.pop();
+
+        BUILDER.push("audio");
+        FOOTSTEP_VOLUME = BUILDER
+                .comment("Volume of its footsteps. A sound carries about 16 blocks per 1.0 of volume, so 6.0 is heard out to roughly 96 blocks, well past render distance.")
+                .defineInRange("footstepVolume", 6.0, 0.1, 16.0);
+        FOOTSTEP_STRIDE_BLOCKS = BUILDER
+                .comment("Blocks it walks between two footsteps. Vanilla steps every ~1.7 blocks, far too fast for a body this big.")
+                .defineInRange("footstepStrideBlocks", 7.0, 1.0, 20.0);
+        ROAR_VOLUME = BUILDER
+                .comment("Volume of the roar when it starts hunting a player (audible out to about 16 blocks per 1.0).")
+                .defineInRange("roarVolume", 5.0, 0.1, 16.0);
+        ROAR_COOLDOWN_TICKS = BUILDER
+                .comment("Minimum ticks between two detection roars, so a player who keeps ducking in and out of sight does not trigger a roar every few seconds.")
+                .defineInRange("roarCooldownTicks", 600, 0, 72000);
+        DISTANT_ROAR_ENABLED = BUILDER
+                .comment("Whether it occasionally roars at night while it is not hunting, to be heard from far away.")
+                .define("distantRoarEnabled", true);
+        DISTANT_ROAR_INTERVAL_TICKS = BUILDER
+                .comment("Average ticks between distant roars at night while it is not hunting (6000 ticks = 5 minutes).")
+                .defineInRange("distantRoarIntervalTicks", 6000, 200, 720000);
+        DISTANT_ROAR_VOLUME = BUILDER
+                .comment("Volume of the distant roar (audible out to about 16 blocks per 1.0, so 12.0 is about 192 blocks).")
+                .defineInRange("distantRoarVolume", 12.0, 0.1, 16.0);
         BUILDER.pop();
 
         BUILDER.push("daytime");
