@@ -26,6 +26,10 @@
   "dinodread.configuration.daySkyLightScale": "Day Sky Light",
   "dinodread.configuration.nightSkyLightScale": "Night Sky Light",
   "dinodread.configuration.ambientLightScale": "Ambient Light",
+  "dinodread.configuration.shake": "Camera Shake",
+  "dinodread.configuration.shakeEnabled": "Camera Shake Enabled",
+  "dinodread.configuration.shakeStrength": "Shake Strength",
+  "dinodread.configuration.shakeMaxDistance": "Shake Distance",
 
   "dinodread.configuration.section.dinodread.startup.toml": "Dino Dread T-rex",
   "dinodread.configuration.section.dinodread.startup.toml.title": "Dino Dread T-rex",

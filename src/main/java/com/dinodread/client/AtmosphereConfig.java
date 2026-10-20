@@ -3,7 +3,7 @@ package com.dinodread.client;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
 /**
- * Client-side atmosphere tunables (fog and darkness). Registered as a CLIENT config from
+ * Client-side atmosphere tunables (fog, darkness and camera shake). Registered as a CLIENT config from
  * {@link DinoDreadClient}; the file is {@code config/dinodread-client.toml}.
  */
 public final class AtmosphereConfig {
@@ -28,6 +28,10 @@ public final class AtmosphereConfig {
     public static final ModConfigSpec.DoubleValue DAY_SKY_LIGHT_SCALE;
     public static final ModConfigSpec.DoubleValue NIGHT_SKY_LIGHT_SCALE;
     public static final ModConfigSpec.DoubleValue AMBIENT_LIGHT_SCALE;
+
+    public static final ModConfigSpec.BooleanValue SHAKE_ENABLED;
+    public static final ModConfigSpec.DoubleValue SHAKE_STRENGTH;
+    public static final ModConfigSpec.DoubleValue SHAKE_MAX_DISTANCE;
 
     public static final ModConfigSpec SPEC;
 
@@ -79,6 +83,18 @@ public final class AtmosphereConfig {
         AMBIENT_LIGHT_SCALE = BUILDER
                 .comment("Multiplier on the ambient light floor (the faint glow that keeps dark places from going pitch black).")
                 .defineInRange("ambientLightScale", 0.6, 0.0, 1.0);
+        BUILDER.pop();
+
+        BUILDER.push("shake");
+        SHAKE_ENABLED = BUILDER
+                .comment("Shake the camera when the T-rex stomps or roars nearby. Also scaled by the Distortion Effects accessibility slider.")
+                .define("shakeEnabled", true);
+        SHAKE_STRENGTH = BUILDER
+                .comment("How hard the camera shakes. 1 = default, 0 = none, 2 = double.")
+                .defineInRange("shakeStrength", 1.0, 0.0, 2.0);
+        SHAKE_MAX_DISTANCE = BUILDER
+                .comment("Distance in blocks beyond which a stomp or roar causes no shake. The shake fades out smoothly towards this distance.")
+                .defineInRange("shakeMaxDistance", 64.0, 8.0, 256.0);
         BUILDER.pop();
 
         SPEC = BUILDER.build();
