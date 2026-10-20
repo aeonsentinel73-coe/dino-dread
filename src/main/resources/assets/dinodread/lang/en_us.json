@@ -57,7 +57,7 @@
   "dinodread.configuration.biteCooldownTicks": "Bite Cooldown (ticks)",
   "dinodread.configuration.obstacles": "Obstacles and Block Breaking",
   "dinodread.configuration.griefingEnabled": "Block Breaking Enabled",
-  "dinodread.configuration.breakableBlocks": "Breakable Blocks",
+  "dinodread.configuration.unbreakableBlocks": "Unbreakable Blocks",
   "dinodread.configuration.breakBlockEntities": "Break Chests And Other Block Entities",
   "dinodread.configuration.maxBreakHardness": "Maximum Block Hardness",
   "dinodread.configuration.breakIntervalTicks": "Break Interval (ticks)",
@@ -75,6 +75,13 @@
   "dinodread.configuration.stuckSidestepDistance": "Sidestep Distance",
   "dinodread.configuration.stuckHopVelocity": "Hop Upward Speed",
   "dinodread.configuration.stuckHopForwardVelocity": "Hop Forward Speed",
+  "dinodread.configuration.prey": "Eating Animals",
+  "dinodread.configuration.preyEnabled": "Eat Animals",
+  "dinodread.configuration.preyIntervalTicks": "Prey Interval (ticks)",
+  "dinodread.configuration.preyRange": "Prey Range",
+  "dinodread.configuration.preySpeedMultiplier": "Prey Speed Multiplier",
+  "dinodread.configuration.preyEatTicks": "Eating Time (ticks)",
+  "dinodread.configuration.preyMaxChaseTicks": "Longest Chase (ticks)",
   "dinodread.configuration.daytime": "Daytime",
   "dinodread.configuration.dayAggression": "Daytime Aggression"
 }

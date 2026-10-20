@@ -18,7 +18,7 @@ import net.minecraft.world.phys.Vec3;
  * position, stalk a target it can see, charge once it is close (or has watched it long enough), and bite
  * whenever it is in reach. Senses live in {@link TRexSenses}; every number comes from {@link RexConfig}.
  * Movement steers straight at the destination; the T-rex is far too wide for vanilla pathfinding, so it clears its way by breaking
- * allow-listed blocks ({@link RexBlockBreaker}) and, when it stops making progress, hops, sidesteps and finally gives up ({@link RexStuckDetector}),
+ * the blocks that are not on the unbreakable list ({@link RexBlockBreaker}) and, when it stops making progress, hops, sidesteps and finally gives up ({@link RexStuckDetector}),
  * all through the shared {@link RexMover}.
  */
 public class TRexHuntGoal extends Goal {

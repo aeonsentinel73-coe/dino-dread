@@ -3,6 +3,7 @@ package com.dinodread.entity;
 import com.dinodread.config.RexConfig;
 import com.dinodread.entity.ai.HuntState;
 import com.dinodread.entity.ai.TRexHuntGoal;
+import com.dinodread.entity.ai.TRexPreyGoal;
 import com.dinodread.entity.ai.TRexSenses;
 import com.dinodread.entity.ai.TRexWanderGoal;
 import com.dinodread.world.DayNight;
@@ -41,8 +42,9 @@ public class TRex extends Monster implements GeoEntity {
     protected void registerGoals() {
         goalSelector.addGoal(0, new FloatGoal(this));
         goalSelector.addGoal(1, new TRexHuntGoal(this));
-        goalSelector.addGoal(2, new TRexWanderGoal(this));
-        goalSelector.addGoal(3, new RandomLookAroundGoal(this));
+        goalSelector.addGoal(2, new TRexPreyGoal(this));
+        goalSelector.addGoal(3, new TRexWanderGoal(this));
+        goalSelector.addGoal(4, new RandomLookAroundGoal(this));
     }
 
     @Override

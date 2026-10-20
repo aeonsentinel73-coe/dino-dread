@@ -22,7 +22,10 @@ import com.dinodread.gametest.RexGameTests.Run;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.world.entity.EntityTypes;
+import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LeavesBlock;
@@ -47,7 +50,11 @@ public final class RexObstacleGameTests {
         DeferredRegister.create(Registries.TEST_FUNCTION, DinoDread.MODID);
 
     private static final String WOOD_HOUSE = "trex_breaks_into_wooden_house";
-    private static final String STONE_HOUSE = "trex_leaves_stone_house_alone";
+    private static final String CONCRETE_HOUSE = "trex_leaves_concrete_house_alone";
+    private static final String STONE_BRICK_HOUSE = "trex_breaks_into_stone_brick_house";
+    private static final String SAND_HILL = "trex_climbs_sand_hill";
+    private static final String PREY = "trex_eats_a_pig_when_no_player_is_near";
+    private static final String PREY_YIELDS = "trex_prefers_the_player_to_a_pig";
     private static final String NO_GRIEF = "trex_respects_mob_griefing_off";
     private static final String TREES = "trex_pushes_through_trees";
     private static final String LEDGE = "trex_climbs_ledge";
@@ -110,13 +117,24 @@ public final class RexObstacleGameTests {
     private static final int NO_GRIEF_WATCH_TICKS = 600;
     private static final int BREAKER_WATCH_TICKS = 30;
     private static final int BREAKER_MAX_TICKS = 60;
+    private static final double PIG_X = 0.5;
+    private static final double PIG_Z = 20.5;
+    private static final int PREY_MAX_TICKS = 20000;
+    private static final int HUNT_PREY_MAX_TICKS = 900;
+    private static final int BREAKER_ROW_LAYERS = 2;
+    private static final int BREAKER_FIRST_ROW_Z = 5;
+    private static final int BREAKER_ROW_HALF_WIDTH = 4;
     private static final double STUCK_TEST_DISTANCE = 50.0;
     // Rex centre z at which its front edge (4.5 blocks ahead) touches the house wall, with a little slack.
     private static final double HOUSE_WALL_CONTACT_Z = HOUSE_FRONT_Z - 4.5 - 1.5;
 
     static {
         FUNCTIONS.register(WOOD_HOUSE, () -> RexObstacleGameTests::breaksIntoWoodenHouse);
-        FUNCTIONS.register(STONE_HOUSE, () -> RexObstacleGameTests::leavesStoneHouseAlone);
+        FUNCTIONS.register(CONCRETE_HOUSE, () -> RexObstacleGameTests::leavesConcreteHouseAlone);
+        FUNCTIONS.register(STONE_BRICK_HOUSE, () -> RexObstacleGameTests::breaksIntoStoneBrickHouse);
+        FUNCTIONS.register(SAND_HILL, () -> RexObstacleGameTests::climbsSandHill);
+        FUNCTIONS.register(PREY, () -> RexObstacleGameTests::eatsAPig);
+        FUNCTIONS.register(PREY_YIELDS, () -> RexObstacleGameTests::prefersThePlayerToAPig);
         FUNCTIONS.register(NO_GRIEF, () -> RexObstacleGameTests::respectsMobGriefingOff);
         FUNCTIONS.register(TREES, () -> RexObstacleGameTests::pushesThroughTrees);
         FUNCTIONS.register(LEDGE, () -> RexObstacleGameTests::climbsLedge);
@@ -137,7 +155,11 @@ public final class RexObstacleGameTests {
 
     private static void registerTests(RegisterGameTestsEvent event) {
         RexGameTests.addTest(event, WOOD_HOUSE, TEST_TIMEOUT_TICKS);
-        RexGameTests.addTest(event, STONE_HOUSE, TEST_TIMEOUT_TICKS);
+        RexGameTests.addTest(event, CONCRETE_HOUSE, TEST_TIMEOUT_TICKS);
+        RexGameTests.addTest(event, STONE_BRICK_HOUSE, TEST_TIMEOUT_TICKS);
+        RexGameTests.addTest(event, SAND_HILL, TEST_TIMEOUT_TICKS);
+        RexGameTests.addTest(event, PREY, TEST_TIMEOUT_TICKS);
+        RexGameTests.addTest(event, PREY_YIELDS, TEST_TIMEOUT_TICKS);
         RexGameTests.addTest(event, NO_GRIEF, TEST_TIMEOUT_TICKS);
         RexGameTests.addTest(event, TREES, TEST_TIMEOUT_TICKS);
         RexGameTests.addTest(event, LEDGE, TEST_TIMEOUT_TICKS);
@@ -151,19 +173,24 @@ public final class RexObstacleGameTests {
 
     /** Wooden house with a too-narrow door, player inside: the rex breaks wall blocks and bites the player. */
     private static void breaksIntoWoodenHouse(GameTestHelper helper) {
-        enterWoodenHouse(helper, 0.5, 0.5);
+        enterHouse(helper, 0.5, 0.5, Blocks.OAK_PLANKS.defaultBlockState(), Blocks.OAK_LOG.defaultBlockState());
     }
 
     /** Same house, but the rex starts off to one side and the player stands off-centre, so it arrives at an angle and not at the door. */
     private static void breaksIntoHouseFromAnAngle(GameTestHelper helper) {
-        enterWoodenHouse(helper, ANGLE_REX_X, ANGLE_PLAYER_X);
+        enterHouse(helper, ANGLE_REX_X, ANGLE_PLAYER_X, Blocks.OAK_PLANKS.defaultBlockState(), Blocks.OAK_LOG.defaultBlockState());
     }
 
-    private static void enterWoodenHouse(GameTestHelper helper, double rexX, double playerX) {
+    /** Cobblestone / stone brick houses are ordinary player structures (only terrain and a few strong materials are unbreakable). */
+    private static void breaksIntoStoneBrickHouse(GameTestHelper helper) {
+        enterHouse(helper, 0.5, 0.5, Blocks.STONE_BRICKS.defaultBlockState(), Blocks.COBBLESTONE.defaultBlockState());
+    }
+
+    private static void enterHouse(GameTestHelper helper, double rexX, double playerX, BlockState wall, BlockState post) {
         List<BlockPos> house = new ArrayList<>();
         float[] startHealth = new float[1];
         RexGameTests.scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, new Vec3(playerX, 0, PLAYER_Z), false, HOUSE_MAX_TICKS,
-            origin -> house.addAll(buildHouse(helper.getLevel(), origin, Blocks.OAK_PLANKS.defaultBlockState(), Blocks.OAK_LOG.defaultBlockState())),
+            origin -> house.addAll(buildHouse(helper.getLevel(), origin, wall, post)),
             run -> {
                 startHealth[0] = run.player.getHealth();
                 run.rex.snapTo(run.helper.absoluteVec(new Vec3(rexX, 0, REX_START_Z)));
@@ -181,23 +208,23 @@ public final class RexObstacleGameTests {
             });
     }
 
-    /** A stone house: stone is not on the allow-list, so nothing may break, and the rex must not just freeze at the wall. */
-    private static void leavesStoneHouseAlone(GameTestHelper helper) {
+    /** A concrete house with iron block corners: both are on the unbreakable list, so nothing may break, and the rex must not just freeze at the wall. */
+    private static void leavesConcreteHouseAlone(GameTestHelper helper) {
         List<BlockPos> house = new ArrayList<>();
         double[] travelled = new double[1];
         Vec3[] last = new Vec3[1];
         RexGameTests.scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, new Vec3(0.5, 0, PLAYER_Z), false, STONE_WATCH_TICKS + 1,
-            origin -> house.addAll(buildHouse(helper.getLevel(), origin, Blocks.STONE_BRICKS.defaultBlockState(), Blocks.STONE_BRICKS.defaultBlockState())),
+            origin -> house.addAll(buildHouse(helper.getLevel(), origin, Blocks.CONCRETE.pick(DyeColor.WHITE).defaultBlockState(), Blocks.IRON_BLOCK.defaultBlockState())),
             run -> last[0] = run.rex.position(),
             run -> {
                 paceTheFloor(run);
                 int broken = countBroken(run, house);
-                run.check(broken == 0, broken + " stone house blocks were broken; stone must not be on the allow-list");
+                run.check(broken == 0, broken + " stone house blocks were broken; concrete and iron blocks are unbreakable");
                 if (run.age() > STONE_SETTLE_TICKS) {
                     travelled[0] += run.rex.position().subtract(last[0]).horizontalDistance();
                 }
                 last[0] = run.rex.position();
-                run.status = "rex froze at the stone wall: travelled only " + String.format("%.1f", travelled[0]) + " blocks since tick " + STONE_SETTLE_TICKS;
+                run.status = "rex froze at the concrete wall: travelled only " + String.format("%.1f", travelled[0]) + " blocks since tick " + STONE_SETTLE_TICKS;
                 logProgress(run, broken);
                 if (run.age() >= STONE_WATCH_TICKS) {
                     run.check(run.rex.isAlive(), "rex died");
@@ -254,24 +281,29 @@ public final class RexObstacleGameTests {
 
     /** A 3 block stone ledge (not breakable) between rex and player: the rex has to climb it, and must not dig it away. */
     private static void climbsLedge(GameTestHelper helper) {
-        climbLedge(helper, LEDGE_HEIGHT);
+        climbLedge(helper, LEDGE_HEIGHT, Blocks.STONE.defaultBlockState());
     }
 
     /** A ledge taller than the step height (3): stepping is not enough, the stuck recovery has to hop. */
     private static void hopsOverTallLedge(GameTestHelper helper) {
-        climbLedge(helper, TALL_LEDGE_HEIGHT);
+        climbLedge(helper, TALL_LEDGE_HEIGHT, Blocks.STONE.defaultBlockState());
     }
 
-    private static void climbLedge(GameTestHelper helper, int height) {
+    /** A hill of sand (terrain, so unbreakable): the rex climbs it, it does not tunnel through it. */
+    private static void climbsSandHill(GameTestHelper helper) {
+        climbLedge(helper, LEDGE_HEIGHT, Blocks.SAND.defaultBlockState());
+    }
+
+    private static void climbLedge(GameTestHelper helper, int height, BlockState material) {
         List<BlockPos> ledge = new ArrayList<>();
         float[] startHealth = new float[1];
         RexGameTests.scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, new Vec3(0.5, height, PLAYER_Z), false, LEDGE_MAX_TICKS,
-            origin -> ledge.addAll(buildLedge(helper.getLevel(), origin, height)),
+            origin -> ledge.addAll(buildLedge(helper.getLevel(), origin, height, material)),
             run -> startHealth[0] = run.player.getHealth(),
             run -> {
                 paceTheFloor(run);
                 int broken = countBroken(run, ledge);
-                run.check(broken == 0, broken + " ledge blocks were broken; the rex must climb, not dig through stone");
+                run.check(broken == 0, broken + " ledge blocks were broken; the rex must climb, not dig through terrain");
                 run.status = describe(run, "rex did not climb the ledge to the player (rex y=" + String.format("%.1f", run.rex.getY() - run.origin.getY()) + ")", broken, startHealth[0]);
                 logProgress(run, broken);
                 if (bitten(run, startHealth[0])) {
@@ -328,24 +360,44 @@ public final class RexObstacleGameTests {
     }
 
     /**
-     * Unit-level check of {@link RexBlockBreaker} on a rex with its AI off: in a row just in front of it, wood, glass and leaves
-     * go, while stone, dirt, a chest and bedrock stay; so does wood beyond the break reach and a plank under its feet.
+     * Unit-level check of {@link RexBlockBreaker} on a rex with its AI off. In two rows (z=5 and z=6) just in front of it, player-structure
+     * materials (wood, glass, leaves, cobblestone, bricks, wool, ...) go, while terrain (stone, dirt, ore, snow, natural sandstone; sand falls when placed in mid-air, so it has its own hill test),
+     * the deliberately unbreakable materials (smooth stone, obsidian, iron block, concrete, End blocks), bedrock, a chest (block entity)
+     * stay; replaceable blocks (plants, snow layers, fluids) are never breakable; so is wood beyond the break reach and a plank under its feet.
      */
     private static void blockBreakerFollowsTheRules(GameTestHelper helper) {
+        List<BlockState> breakables = List.of(
+            Blocks.OAK_PLANKS.defaultBlockState(), Blocks.GLASS.defaultBlockState(), Blocks.OAK_LEAVES.defaultBlockState().setValue(LeavesBlock.PERSISTENT, true),
+            Blocks.OAK_LOG.defaultBlockState(), Blocks.COBBLESTONE.defaultBlockState(), Blocks.STONE_BRICKS.defaultBlockState(), Blocks.BRICKS.defaultBlockState(),
+            Blocks.WOOL.pick(DyeColor.WHITE).defaultBlockState(), Blocks.CUT_SANDSTONE.defaultBlockState(), Blocks.DEEPSLATE_BRICKS.defaultBlockState(), Blocks.TERRACOTTA.defaultBlockState(),
+            Blocks.CRAFTING_TABLE.defaultBlockState(), Blocks.IRON_BARS.defaultBlockState(), Blocks.GLASS_PANE.defaultBlockState(), Blocks.OAK_FENCE.defaultBlockState());
+        List<BlockState> unbreakables = List.of(
+            Blocks.STONE.defaultBlockState(), Blocks.DIRT.defaultBlockState(), Blocks.GRASS_BLOCK.defaultBlockState(),
+            Blocks.SANDSTONE.defaultBlockState(), Blocks.COAL_ORE.defaultBlockState(), Blocks.SNOW_BLOCK.defaultBlockState(),
+            Blocks.SMOOTH_STONE.defaultBlockState(), Blocks.OBSIDIAN.defaultBlockState(), Blocks.IRON_BLOCK.defaultBlockState(), Blocks.CONCRETE.pick(DyeColor.WHITE).defaultBlockState(),
+            Blocks.END_STONE.defaultBlockState(), Blocks.PURPUR_BLOCK.defaultBlockState(), Blocks.CHEST.defaultBlockState(), Blocks.BEDROCK.defaultBlockState());
         // Offsets from the arena origin; the rex (9 wide) stands at (0.5, 0, 0.5), so its front edge is at z=5 and the default reach is 1.5.
+        List<BlockPos> slots = new ArrayList<>();
+        for (int y = 1; y <= BREAKER_ROW_LAYERS; y++) {
+            for (int z = BREAKER_FIRST_ROW_Z; z <= BREAKER_FIRST_ROW_Z + 1; z++) {
+                for (int x = -BREAKER_ROW_HALF_WIDTH; x <= BREAKER_ROW_HALF_WIDTH; x++) {
+                    slots.add(new BlockPos(x, y, z));
+                }
+            }
+        }
         Map<BlockPos, BlockState> shouldBreak = new LinkedHashMap<>();
-        shouldBreak.put(new BlockPos(-4, 1, 5), Blocks.OAK_PLANKS.defaultBlockState());
-        shouldBreak.put(new BlockPos(-3, 1, 5), Blocks.GLASS.defaultBlockState());
-        shouldBreak.put(new BlockPos(-2, 1, 5), Blocks.OAK_LEAVES.defaultBlockState().setValue(LeavesBlock.PERSISTENT, true));
-        shouldBreak.put(new BlockPos(-1, 1, 5), Blocks.OAK_LOG.defaultBlockState());
-        shouldBreak.put(new BlockPos(0, 1, 6), Blocks.OAK_PLANKS.defaultBlockState());
         Map<BlockPos, BlockState> shouldStay = new LinkedHashMap<>();
-        shouldStay.put(new BlockPos(0, 1, 5), Blocks.STONE.defaultBlockState());
-        shouldStay.put(new BlockPos(1, 1, 5), Blocks.CHEST.defaultBlockState());
-        shouldStay.put(new BlockPos(2, 1, 5), Blocks.BEDROCK.defaultBlockState());
-        shouldStay.put(new BlockPos(3, 1, 5), Blocks.DIRT.defaultBlockState());
-        shouldStay.put(new BlockPos(0, 1, 7), Blocks.OAK_PLANKS.defaultBlockState());
-        shouldStay.put(new BlockPos(-4, -1, 0), Blocks.OAK_PLANKS.defaultBlockState());
+        for (int i = 0; i < breakables.size(); i++) {
+            shouldBreak.put(slots.get(i), breakables.get(i));
+        }
+        for (int i = 0; i < unbreakables.size(); i++) {
+            shouldStay.put(slots.get(breakables.size() + i), unbreakables.get(i));
+        }
+        if (breakables.size() + unbreakables.size() > slots.size()) {
+            helper.fail("test setup: more materials than slots");
+        }
+        shouldStay.put(new BlockPos(0, 1, BREAKER_FIRST_ROW_Z + 2), Blocks.OAK_PLANKS.defaultBlockState());
+        shouldStay.put(new BlockPos(-BREAKER_ROW_HALF_WIDTH, -1, 0), Blocks.OAK_PLANKS.defaultBlockState());
         RexBlockBreaker[] breaker = new RexBlockBreaker[1];
         RexGameTests.scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, null, false, BREAKER_MAX_TICKS,
             origin -> {
@@ -366,6 +418,9 @@ public final class RexObstacleGameTests {
                         run.check(level.getBlockState(run.origin.offset(offset)).isAir(), state.getBlock() + " at offset " + offset + " should have been broken"));
                     shouldStay.forEach((offset, state) ->
                         run.check(level.getBlockState(run.origin.offset(offset)).is(state.getBlock()), state.getBlock() + " at offset " + offset + " should NOT have been broken"));
+                    for (BlockState replaceable : List.of(Blocks.SHORT_GRASS.defaultBlockState(), Blocks.WATER.defaultBlockState(), Blocks.SNOW.defaultBlockState(), Blocks.FIRE.defaultBlockState())) {
+                        run.check(!breaker[0].isBreakable(level, run.origin, replaceable), replaceable.getBlock() + " is replaceable and must never be a break candidate");
+                    }
                     run.pass();
                 }
             });
@@ -439,6 +494,50 @@ public final class RexObstacleGameTests {
             helper.fail("reset() should bring the level back to FREE, got " + other.getLevel());
         }
         helper.succeed();
+    }
+
+    /**
+     * No player anywhere: sooner or later the rex goes for a pig and kills it (it is "eating"). The arena is fenced so neither can wander off
+     * into unloaded chunks (a rex out there is frozen). Measured over 13 samples: eaten after 94-4711 ticks (median ~850), so 20000 is over 4x the worst.
+     */
+    private static void eatsAPig(GameTestHelper helper) {
+        Pig[] pig = new Pig[1];
+        RexGameTests.scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, null, false, PREY_MAX_TICKS,
+            origin -> fenceArena(helper.getLevel(), origin),
+            run -> pig[0] = spawnPig(run),
+            run -> {
+                run.status = "rex never ate the pig (pig alive=" + pig[0].isAlive() + ", distance=" + String.format("%.1f", run.rex.distanceTo(pig[0])) + ")";
+                if (!pig[0].isAlive()) {
+                    DinoDread.LOGGER.info("[gametest] prey: pig eaten {} ticks after the start", run.age());
+                    run.pass();
+                }
+            });
+    }
+
+    /** With a player in view the rex hunts the player, not the pig standing between them: the pig is still alive when the player is bitten. */
+    private static void prefersThePlayerToAPig(GameTestHelper helper) {
+        Pig[] pig = new Pig[1];
+        float[] startHealth = new float[1];
+        RexGameTests.scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, new Vec3(0.5, 0, PLAYER_Z), false, HUNT_PREY_MAX_TICKS,
+            origin -> {},
+            run -> {
+                startHealth[0] = run.player.getHealth();
+                pig[0] = spawnPig(run);
+            },
+            run -> {
+                run.status = "player untouched after " + run.age() + " ticks";
+                if (!pig[0].isAlive()) {
+                    run.fail("the rex ate the pig instead of hunting the player");
+                }
+                if (bitten(run, startHealth[0])) {
+                    run.check(pig[0].isAlive(), "the rex killed the pig before reaching the player");
+                    run.pass();
+                }
+            });
+    }
+
+    private static Pig spawnPig(Run run) {
+        return run.helper.spawnEntity(EntityTypes.PIG, new Vec3(PIG_X, 0, PIG_Z)).requirePersistence(true).spawn();
     }
 
     // ---- scenario helpers ----
@@ -581,13 +680,12 @@ public final class RexObstacleGameTests {
         }
     }
 
-    private static List<BlockPos> buildLedge(ServerLevel level, BlockPos origin, int height) {
+    private static List<BlockPos> buildLedge(ServerLevel level, BlockPos origin, int height, BlockState material) {
         List<BlockPos> placed = new ArrayList<>();
-        BlockState stone = Blocks.STONE.defaultBlockState();
         for (int x = -RexGameTests.ARENA_HALF_WIDTH; x <= RexGameTests.ARENA_HALF_WIDTH; x++) {
             for (int z = LEDGE_FRONT_Z; z <= RexGameTests.ARENA_FRONT; z++) {
                 for (int y = 0; y < height; y++) {
-                    place(level, placed, origin.offset(x, y, z), stone);
+                    place(level, placed, origin.offset(x, y, z), material);
                 }
             }
         }

@@ -84,3 +84,22 @@ players up to ~7.5 blocks from its centre and as high as 15 blocks up (a player 
 **step height 3.0** makes it climb 3-block ledges and walls in one smooth snap, which may look odd for a 12-tall mob (and it will step over low garden walls); **pushing/collisions** with
 players and mobs now use the big box (players may be shoved while standing "inside" it); players and arrows hit a much bigger target; and a hunt that flattens a forest or house (90-750 blocks, each with
 item drops and block updates, leaf decay) may cost TPS on a real server (`breakDropsItems`, `blocksPerBreak`, `breakIntervalTicks` are the knobs). F3+B should now show the hitbox matching the model.
+
+## Follow-up 2 (Thomas): unbreakable list instead of allow-list, and the rex eats animals
+Request: the rex should get through most player structures; natural terrain ("smooth stone, sand, etc.") plus obsidian, End materials, iron blocks and concrete must stay unbreakable;
+and with no player around it should now and then attack peaceful mobs "like it's eating". Same method: Claude wrote the tests first (3 failed on the old code for the right reasons), then specs, then Qwen.
+
+| Piece | Task file | Qwen output | Rounds | Outcome | Claude took over |
+|---|---|---|---|---|---|
+| Unbreakable list (config + lang + `RexBlockBreaker`) | `011-unbreakable-list.md` | 3 files, +40/-34 | 1 (9 iterations, 95 s) | Exactly as specified; it also noticed 3 stale "allow-list" javadoc mentions in files it was told not to touch and reported them instead (I fixed those 3 lines) | no |
+| Prey config + lang | `012-prey-config.md` | 2 files, +35 | 1 (8 iterations, 42 s) | Exactly as specified | no |
+| `TRexPreyGoal` + goal registration | `013-prey-goal.md` | 90-line goal + 4 lines in `TRex` | 1 (11 iterations, 67 s) | As specified, one harmless deviation: the "prey died" check sits outside the bite-cooldown block (also covers prey killed by something else while in reach) | no |
+
+Design decisions (mine, for Thomas to veto): (1) breaking is now "everything except `unbreakableBlocks`" (default 41 entries: natural terrain tags/ids, smooth stone, obsidian, concrete, iron blocks, End blocks), still capped by `maxBreakHardness` 5.0 (so fluids, ender chests, netherite and the like stay safe) and by `breakBlockEntities` (chests, furnaces, beds... stay);
+(2) replaceable blocks (grass, flowers, snow layers, fire, water) are never break candidates; (3) iron *bars/doors/trapdoors*, glass, terracotta, deepslate bricks, cut/smooth sandstone, bricks, cobblestone and all stone bricks are breakable - only "iron blocks" were asked for;
+(4) prey = any `Animal` (pigs, cows, sheep, chickens, horses, untamed wolves...) except tamed (owned), leashed or name-tagged ones, within `preyRange` 32, about once per 900 ticks while no player is detected (`hasQuarry()` false); a detected player always preempts (hunt goal priority 1, prey 2, wander 3), the rex walks up without breaking blocks, bites (20 damage, kills pigs/cows/sheep in one bite), stands over the kill for `preyEatTicks` 100 and its loot drops normally.
+
+Test-fixture lessons while writing the matrix test: sand/gravel placed in mid-air fall (so sand has its own hill test), and plants placed without support pop off when a neighbour breaks (replaceable blocks are now asserted through `isBreakable` directly).
+New tests: breaker material matrix (15 breakable, 15 unbreakable materials), stone brick house is broken into, concrete+iron house is left alone (rex keeps moving), sand hill is climbed not dug, rex eats a pig 20 blocks away with no player (410 ticks in the first run), rex prefers the player to a pig in between.
+Prey test flake (2 of the first 10 full-suite runs failed with "rex never ate the pig"): a fixture problem, not the AI. In the unfenced arena the rex wandered out of the force-loaded chunks to x=23 and stood frozen there (a rex in a chunk that is not entity-ticking does not run its AI, the same effect as in the M3 notes), so the pig was never reached. Fixed by fencing the arena for that test; after that 13 of 13 samples ate the pig, after 94-4711 ticks (median ~850), budget raised to 20000 ticks.
+- Result of follow-up 2: 12 consecutive `.\gradlew runGameTestServer --rerun-tasks` runs after the last change, 12/12 green, 21/21 tests each; `.\gradlew build` green; `.\gradlew runServer` reaches `Done` with no client-class errors and no config warnings.
