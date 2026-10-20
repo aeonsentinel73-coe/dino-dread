@@ -15,6 +15,7 @@ import com.dinodread.entity.ai.TRexSenses;
 import com.dinodread.gametest.RexAudioGameTests;
 import com.dinodread.gametest.RexGameTests;
 import com.dinodread.gametest.RexObstacleGameTests;
+import com.dinodread.gametest.RexTerrainGameTests;
 import com.dinodread.registry.ModEntities;
 import com.dinodread.registry.ModItems;
 import com.dinodread.registry.ModSounds;
@@ -37,6 +38,7 @@ public class DinoDread {
         RexGameTests.register(modEventBus);
         RexObstacleGameTests.register(modEventBus);
         RexAudioGameTests.register(modEventBus);
+        RexTerrainGameTests.register(modEventBus);
         LOGGER.info("Dino Dread loading");
     }
 }
