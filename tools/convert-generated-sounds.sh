@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# Turns the AI-generated T-rex sounds (stereo FLAC) into the files the game plays: mono 44.1 kHz Ogg Vorbis, peak -3 dB,
+# leading/trailing silence trimmed, tiny fades so nothing clicks. Overwrites the files of the same name in the sounds folder.
+# Needs ffmpeg with libvorbis on PATH. Run from Git Bash:
+#     bash tools/convert-generated-sounds.sh "D:/Downloads"
+# Source names it looks for: "Detection Roar N", "Distant Roar N", "Footstep N" (or the misspelling "Foostep N"), "Bite N",
+# with N = 1 and up, as .flac. Add a variant by generating it, naming it with the next number, adding a line below and listing the
+# new file in src/main/resources/assets/dinodread/sounds.json.
+set -euo pipefail
+
+SRC="${1:?usage: bash tools/convert-generated-sounds.sh <folder with the .flac files>}"
+OUT="$(cd "$(dirname "$0")/.." && pwd)/src/main/resources/assets/dinodread/sounds/entity/trex"
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+
+TARGET_PEAK_DB=-3     # headroom: the game plays these loud, and Vorbis can overshoot a little
+LEAD_THRESHOLD_DB=-50 # audio quieter than this at the start/end counts as silence
+TAIL_THRESHOLD_DB=-60
+TAIL_KEEP_SECONDS=0.05
+FADE_IN_SECONDS=0.002
+FADE_OUT_SECONDS=0.04
+
+mkdir -p "$OUT"
+
+# convert <output name> <source name 1> [<source name 2> ...]   (first source that exists wins)
+convert() {
+    local name="$1"; shift
+    local in="" candidate
+    for candidate in "$@"; do
+        [ -f "$SRC/$candidate.flac" ] && { in="$SRC/$candidate.flac"; break; }
+    done
+    [ -n "$in" ] || { echo "missing source for $name (looked for: $*)" >&2; exit 1; }
+
+    # Pass 1: mono mix, trim leading and trailing silence; measure the peak and the length.
+    ffmpeg -v error -y -i "$in" -af "pan=mono|c0=0.5*c0+0.5*c1,silenceremove=start_periods=1:start_threshold=${LEAD_THRESHOLD_DB}dB:start_silence=0.01,areverse,silenceremove=start_periods=1:start_threshold=${TAIL_THRESHOLD_DB}dB:start_silence=${TAIL_KEEP_SECONDS},areverse" "$TMP/trimmed.wav"
+    local peak duration gain fade_start
+    peak="$(ffmpeg -v info -i "$TMP/trimmed.wav" -af volumedetect -f null - 2>&1 | sed -n 's/.*max_volume: \(-\?[0-9.]*\) dB.*/\1/p')"
+    duration="$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$TMP/trimmed.wav")"
+    gain="$(awk -v t="$TARGET_PEAK_DB" -v p="$peak" 'BEGIN { printf "%.2f", t - p }')"
+    fade_start="$(awk -v d="$duration" -v f="$FADE_OUT_SECONDS" 'BEGIN { printf "%.4f", (d > f ? d - f : 0) }')"
+
+    # Pass 2: gain to the target peak, short fades, encode.
+    ffmpeg -v error -y -i "$TMP/trimmed.wav" -af "volume=${gain}dB,afade=t=in:d=${FADE_IN_SECONDS},afade=t=out:st=${fade_start}:d=${FADE_OUT_SECONDS}" -ac 1 -ar 44100 -c:a libvorbis -q:a 5 "$OUT/$name.ogg"
+    printf "%-16s <- %-24s %5.2fs, peak %6s dB -> gain %s dB\n" "$name.ogg" "$(basename "$in")" "$duration" "$peak" "$gain"
+}
+
+convert roar1 "Detection Roar 1"
+convert roar2 "Detection Roar 2"
+convert roar3 "Detection Roar 3"
+convert roar_distant1 "Distant Roar 1"
+convert roar_distant2 "Distant Roar 2"
+convert roar_distant3 "Distant Roar 3"
+convert step1 "Footstep 1" "Foostep 1"
+convert step2 "Footstep 2" "Foostep 2"
+convert step3 "Footstep 3" "Foostep 3"
+convert step4 "Footstep 4" "Foostep 4"
+convert bite1 "Bite 1"
+convert bite2 "Bite 2"
+convert bite3 "Bite 3"
+convert bite4 "Bite 4"
+
+echo "Wrote $(ls "$OUT"/*.ogg | wc -l) files to $OUT"

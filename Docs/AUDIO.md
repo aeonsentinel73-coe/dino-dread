@@ -1,10 +1,15 @@
 # Dino Dread audio: what to produce and where it goes
 
-The code plays four sound events. Right now each one is a synthesized placeholder
-(`tools/make-placeholder-sounds.sh`). To use real audio, drop files with the same names into
-`src/main/resources/assets/dinodread/sounds/entity/trex/` and overwrite the placeholder.
-No code change is needed. To add variants, add files and list them in
-`src/main/resources/assets/dinodread/sounds.json` (the game picks one at random).
+The code plays four sound events, each with several variants; the game picks one at random every time.
+The files in `src/main/resources/assets/dinodread/sounds/entity/trex/` were generated with Stable Audio 3 Medium
+(see `CREDITS.md`) and converted by `tools/convert-generated-sounds.sh`:
+
+    bash tools/convert-generated-sounds.sh "D:/Downloads"
+
+To swap a sound, overwrite the file of the same name. To add a variant, add a file and list it in
+`src/main/resources/assets/dinodread/sounds.json` (and as a line in the convert script if you use it).
+No code change is needed. (`tools/make-placeholder-sounds.sh` made the original synthesized placeholders; it now
+refuses to run without `--force`, because it would overwrite these files.)
 
 ## File format (matters)
 
@@ -18,12 +23,12 @@ No code change is needed. To add variants, add files and list them in
 
 ## The four events
 
-| Event | Plays when | Files (placeholder names) | Wanted |
+| Event | Plays when | Files | Wanted |
 |---|---|---|---|
-| `entity.trex.roar` | It detects a player and starts hunting | `roar1.ogg`, `roar2.ogg` | The big one. 2-4 s, a deep, throaty scream with a lot of low end that rises, then drops into a rumble. Close and dry; the player should feel it in their chest. |
-| `entity.trex.roar_distant` | Now and then at night while it wanders, heard from far away | `roar_distant1.ogg` | The same creature, but as if across a valley: muffled highs, long echo, 3-5 s. It should say "something huge is out there" without telling you where. |
-| `entity.trex.step` | Every footstep while it walks or runs | `step1.ogg` to `step3.ogg` | A heavy low thud, 0.5-1 s, mostly below 200 Hz, with a faint ground rumble tail. Three variants so it does not sound like a machine. Camera shake is triggered by this sound. |
-| `entity.trex.bite` | Its bite lands | `bite1.ogg` | A short, wet crunch, 0.3-0.6 s. |
+| `entity.trex.roar` | It detects a player and starts hunting | `roar1.ogg` to `roar3.ogg` | The big one. 2-4 s, a deep, throaty scream with a lot of low end that rises, then drops into a rumble. Close and dry; the player should feel it in their chest. |
+| `entity.trex.roar_distant` | Now and then at night while it wanders, heard from far away | `roar_distant1.ogg` to `roar_distant3.ogg` | The same creature, but as if across a valley: muffled highs, long echo, 3-5 s. It should say "something huge is out there" without telling you where. |
+| `entity.trex.step` | Every footstep while it walks or runs | `step1.ogg` to `step4.ogg` | A heavy low thud, 0.5-1 s, mostly below 200 Hz, with a faint ground rumble tail. Several variants so it does not sound like a machine. Camera shake is triggered by this sound. |
+| `entity.trex.bite` | Its bite lands | `bite1.ogg` to `bite4.ogg` | A short, wet crunch, 0.3-0.6 s. It plays the instant the bite lands, so the crunch should be at the very start of the file (`bite1` builds for most of a second first and will lag the bite). |
 
 Footsteps and roars are meant to carry far past render distance, so they are played very loud
 in game terms (audible range is about 16 blocks times the volume). Keep the source files clean and

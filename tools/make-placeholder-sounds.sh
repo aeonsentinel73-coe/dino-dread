@@ -5,6 +5,12 @@
 # Run from anywhere in Git Bash:  bash tools/make-placeholder-sounds.sh
 set -euo pipefail
 
+# The real, generated sounds now live under the same names (see tools/convert-generated-sounds.sh and CREDITS.md).
+if [ "${1:-}" != "--force" ]; then
+    echo "Refusing to run: this would overwrite the real T-rex sounds with synthesized placeholders. Use --force if you mean it." >&2
+    exit 1
+fi
+
 OUT="$(cd "$(dirname "$0")/.." && pwd)/src/main/resources/assets/dinodread/sounds/entity/trex"
 mkdir -p "$OUT"
 

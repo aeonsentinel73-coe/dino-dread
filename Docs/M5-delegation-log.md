@@ -14,6 +14,9 @@ The diff matched the spec line for line; no take-over was needed.
 
 - **Placeholder sounds** (`tools/make-placeholder-sounds.sh`): synthesized with ffmpeg; mono 44.1 kHz Ogg Vorbis.
   Needed a measurement loop (peak level, channel count), not a spec.
+- **Real sounds** (2026-10-19): Thomas generated 14 variants with Stable Audio 3 Medium; Claude read the licence, analysed each
+  file (stereo, several peaking at 0 dB, trailing silence, `bite1` slow to build) and wrote `tools/convert-generated-sounds.sh`
+  to turn them into mono -3 dB Ogg files that replace the placeholders. Licence summary is in `CREDITS.md`.
 - **TRexVoice, the `nextStep()` stride override, the hunt-goal hooks:** design work. Finding that vanilla triggers a footstep
   when `moveDist` passes `nextStep()` (which is overridable) is what avoids a mixin.
 - **Camera shake** (`client/RexShake`): driven by the `PlaySoundEvent` for the step and roar sounds, so it needs no custom
