@@ -26,4 +26,6 @@ with source URL, author and license. Nothing enters the repo without an entry.
 
 ## Sounds
 
-_None yet._
+| Item | Source | Author | License | How used |
+|---|---|---|---|---|
+| `sounds/entity/trex/*.ogg` (placeholder roar, distant roar, step, bite) | Synthesized by `tools/make-placeholder-sounds.sh` using ffmpeg's built-in generators; nothing sampled | Dino Dread project | CC0 | T-rex placeholder sounds, to be replaced by real audio (see `Docs/AUDIO.md`) |
