@@ -12,10 +12,12 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 public final class ModEntities {
     public static final DeferredRegister.Entities ENTITY_TYPES = DeferredRegister.createEntities(DinoDread.MODID);
 
-    // Base hitbox in blocks, before the TRex SCALE attribute (3x) is applied: in game it is 9 wide x 12 tall.
+    // Base hitbox in blocks, before the TRex SCALE attribute (3x) is applied: in game it is 9 wide x 8.1 tall. The height
+    // follows the Tarbosaurus model (its head tops out about 2.25 blocks up at scale 1, so about 6.8 at 3x); the width is
+    // far wider than the body (about 3 blocks at 3x) on purpose: it is what the wide-body navigation was built around.
     private static final float TREX_WIDTH = 3.0F;
-    private static final float TREX_HEIGHT = 4.0F;
-    private static final float TREX_EYE_HEIGHT = 3.6F;
+    private static final float TREX_HEIGHT = 2.7F;
+    private static final float TREX_EYE_HEIGHT = 2.2F;
     private static final int TREX_TRACKING_RANGE = 10;
 
     public static final DeferredHolder<EntityType<?>, EntityType<TRex>> TREX = ENTITY_TYPES.registerEntityType(

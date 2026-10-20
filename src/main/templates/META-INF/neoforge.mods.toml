@@ -33,7 +33,7 @@ displayName="${mod_name}" #mandatory
 #logoFile="examplemod.png" #optional
 
 # A text field displayed in the mod UI
-#credits="" #optional
+credits="T-rex model: Tarbosaurus Rex by ziiwplay (CC BY 4.0), from Blockbench Workshop. Full credits in CREDITS.md." #optional
 
 # The authors of the mod, displayed in the mod UI (optional)
 authors="Thomas"

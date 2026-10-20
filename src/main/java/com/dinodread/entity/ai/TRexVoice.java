@@ -47,6 +47,7 @@ public class TRexVoice {
         lastRoarTick = rex.tickCount;
         roarCount++;
         play(ModSounds.TREX_ROAR, RexConfig.ROAR_VOLUME.get());
+        rex.startAction(TRex.Action.ROAR);
         return true;
     }
 
@@ -58,6 +59,7 @@ public class TRexVoice {
     public void bite() {
         biteCount++;
         play(ModSounds.TREX_BITE, RexConfig.BITE_VOLUME.get());
+        rex.startAction(TRex.Action.BITE);
     }
 
     /**

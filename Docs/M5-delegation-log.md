@@ -17,6 +17,12 @@ The diff matched the spec line for line; no take-over was needed.
 - **Real sounds** (2026-10-19): Thomas generated 14 variants with Stable Audio 3 Medium; Claude read the licence, analysed each
   file (stereo, several peaking at 0 dB, trailing silence, `bite1` slow to build) and wrote `tools/convert-generated-sounds.sh`
   to turn them into mono -3 dB Ogg files that replace the placeholders. Licence summary is in `CREDITS.md`.
+- **Tarbosaurus Rex model** (2026-10-19, CC BY 4.0, ziiwplay): the site requires a sign-in to download, so Thomas downloaded the
+  `.bbmodel`; the GeckoLib plugin export gave `trex.geo.json` and `trex.animation.json` (the export confirmed the X-axis flips a
+  hand-written converter would have had to guess), and the texture was extracted from the project file. Claude wired the
+  animations: idle and walk (walk playback speed follows the ground speed so the feet match the footstep stride), and roar
+  and bite driven by a synced `Action` flag, because GeckoLib's own animation-trigger packet crashes the GameTest server's
+  mock players. Hitbox lowered from 12 to 8.1 blocks tall to match the model; culling box widened so the tail does not pop.
 - **TRexVoice, the `nextStep()` stride override, the hunt-goal hooks:** design work. Finding that vanilla triggers a footstep
   when `moveDist` passes `nextStep()` (which is overridable) is what avoids a mixin.
 - **Camera shake** (`client/RexShake`): driven by the `PlaySoundEvent` for the step and roar sounds, so it needs no custom

@@ -9,6 +9,7 @@ import java.util.function.Consumer;
 
 import com.dinodread.DinoDread;
 import com.dinodread.config.RexConfig;
+import com.dinodread.entity.TRex;
 import com.dinodread.entity.ai.HuntState;
 
 import net.minecraft.core.registries.Registries;
@@ -45,6 +46,8 @@ public final class RexAudioGameTests {
     private static final double STEP_TOLERANCE_AFTER = 2.0;
     private static final int STEP_MAX_TICKS = 600;
     private static final int BITE_MAX_TICKS = 900;
+    // Longer than the 36-tick roar animation, shorter than the time it takes to reach the player and bite.
+    private static final int ACTION_WATCH_TICKS = 50;
     private static final int DISTANT_MAX_TICKS = 120;
     private static final int DISTANT_WATCH_TICKS = 40;
     private static final int DAY_WATCH_TICKS = 60;
@@ -77,15 +80,32 @@ public final class RexAudioGameTests {
         RexGameTests.addTest(event, DISTANT_WHILE_HUNTING, TEST_TIMEOUT_TICKS);
     }
 
-    /** A rex that notices a player in view roars, exactly once. */
+    /**
+     * A rex that notices a player in view roars, exactly once, and shows it: the synced action is ROAR (which is what makes
+     * clients play the roar animation) and goes back to NONE once the animation is over.
+     */
     private static void roarsWhenItStartsHunting(GameTestHelper helper) {
-        RexGameTests.scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, new Vec3(0.5, 0, PLAYER_DISTANCE), false, ROAR_MAX_TICKS, origin -> {},
-            run -> run.check(run.rex.getVoice().roarCount() == 0, "test setup: the rex must not have roared before it noticed anyone"),
+        long[] roaredAt = {-1};
+        RexGameTests.scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, new Vec3(0.5, 0, PLAYER_DISTANCE), false, ROAR_MAX_TICKS + ACTION_WATCH_TICKS, origin -> {},
+            run -> {
+                run.check(run.rex.getVoice().roarCount() == 0, "test setup: the rex must not have roared before it noticed anyone");
+                run.check(run.rex.getAction() == TRex.Action.NONE, "test setup: the rex must not start in the middle of an action");
+            },
             run -> {
                 int roars = run.rex.getVoice().roarCount();
-                run.status = "the rex never roared; hasQuarry=" + run.rex.getSenses().hasQuarry() + " roars=" + roars;
-                if (roars > 0) {
-                    run.check(roars == ROAR_AT_ONCE, "expected one roar when the hunt started, got " + roars);
+                if (roaredAt[0] < 0) {
+                    run.status = "the rex never roared; hasQuarry=" + run.rex.getSenses().hasQuarry() + " roars=" + roars;
+                    if (roars > 0) {
+                        run.check(roars == ROAR_AT_ONCE, "expected one roar when the hunt started, got " + roars);
+                        run.check(run.rex.getAction() == TRex.Action.ROAR, "the rex roared but its action is " + run.rex.getAction() + ", so clients would not animate it");
+                        roaredAt[0] = run.age();
+                    }
+                    return;
+                }
+
+                run.status = "the roar action never ended; action=" + run.rex.getAction();
+                if (run.age() - roaredAt[0] >= ACTION_WATCH_TICKS) {
+                    run.check(run.rex.getAction() == TRex.Action.NONE, "the roar action never went back to NONE: " + run.rex.getAction());
                     run.pass();
                 }
             });
@@ -150,6 +170,7 @@ public final class RexAudioGameTests {
                 run.status = "the player was never bitten";
                 if (run.player.getHealth() < startHealth[0] || !run.player.isAlive()) {
                     run.check(run.rex.getVoice().biteCount() >= 1, "the bite landed but no bite sound was played");
+                    run.check(run.rex.getAction() == TRex.Action.BITE, "the bite landed but the rex's action is " + run.rex.getAction() + ", so clients would not animate it");
                     run.pass();
                 }
             });
