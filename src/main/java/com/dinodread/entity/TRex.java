@@ -5,6 +5,7 @@ import com.dinodread.entity.ai.HuntState;
 import com.dinodread.entity.ai.TRexHuntGoal;
 import com.dinodread.entity.ai.TRexPreyGoal;
 import com.dinodread.entity.ai.TRexSenses;
+import com.dinodread.entity.ai.TRexVoice;
 import com.dinodread.entity.ai.TRexWanderGoal;
 import com.dinodread.world.DayNight;
 
@@ -13,6 +14,7 @@ import com.geckolib.animatable.instance.AnimatableInstanceCache;
 import com.geckolib.animatable.manager.AnimatableManager;
 import com.geckolib.util.GeckoLibUtil;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EntityType;
@@ -23,11 +25,16 @@ import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 
 // T-rex. Attributes come from RexConfig (STARTUP config); the hunting brain lives in entity.ai.
 public class TRex extends Monster implements GeoEntity {
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
+    // Vanilla counts walking in units of 0.6 of a block (Entity.moveDist), and plays a footstep when it passes nextStep().
+    private static final double VANILLA_MOVE_DIST_PER_BLOCK = 0.6;
+
     private final TRexSenses senses = new TRexSenses(this);
+    private final TRexVoice voice = new TRexVoice(this);
     private HuntState huntState = HuntState.WANDER;
 
     public TRex(EntityType<? extends TRex> type, Level level) {
@@ -51,10 +58,27 @@ public class TRex extends Monster implements GeoEntity {
     protected void customServerAiStep(ServerLevel level) {
         super.customServerAiStep(level);
         senses.tick(level);
+        voice.tick(level);
+    }
+
+    // A footstep every footstepStrideBlocks blocks walked instead of vanilla's ~1.7, which is far too quick for this body.
+    @Override
+    protected float nextStep() {
+        return moveDist + (float) (RexConfig.FOOTSTEP_STRIDE_BLOCKS.get() * VANILLA_MOVE_DIST_PER_BLOCK);
+    }
+
+    // The footstep is its own sound, at a volume that carries; the block's step sound would be a faint tick under it.
+    @Override
+    protected void playStepSound(BlockPos pos, BlockState blockState) {
+        voice.step();
     }
 
     public TRexSenses getSenses() {
         return senses;
+    }
+
+    public TRexVoice getVoice() {
+        return voice;
     }
 
     public HuntState getHuntState() {

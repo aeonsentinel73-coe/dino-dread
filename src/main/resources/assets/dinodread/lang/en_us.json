@@ -90,6 +90,7 @@
   "dinodread.configuration.audio": "Sound",
   "dinodread.configuration.footstepVolume": "Footstep Volume",
   "dinodread.configuration.footstepStrideBlocks": "Footstep Stride (blocks)",
+  "dinodread.configuration.biteVolume": "Bite Volume",
   "dinodread.configuration.roarVolume": "Roar Volume",
   "dinodread.configuration.roarCooldownTicks": "Roar Cooldown (ticks)",
   "dinodread.configuration.distantRoarEnabled": "Distant Roars",

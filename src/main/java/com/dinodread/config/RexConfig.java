@@ -74,6 +74,7 @@ public final class RexConfig {
 
     public static final ModConfigSpec.DoubleValue FOOTSTEP_VOLUME;
     public static final ModConfigSpec.DoubleValue FOOTSTEP_STRIDE_BLOCKS;
+    public static final ModConfigSpec.DoubleValue BITE_VOLUME;
     public static final ModConfigSpec.DoubleValue ROAR_VOLUME;
     public static final ModConfigSpec.IntValue ROAR_COOLDOWN_TICKS;
     public static final ModConfigSpec.BooleanValue DISTANT_ROAR_ENABLED;
@@ -285,6 +286,9 @@ public final class RexConfig {
         FOOTSTEP_STRIDE_BLOCKS = BUILDER
                 .comment("Blocks it walks between two footsteps. Vanilla steps every ~1.7 blocks, far too fast for a body this big.")
                 .defineInRange("footstepStrideBlocks", 7.0, 1.0, 20.0);
+        BITE_VOLUME = BUILDER
+                .comment("Volume of its bite (audible out to about 16 blocks per 1.0).")
+                .defineInRange("biteVolume", 3.0, 0.1, 16.0);
         ROAR_VOLUME = BUILDER
                 .comment("Volume of the roar when it starts hunting a player (audible out to about 16 blocks per 1.0).")
                 .defineInRange("roarVolume", 5.0, 0.1, 16.0);

@@ -60,6 +60,7 @@ public class TRexHuntGoal extends Goal {
         stalkSeenTicks = 0;
         chargeTicks = 0;
         biteWindupTicks = NOT_BITING;
+        rex.getVoice().roar();
     }
 
     @Override
@@ -161,6 +162,7 @@ public class TRexHuntGoal extends Goal {
             biteCooldownTicks = RexConfig.BITE_COOLDOWN_TICKS.get();
             if (rex.isInBiteRange(target) && rex.level() instanceof ServerLevel level) {
                 rex.swingForAttack(InteractionHand.MAIN_HAND);
+                rex.getVoice().bite();
                 rex.doHurtTarget(level, target);
             }
         }

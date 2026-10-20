@@ -88,7 +88,7 @@ public final class RexGameTests {
     private static final double PLAYER_BEHIND_DISTANCE = 40.0;
     private static final double PLAYER_NEAR_DISTANCE = 15.0;
     // Overworld day cycle clock values: 6000 is noon, 18000 is midnight (data/minecraft/timeline/day.json).
-    private static final long NOON_TICKS = 6000L;
+    static final long NOON_TICKS = 6000L;
     static final long MIDNIGHT_TICKS = 18000L;
     // After the clock is set, the environment attributes need a tick or two before the sky light factor follows.
     private static final int CLOCK_SETTLE_TICKS = 3;
