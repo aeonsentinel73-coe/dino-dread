@@ -281,8 +281,9 @@ public final class RexConfig {
 
         BUILDER.push("audio");
         FOOTSTEP_VOLUME = BUILDER
-                .comment("Volume of its footsteps. A sound carries about 16 blocks per 1.0 of volume, so 6.0 is heard out to roughly 96 blocks, well past render distance.")
-                .defineInRange("footstepVolume", 6.0, 0.1, 16.0);
+                .comment("Volume of its footsteps. A sound carries about 16 blocks per 1.0 of volume, so 10.0 is heard out to roughly 160 blocks, well past render distance.",
+                        "The game never plays anything louder than 1.0 at the listener's ear: above 1.0 this only makes the footsteps reach further (and fade out later).")
+                .defineInRange("footstepVolume", 10.0, 0.1, 16.0);
         FOOTSTEP_STRIDE_BLOCKS = BUILDER
                 .comment("Blocks it walks between two footsteps. Vanilla steps every ~1.7 blocks, far too fast for a body this big.")
                 .defineInRange("footstepStrideBlocks", 7.0, 1.0, 20.0);

@@ -31,9 +31,10 @@ public final class RexShake {
     private static final float ROAR_TRAUMA = 1.0F;
     private static final float TRAUMA_DECAY_PER_TICK = 0.035F;
 
-    private static final float MAX_PITCH_DEGREES = 2.5F;
-    private static final float MAX_YAW_DEGREES = 1.5F;
-    private static final float MAX_ROLL_DEGREES = 3.0F;
+    // Five times the first version (2.5 / 1.5 / 3.0), after the first playtest found it too faint to notice.
+    private static final float MAX_PITCH_DEGREES = 12.5F;
+    private static final float MAX_YAW_DEGREES = 7.5F;
+    private static final float MAX_ROLL_DEGREES = 15.0F;
     // Different speeds and phases so the three axes do not move in lockstep (units: radians per tick).
     private static final float PITCH_SPEED = 2.3F;
     private static final float YAW_SPEED = 1.9F;

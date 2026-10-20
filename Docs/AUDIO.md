@@ -31,18 +31,20 @@ refuses to run without `--force`, because it would overwrite these files.)
 | `entity.trex.bite` | Its bite lands | `bite1.ogg` to `bite4.ogg` | A short, wet crunch, 0.3-0.6 s. It plays the instant the bite lands, so the crunch should be at the very start of the file (`bite1` builds for most of a second first and will lag the bite). |
 
 Footsteps and roars are meant to carry far past render distance, so they are played very loud
-in game terms (audible range is about 16 blocks times the volume). Keep the source files clean and
-leave the loudness to the config.
+in game terms (audible range is about 16 blocks times the volume). Note that the game never plays a
+sound above gain 1.0 at the listener's ear: a bigger volume only makes it reach further. How loud a sound is
+close up is decided by the file, so `tools/convert-generated-sounds.sh` levels the footsteps to the same average
+loudness ("punch" mode) and adds saturation; roars and bites only get their peak set.
 
 ## Tuning the loudness and feel (no code, no audio edits)
 
-Server side, in `config/dinodread-startup.toml` under `[audio]` (needs a game restart): `footstepVolume` (6.0, heard
-out to ~96 blocks), `footstepStrideBlocks` (7.0 blocks between steps), `biteVolume` (3.0), `roarVolume` (5.0),
+Server side, in `config/dinodread-startup.toml` under `[audio]` (needs a game restart): `footstepVolume` (10.0, heard
+out to ~160 blocks), `footstepStrideBlocks` (7.0 blocks between steps), `biteVolume` (3.0), `roarVolume` (5.0),
 `roarCooldownTicks` (600), `distantRoarEnabled`, `distantRoarIntervalTicks` (6000 = 5 minutes on average) and
 `distantRoarVolume` (12.0, heard out to ~190 blocks). A sound carries 16 blocks per 1.0 of volume.
 
-Client side, in `config/dinodread-client.toml` under `[shake]`: `shakeEnabled`, `shakeStrength` (1.0) and
-`shakeMaxDistance` (64 blocks). The camera shake is triggered by the step and roar sounds themselves, so it stays in
+Client side, in `config/dinodread-client.toml` under `[shake]`: `shakeEnabled`, `shakeStrength` (1.0; the base
+amplitude was raised 5x after the first playtest, so 1.0 is already strong) and `shakeMaxDistance` (64 blocks). The camera shake is triggered by the step and roar sounds themselves, so it stays in
 sync with what you hear, fades with distance, and is also scaled by the game's Distortion Effects accessibility slider.
 
 ## Rules for anything that gets added
