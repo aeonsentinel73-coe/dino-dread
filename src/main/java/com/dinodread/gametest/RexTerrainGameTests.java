@@ -6,6 +6,7 @@ import static com.dinodread.gametest.RexGameTests.TEST_TIMEOUT_TICKS;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.IntBinaryOperator;
@@ -47,6 +48,8 @@ public final class RexTerrainGameTests {
     private static final String ROLLING_HILLS = "trex_hunts_across_rolling_hills";
     private static final String LEAF_CAGE = "trex_wanders_out_of_a_leaf_cage";
     private static final String PLANK_CAGE = "trex_wandering_leaves_a_plank_cage_alone";
+    private static final String FOREST_GROUND = "trex_goes_through_a_dense_forest_not_over_it";
+    private static final String TREETOP = "trex_falls_through_a_treetop_it_stands_on";
 
     // Hills: the ground starts rising at HILL_START_Z, blocks gained per block walked is the slope, up to the plateau height.
     private static final int HILL_START_Z = 6;
@@ -84,6 +87,26 @@ public final class RexTerrainGameTests {
     private static final int PLANK_WATCH_TICKS = 1500;
     private static final int LEAF_CAGE_LOG_DENSE_TICKS = 600;
 
+    // Dense oak forest: a jittered grid of trees (trunks 4 to 7 high, a real oak canopy of two wide and two narrow leaf layers) close enough that the canopies touch.
+    private static final long OAK_FOREST_SEED = 20261020L;
+    private static final int OAK_FIRST_Z = 8;
+    private static final int OAK_LAST_Z = 30;
+    private static final int OAK_SPACING = 4;
+    private static final int OAK_JITTER = 1;
+    private static final int OAK_MIN_TRUNK = 4;
+    private static final int OAK_TRUNK_VARIATION = 3;
+    private static final int OAK_PLAYER_CLEARANCE = 4;
+    private static final int OAK_WIDE_RADIUS = 2;
+    private static final int OAK_NARROW_RADIUS = 1;
+    private static final int FOREST_MAX_TICKS = 2400;
+    // Treetop: a one block thick leaf platform this high, wider than the rex, which is put on top of it, inside a tall stone ring.
+    private static final int TREETOP_HEIGHT = 3;
+    private static final int TREETOP_RING_RADIUS = 8;
+    private static final int TREETOP_RING_TOP = 16;
+    private static final int TREETOP_MAX_TICKS = 600;
+    // On a flat floor, a rex standing on anything higher than this is standing on a tree.
+    private static final double STANDING_LIMIT = 1.0;
+
     static {
         FUNCTIONS.register(GENTLE_HILL, () -> RexTerrainGameTests::huntsUpAGentleHill);
         FUNCTIONS.register(HILL_45, () -> RexTerrainGameTests::huntsUpA45DegreeHill);
@@ -91,6 +114,8 @@ public final class RexTerrainGameTests {
         FUNCTIONS.register(ROLLING_HILLS, () -> RexTerrainGameTests::huntsAcrossRollingHills);
         FUNCTIONS.register(LEAF_CAGE, () -> RexTerrainGameTests::wandersOutOfALeafCage);
         FUNCTIONS.register(PLANK_CAGE, () -> RexTerrainGameTests::wanderingLeavesAPlankCageAlone);
+        FUNCTIONS.register(FOREST_GROUND, () -> RexTerrainGameTests::goesThroughADenseForestNotOverIt);
+        FUNCTIONS.register(TREETOP, () -> RexTerrainGameTests::fallsThroughATreetopItStandsOn);
     }
 
     private RexTerrainGameTests() {}
@@ -107,6 +132,8 @@ public final class RexTerrainGameTests {
         RexGameTests.addTest(event, ROLLING_HILLS, TEST_TIMEOUT_TICKS);
         RexGameTests.addTest(event, LEAF_CAGE, TEST_TIMEOUT_TICKS);
         RexGameTests.addTest(event, PLANK_CAGE, TEST_TIMEOUT_TICKS);
+        RexGameTests.addTest(event, FOREST_GROUND, TEST_TIMEOUT_TICKS);
+        RexGameTests.addTest(event, TREETOP, TEST_TIMEOUT_TICKS);
     }
 
     /** A ramp rising one block every two blocks (about 27 degrees). */
@@ -194,6 +221,74 @@ public final class RexTerrainGameTests {
             });
     }
 
+    /**
+     * A dense oak forest on flat ground, canopies touching, between the rex and the player: it has to break its way through at ground level.
+     * A rex that is ever standing on the ground-level-plus-something (it only counts when it is on a surface, not hopping) has climbed onto the trees,
+     * which is what the playtest showed: it walked around on top of the canopy instead of going through it.
+     */
+    private static void goesThroughADenseForestNotOverIt(GameTestHelper helper) {
+        float[] startHealth = new float[1];
+        double[] highestStanding = new double[1];
+        RexGameTests.scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, new Vec3(0.5, 0, PLAYER_Z + 0.5), false, FOREST_MAX_TICKS,
+            origin -> buildOakForest(helper.getLevel(), origin),
+            run -> startHealth[0] = run.player.getHealth(),
+            run -> {
+                if (run.age() % NOISE_INTERVAL_TICKS == 0) {
+                    RexGameTests.stepNoise(run);
+                }
+                double feetY = run.rex.getY() - run.origin.getY();
+                if (run.rex.onGround()) {
+                    highestStanding[0] = Math.max(highestStanding[0], feetY);
+                }
+                run.check(highestStanding[0] <= STANDING_LIMIT, "the rex climbed onto the trees: it stood " + String.format("%.1f", highestStanding[0]) + " blocks above the ground (limit "
+                    + STANDING_LIMIT + ") at tick " + run.age());
+                run.status = "rex never got through the forest to the player: z=" + String.format("%.1f", run.rex.getZ() - run.origin.getZ()) + " y=" + String.format("%.1f", feetY);
+                if (run.age() % LOG_INTERVAL_TICKS == 0) {
+                    DinoDread.LOGGER.info("[gametest] oak forest tick {}: {} (highest standing {})", run.age(), run.status, String.format("%.1f", highestStanding[0]));
+                }
+                if (run.player.getHealth() < startHealth[0] || !run.player.isAlive()) {
+                    DinoDread.LOGGER.info("[gametest] oak forest: player bitten {} ticks after the start, highest standing {}", run.age(), String.format("%.1f", highestStanding[0]));
+                    run.pass();
+                }
+            });
+    }
+
+    /**
+     * Treetops are not ground: put the rex on a platform of leaves three blocks up (as if it had hopped or stepped onto a canopy) and it must break
+     * its way down through it and end up standing on the real floor, instead of walking around up there. A ring of stone, tall and unbreakable, keeps it
+     * from simply walking off the edge, so the only way down is through the leaves under its feet.
+     */
+    private static void fallsThroughATreetopItStandsOn(GameTestHelper helper) {
+        BlockState leaves = Blocks.OAK_LEAVES.defaultBlockState().setValue(LeavesBlock.PERSISTENT, true);
+        BlockState stone = Blocks.STONE.defaultBlockState();
+        RexGameTests.scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, null, false, TREETOP_MAX_TICKS,
+            origin -> {
+                for (int x = -TREETOP_RING_RADIUS; x <= TREETOP_RING_RADIUS; x++) {
+                    for (int z = -TREETOP_RING_RADIUS; z <= TREETOP_RING_RADIUS; z++) {
+                        if (Math.max(Math.abs(x), Math.abs(z)) == TREETOP_RING_RADIUS) {
+                            for (int y = TREETOP_HEIGHT; y < TREETOP_RING_TOP; y++) {
+                                helper.getLevel().setBlock(origin.offset(x, y, z), stone, Block.UPDATE_CLIENTS);
+                            }
+                        } else {
+                            helper.getLevel().setBlock(origin.offset(x, TREETOP_HEIGHT, z), leaves, Block.UPDATE_CLIENTS);
+                        }
+                    }
+                }
+            },
+            run -> run.rex.snapTo(run.helper.absoluteVec(new Vec3(0.5, TREETOP_HEIGHT + 1, 0.5))),
+            run -> {
+                double feetY = run.rex.getY() - run.origin.getY();
+                run.status = "the rex is still standing on the treetop (y=" + String.format("%.1f", feetY) + ", onGround=" + run.rex.onGround() + ")";
+                if (run.age() % LOG_INTERVAL_TICKS == 0) {
+                    DinoDread.LOGGER.info("[gametest] treetop tick {}: {}", run.age(), run.status);
+                }
+                if (run.rex.onGround() && feetY <= STANDING_LIMIT) {
+                    DinoDread.LOGGER.info("[gametest] treetop: back on the ground {} ticks after the start", run.age());
+                    run.pass();
+                }
+            });
+    }
+
     // ---- structures ----
 
     private static IntBinaryOperator ramp(double slope, int plateau) {
@@ -215,6 +310,37 @@ public final class RexTerrainGameTests {
                 for (int y = 0; y < height; y++) {
                     BlockState state = y == height - 1 ? Blocks.GRASS_BLOCK.defaultBlockState() : Blocks.DIRT.defaultBlockState();
                     level.setBlock(origin.offset(x, y, z), state, Block.UPDATE_CLIENTS);
+                }
+            }
+        }
+    }
+
+    private static void buildOakForest(ServerLevel level, BlockPos origin) {
+        Random random = new Random(OAK_FOREST_SEED);
+        BlockState log = Blocks.OAK_LOG.defaultBlockState();
+        BlockState leaves = Blocks.OAK_LEAVES.defaultBlockState().setValue(LeavesBlock.PERSISTENT, true);
+        for (int gridZ = OAK_FIRST_Z; gridZ <= OAK_LAST_Z; gridZ += OAK_SPACING) {
+            for (int gridX = -RexGameTests.ARENA_HALF_WIDTH + 1; gridX <= RexGameTests.ARENA_HALF_WIDTH - 1; gridX += OAK_SPACING) {
+                int x = gridX + random.nextInt(2 * OAK_JITTER + 1) - OAK_JITTER;
+                int z = gridZ + random.nextInt(2 * OAK_JITTER + 1) - OAK_JITTER;
+                int trunk = OAK_MIN_TRUNK + random.nextInt(OAK_TRUNK_VARIATION + 1);
+                if (Math.abs(x) < OAK_PLAYER_CLEARANCE && Math.abs(z - PLAYER_Z) < OAK_PLAYER_CLEARANCE) {
+                    continue;
+                }
+                for (int y = 0; y < trunk; y++) {
+                    level.setBlock(origin.offset(x, y, z), log, Block.UPDATE_CLIENTS);
+                }
+                for (int layer = -2; layer <= 1; layer++) {
+                    int radius = layer <= -1 ? OAK_WIDE_RADIUS : OAK_NARROW_RADIUS;
+                    for (int dx = -radius; dx <= radius; dx++) {
+                        for (int dz = -radius; dz <= radius; dz++) {
+                            boolean trimmedCorner = radius == OAK_WIDE_RADIUS && Math.abs(dx) == radius && Math.abs(dz) == radius;
+                            BlockPos pos = origin.offset(x + dx, trunk + layer, z + dz);
+                            if (!trimmedCorner && Math.abs(x + dx) <= RexGameTests.ARENA_HALF_WIDTH && level.getBlockState(pos).isAir()) {
+                                level.setBlock(pos, leaves, Block.UPDATE_CLIENTS);
+                            }
+                        }
+                    }
                 }
             }
         }

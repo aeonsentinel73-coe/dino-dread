@@ -2,6 +2,7 @@ package com.dinodread.entity;
 
 import com.dinodread.config.RexConfig;
 import com.dinodread.entity.ai.HuntState;
+import com.dinodread.entity.ai.RexBlockBreaker;
 import com.dinodread.entity.ai.TRexHuntGoal;
 import com.dinodread.entity.ai.TRexPreyGoal;
 import com.dinodread.entity.ai.TRexSenses;
@@ -74,6 +75,8 @@ public class TRex extends Monster implements GeoEntity {
 
     private final TRexSenses senses = new TRexSenses(this);
     private final TRexVoice voice = new TRexVoice(this);
+    // Breaks the foliage it ends up standing on (treetops are not ground); the movement code has its own breaker for what is in its way.
+    private final RexBlockBreaker stomper = new RexBlockBreaker(this);
     private HuntState huntState = HuntState.WANDER;
     private int actionTicksLeft;
     private int lastHorizontalCollisionTick = Integer.MIN_VALUE / 2;
@@ -100,6 +103,7 @@ public class TRex extends Monster implements GeoEntity {
         super.customServerAiStep(level);
         senses.tick(level);
         voice.tick(level);
+        stomper.breakFoliageBeneath();
         if (horizontalCollision) {
             lastHorizontalCollisionTick = tickCount;
         }

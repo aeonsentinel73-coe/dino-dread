@@ -48,6 +48,7 @@ public class RexBlockBreaker {
 
     private final TRex rex;
     private int cooldownTicks;
+    private int stompCooldownTicks;
 
     public RexBlockBreaker(TRex rex) {
         this.rex = rex;
@@ -78,7 +79,7 @@ public class RexBlockBreaker {
             return 0;
         }
 
-        if (!RexConfig.GRIEFING_ENABLED.get() || !EventHooks.canEntityGrief(level, rex)) {
+        if (!griefingAllowed(level)) {
             return 0;
         }
 
@@ -119,6 +120,47 @@ public class RexBlockBreaker {
 
         cooldownTicks = RexConfig.BREAK_INTERVAL_TICKS.get();
         return broken;
+    }
+
+    /**
+     * Treetops are not ground. If the T-rex is standing on foliage it breaks the foliage directly under its feet (same rules, limits and
+     * griefing gates as {@link #tick}), so a rex that got up on a canopy, by hopping or stepping, falls through it instead of walking around up there.
+     * Call it every server tick, whatever the T-rex is doing. Returns how many blocks it broke.
+     */
+    public int breakFoliageBeneath() {
+        if (stompCooldownTicks > 0) {
+            stompCooldownTicks--;
+            return 0;
+        }
+
+        if (!rex.onGround() || !(rex.level() instanceof ServerLevel level) || !griefingAllowed(level)) {
+            return 0;
+        }
+
+        AABB body = rex.getBoundingBox();
+        int supportY = Mth.floor(body.minY - BLOCK_EDGE_EPSILON);
+        int broken = 0;
+        for (BlockPos pos : BlockPos.betweenClosed(Mth.floor(body.minX + BLOCK_EDGE_EPSILON), supportY, Mth.floor(body.minZ + BLOCK_EDGE_EPSILON),
+                Mth.floor(body.maxX - BLOCK_EDGE_EPSILON), supportY, Mth.floor(body.maxZ - BLOCK_EDGE_EPSILON))) {
+            if (broken >= RexConfig.BLOCKS_PER_BREAK.get()) {
+                break;
+            }
+
+            BlockState state = level.getBlockState(pos);
+            if (!state.isAir() && isBreakable(level, pos, state) && FOLIAGE.matches(RexConfig.FOLIAGE_BLOCKS.get(), state)
+                    && level.destroyBlock(pos, RexConfig.BREAK_DROPS_ITEMS.get(), rex)) {
+                broken++;
+            }
+        }
+
+        if (broken > 0) {
+            stompCooldownTicks = RexConfig.BREAK_INTERVAL_TICKS.get();
+        }
+        return broken;
+    }
+
+    private boolean griefingAllowed(ServerLevel level) {
+        return RexConfig.GRIEFING_ENABLED.get() && EventHooks.canEntityGrief(level, rex);
     }
 
     /** True if this block may be broken by the T-rex under the current config (used by tick and by tests). */
