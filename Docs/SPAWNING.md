@@ -50,7 +50,7 @@ To watch the real spawner, put this in the file and restart:
     [despawn]
     maxLifetimeTicks = 0
 
-Stand on open ground (the body is 9 blocks wide and needs room; a tree line fails more often, raise `placementAttempts`).
+Stand on open ground (the hitbox is `hitboxWidth` x `scale` = 4.5 blocks wide and 6.6 tall by default and needs room; a tree line fails more often, raise `placementAttempts`).
 
 ## Rarity and feel: the knobs, in the order to reach for them
 
