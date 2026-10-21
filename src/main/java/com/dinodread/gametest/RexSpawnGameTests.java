@@ -76,6 +76,7 @@ public final class RexSpawnGameTests {
     private static final int CHANCE_LOWEST = 8;
     private static final int CHANCE_HIGHEST = 42;
     private static final double ARENA_CENTER_Z = 35.0;
+    private static final double CROWDED_RING_MIN = 40.0;
     private static final double WALL_FRACTION = 0.25;
     private static final List<String> DEFAULT_BLOCKED_REASONS = List.of("NATURAL", "CHUNK_GENERATION", "PATROL", "STRUCTURE");
     private static final double SPAWN_DISTANCE_FAR_AWAY = 1.0E6;
@@ -405,12 +406,14 @@ public final class RexSpawnGameTests {
     /** On a server a spawn is never conjured within the minimum distance of ANY player, not just the one who rolled. */
     private static void keepsItsDistanceFromEveryPlayer(GameTestHelper helper) {
         spawnerScenario(helper, MIDNIGHT_TICKS, false, run -> {
-            // The only open ground in the ring is in front of the rolling player; a second player standing in the middle of it covers all of it.
+            // The ring is 40 to 60 blocks from the rolling player, and a second player stands in the middle of the only ground it can use (the
+            // arena, in front of the rolling player). Everything the ring can reach in the arena's chunks is then within 40 blocks of the second player.
+            SpawnRules rules = baseline().withMinSpawnDistance(CROWDED_RING_MIN);
             ServerPlayer other = RexGameTests.spawnPlayer(helper, new Vec3(0.5, 0, ARENA_CENTER_Z + 0.5));
             run.cleanups.add(() -> helper.getLevel().getServer().getPlayerList().remove(other));
-            run.check(!spawns(run, baseline()), "spawned within " + RING_MIN + " blocks of a second player");
+            run.check(!spawns(run, rules), "spawned within " + CROWDED_RING_MIN + " blocks of a second player");
             other.snapTo(run.player.position());
-            run.check(spawns(run, baseline()), "with the second player out of the way the same rules must spawn (otherwise something else refused the first one)");
+            run.check(spawns(run, rules), "with the second player out of the way the same rules must spawn (otherwise something else refused the first one)");
         });
     }
 
