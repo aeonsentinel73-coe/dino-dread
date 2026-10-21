@@ -26,6 +26,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
@@ -36,6 +37,7 @@ import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.entity.EntityTypeTest;
+import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.common.NeoForge;
@@ -88,6 +90,7 @@ public final class RexSpawnGameTests {
         test("spawner_keeps_inside_the_distance_ring", RexSpawnGameTests::staysInsideTheRing);
         test("spawner_rolls_once_per_interval", RexSpawnGameTests::rollsOncePerInterval);
         test("spawner_despawns_natural_rexes_by_the_rules", RexSpawnGameTests::despawnsNaturalRexesByTheRules);
+        test("spawner_respects_the_mob_spawning_game_rules", RexSpawnGameTests::respectsTheMobSpawningGameRules);
         test("spawner_defaults_are_one_rare_rex_far_away", RexSpawnGameTests::defaultsAreOneRareRexFarAway);
         test("hostile_blocker_stops_natural_hostiles", RexSpawnGameTests::blocksNaturalHostiles);
         test("hostile_blocker_spares_eggs_commands_and_spawners", RexSpawnGameTests::sparesEggsCommandsAndSpawners);
@@ -120,13 +123,25 @@ public final class RexSpawnGameTests {
         return new SpawnRules(true, true, 0.5, 0, 1, 1.0, List.of("minecraft:overworld"), List.of(), RING_MIN, RING_MAX, RING_ATTEMPTS, 1, 160.0, 1, true, 128.0, 0);
     }
 
-    /** One spawner scenario: the player at the back of the arena, the body run once in the first tick, then the test passes. */
+    /**
+     * One spawner scenario: the player at the back of the arena, the body run once in the first tick, then the test passes.
+     * The game test server turns the spawn_mobs game rule off (so nothing random wanders into the tests); the body runs with it
+     * back on, and only for that one tick, so vanilla's own spawner never gets a turn.
+     */
     private static void spawnerScenario(GameTestHelper helper, long clockTicks, boolean keepScenarioRex, Consumer<Run> body) {
         RexGameTests.scenario(helper, clockTicks, FACING_SOUTH, PLAYER_AT, false, BACKSTOP_TICKS, origin -> {}, run -> {
             if (!keepScenarioRex) {
                 run.rex.discard();
             }
-            body.accept(run);
+            GameRules rules = helper.getLevel().getGameRules();
+            MinecraftServer server = helper.getLevel().getServer();
+            boolean mobsWere = rules.get(GameRules.SPAWN_MOBS);
+            rules.set(GameRules.SPAWN_MOBS, true, server);
+            try {
+                body.accept(run);
+            } finally {
+                rules.set(GameRules.SPAWN_MOBS, mobsWere, server);
+            }
             run.pass();
         }, run -> {});
     }
@@ -382,6 +397,24 @@ public final class RexSpawnGameTests {
             run.check(RexSpawner.despawnStrayRexes(level, lifetime.withMaxLifetimeTicks(500)) == 0 && !near.isRemoved(), "a hunting rex was removed for outliving maxLifetimeTicks");
             near.getSenses().forget();
             run.check(RexSpawner.despawnStrayRexes(level, lifetime.withMaxLifetimeTicks(500)) == 1 && near.isRemoved(), "a rex that outlived maxLifetimeTicks and is not hunting was not removed");
+        });
+    }
+
+    /** The spawn_mobs and spawn_monsters game rules stop natural rexes like any other natural spawn (they are not mine to override). */
+    private static void respectsTheMobSpawningGameRules(GameTestHelper helper) {
+        spawnerScenario(helper, MIDNIGHT_TICKS, false, run -> {
+            ServerLevel level = helper.getLevel();
+            GameRules rules = level.getGameRules();
+            MinecraftServer server = level.getServer();
+            run.check(spawns(run, baseline()), "test setup: with both rules on a spawn must work");
+            rules.set(GameRules.SPAWN_MONSTERS, false, server);
+            try {
+                run.check(!spawns(run, baseline()), "spawned although the spawn_monsters game rule is off");
+            } finally {
+                rules.set(GameRules.SPAWN_MONSTERS, true, server);
+            }
+            rules.set(GameRules.SPAWN_MOBS, false, server);
+            run.check(!spawns(run, baseline()), "spawned although the spawn_mobs game rule is off");
         });
     }
 
