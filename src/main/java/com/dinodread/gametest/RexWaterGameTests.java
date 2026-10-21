@@ -1,0 +1,206 @@
+package com.dinodread.gametest;
+
+import static com.dinodread.gametest.RexGameTests.FACING_SOUTH;
+import static com.dinodread.gametest.RexGameTests.MIDNIGHT_TICKS;
+import static com.dinodread.gametest.RexGameTests.TEST_TIMEOUT_TICKS;
+
+import java.util.function.Consumer;
+
+import com.dinodread.DinoDread;
+import com.dinodread.entity.ai.HuntState;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.event.RegisterGameTestsEvent;
+import net.neoforged.neoforge.registries.DeferredRegister;
+
+/**
+ * Water: a lake between the T-rex and a player standing on the far bank. Raised after the second playtest ("he seemed to get stuck in the water").
+ * Two things were wrong, both reproduced here before any fix:
+ * <ul>
+ * <li>Speed: a land mob crawls through water (vanilla's swim acceleration is 0.02 with drag 0.8; this T-rex measured 0.5 to 0.9 blocks a second, so a
+ *     lake took over a minute). The design asked for: no hiding from the T-rex in the water, but a boat still escapes it, so while it is in the water it
+ *     must be clearly faster than a swimming player (roughly 2 to 4 blocks a second) and clearly slower than a boat (8). The fix is NeoForge's swim speed
+ *     attribute, plus keeping vanilla's small float nudge: NeoForge scales that by the same attribute, and at the speed needed the T-rex bounced across the
+ *     lake like a dolphin (it spent most of the crossing in the air).</li>
+ * <li>Getting out: the bank is one block above the water, as on a real lake. Vanilla only lets a swimmer pull itself out onto a ledge about 0.6 blocks
+ *     up, so the T-rex sat against the far bank for the rest of the test, bobbing a quarter of a block short of the top.</li>
+ * </ul>
+ */
+public final class RexWaterGameTests {
+    private static final DeferredRegister<Consumer<GameTestHelper>> FUNCTIONS =
+        DeferredRegister.create(Registries.TEST_FUNCTION, DinoDread.MODID);
+
+    private static final String SHALLOW = "trex_crosses_a_shallow_lake";
+    private static final String DEEP = "trex_swims_across_a_deep_lake";
+
+    private static final int SHALLOW_DEPTH = 3;
+    private static final int DEEP_DEPTH = 9;
+    private static final int LAKE_FIRST_Z = 8;
+    private static final int LAKE_LAST_Z = 34;
+    private static final double PLAYER_Z = 40.5;
+    private static final int WATER_MAX_TICKS = 3000;
+    private static final int NOISE_INTERVAL_TICKS = 10;
+    private static final int LOG_INTERVAL_TICKS = 100;
+    private static final double TICKS_PER_SECOND = 20.0;
+    // What the design asks of the speed in the water (blocks a second). A boat tops out at 0.04 / (1 - 0.9) = 8 per second, a swimming player at roughly 2 to 4
+    // (sprint-swimming is the fast end). A charging rex must be well above a swimmer, so there is no hiding in the water, and clearly below the boat, so a boat still
+    // escapes; the stalk speed is lower still (the swim acceleration scales with the hunt speed), so the average only has to beat a plain swimmer.
+    private static final double MIN_CHARGE_WATER_SPEED = 5.0;
+    private static final double MAX_CHARGE_WATER_SPEED = 6.8;
+    private static final double MIN_AVERAGE_WATER_SPEED = 3.5;
+    // Fewer in-water ticks than this and the speeds say nothing (they would be the bank, not the lake).
+    private static final int MIN_WATER_TICKS = 30;
+
+    static {
+        FUNCTIONS.register(SHALLOW, () -> RexWaterGameTests::crossesAShallowLake);
+        FUNCTIONS.register(DEEP, () -> RexWaterGameTests::swimsAcrossADeepLake);
+    }
+
+    private RexWaterGameTests() {}
+
+    public static void register(IEventBus modEventBus) {
+        FUNCTIONS.register(modEventBus);
+        modEventBus.addListener(RexWaterGameTests::registerTests);
+    }
+
+    private static void registerTests(RegisterGameTestsEvent event) {
+        RexGameTests.addTest(event, SHALLOW, TEST_TIMEOUT_TICKS);
+        RexGameTests.addTest(event, DEEP, TEST_TIMEOUT_TICKS);
+    }
+
+    /** A lake 3 deep: the T-rex still floats (its feet are off the bottom), it does not wade. */
+    private static void crossesAShallowLake(GameTestHelper helper) {
+        crossesALake(helper, SHALLOW_DEPTH);
+    }
+
+    private static void swimsAcrossADeepLake(GameTestHelper helper) {
+        crossesALake(helper, DEEP_DEPTH);
+    }
+
+    private static void crossesALake(GameTestHelper helper, int depth) {
+        float[] startHealth = new float[1];
+        Vec3[] last = new Vec3[1];
+        // Horizontal distance and ticks spent in the water, in total and per hunt state (the speed multipliers differ per state on land).
+        double[] distanceByState = new double[HuntState.values().length];
+        int[] ticksByState = new int[HuntState.values().length];
+        RexGameTests.scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, new Vec3(0.5, 0, PLAYER_Z), false, WATER_MAX_TICKS,
+            origin -> buildLake(helper.getLevel(), origin, depth),
+            run -> {
+                startHealth[0] = run.player.getHealth();
+                last[0] = run.rex.position();
+                // The basin is dug out of ground other tests reuse, so put the arena floor back whatever happens.
+                run.cleanups.add(() -> removeLake(helper.getLevel(), run.origin, depth));
+            },
+            run -> {
+                if (run.age() % NOISE_INTERVAL_TICKS == 0) {
+                    RexGameTests.stepNoise(run);
+                }
+                Vec3 now = run.rex.position();
+                if (run.rex.isInWater()) {
+                    int state = run.rex.getHuntState().ordinal();
+                    ticksByState[state]++;
+                    distanceByState[state] += now.subtract(last[0]).horizontalDistance();
+                }
+                last[0] = now;
+                int waterTicks = total(ticksByState);
+                double averageSpeed = waterTicks == 0 ? 0.0 : total(distanceByState) / waterTicks * TICKS_PER_SECOND;
+                run.status = "rex never got across the lake and bit the player: z=" + String.format("%.1f", now.z - run.origin.getZ()) + " y=" + String.format("%.1f", now.y - run.origin.getY())
+                    + " inWater=" + run.rex.isInWater() + " state=" + run.rex.getHuntState() + " average speed in water " + String.format("%.2f", averageSpeed) + " blocks/s";
+                if (run.age() % LOG_INTERVAL_TICKS == 0) {
+                    DinoDread.LOGGER.info("[gametest] lake(depth {}) tick {}: {}", depth, run.age(), run.status);
+                }
+                if (run.player.getHealth() < startHealth[0] || !run.player.isAlive()) {
+                    DinoDread.LOGGER.info("[gametest] lake(depth {}): player bitten {} ticks after the start; {} ticks in water, average speed {} blocks/s ({})", depth, run.age(), waterTicks,
+                        String.format("%.2f", averageSpeed), describeStates(distanceByState, ticksByState));
+                    int chargeIndex = HuntState.CHARGE.ordinal();
+                    double chargeSpeed = ticksByState[chargeIndex] == 0 ? 0.0 : distanceByState[chargeIndex] / ticksByState[chargeIndex] * TICKS_PER_SECOND;
+                    run.check(waterTicks >= MIN_WATER_TICKS && ticksByState[chargeIndex] >= MIN_WATER_TICKS, "the rex charged in the water for only " + ticksByState[chargeIndex]
+                        + " ticks (" + waterTicks + " in all): the lake did not test anything");
+                    run.check(chargeSpeed >= MIN_CHARGE_WATER_SPEED, "too slow when charging in the water: " + String.format("%.2f", chargeSpeed)
+                        + " blocks/s, a swimming player could almost keep up; needs at least " + MIN_CHARGE_WATER_SPEED);
+                    run.check(chargeSpeed <= MAX_CHARGE_WATER_SPEED, "too fast when charging in the water: " + String.format("%.2f", chargeSpeed)
+                        + " blocks/s, a boat (8) would be no escape; needs at most " + MAX_CHARGE_WATER_SPEED);
+                    run.check(averageSpeed >= MIN_AVERAGE_WATER_SPEED, "too slow on average in the water: " + String.format("%.2f", averageSpeed) + " blocks/s; needs at least " + MIN_AVERAGE_WATER_SPEED);
+                    run.pass();
+                }
+            });
+    }
+
+    private static int total(int[] values) {
+        int sum = 0;
+        for (int value : values) {
+            sum += value;
+        }
+        return sum;
+    }
+
+    private static double total(double[] values) {
+        double sum = 0.0;
+        for (double value : values) {
+            sum += value;
+        }
+        return sum;
+    }
+
+    private static String describeStates(double[] distanceByState, int[] ticksByState) {
+        StringBuilder text = new StringBuilder();
+        for (HuntState state : HuntState.values()) {
+            int ticks = ticksByState[state.ordinal()];
+            if (ticks > 0) {
+                text.append(state).append(' ').append(String.format("%.2f", distanceByState[state.ordinal()] / ticks * TICKS_PER_SECOND)).append(" over ").append(ticks).append(" ticks; ");
+            }
+        }
+        return text.toString();
+    }
+
+    /** Puts the arena back as {@code buildArena} makes it, so the next test that reuses this ground finds a stone floor and air, not a basin. */
+    private static void removeLake(ServerLevel level, BlockPos origin, int depth) {
+        BlockState stone = Blocks.STONE.defaultBlockState();
+        BlockState air = Blocks.AIR.defaultBlockState();
+        int wallX = RexGameTests.ARENA_HALF_WIDTH + 1;
+        for (int x = -wallX; x <= wallX; x++) {
+            for (int z = LAKE_FIRST_Z - 1; z <= LAKE_LAST_Z + 1; z++) {
+                for (int y = -depth - 1; y <= -1; y++) {
+                    boolean arenaFloor = y == -1 && Math.abs(x) <= RexGameTests.ARENA_HALF_WIDTH;
+                    level.setBlock(origin.offset(x, y, z), arenaFloor ? stone : air, Block.UPDATE_CLIENTS);
+                }
+            }
+        }
+    }
+
+    /**
+     * A basin sunk into the arena floor between z=LAKE_FIRST_Z and z=LAKE_LAST_Z: stone bed and walls (the arena is narrower than the world, so the
+     * sides are walled too), water up to one block below the bank top, so leaving the lake means climbing a block, as on a real shore.
+     */
+    private static void buildLake(ServerLevel level, BlockPos origin, int depth) {
+        BlockState stone = Blocks.STONE.defaultBlockState();
+        BlockState water = Blocks.WATER.defaultBlockState();
+        BlockState air = Blocks.AIR.defaultBlockState();
+        int bedY = -depth - 1;
+        int wallX = RexGameTests.ARENA_HALF_WIDTH + 1;
+        for (int x = -wallX; x <= wallX; x++) {
+            for (int z = LAKE_FIRST_Z - 1; z <= LAKE_LAST_Z + 1; z++) {
+                boolean wall = Math.abs(x) == wallX || z == LAKE_FIRST_Z - 1 || z == LAKE_LAST_Z + 1;
+                for (int y = bedY; y <= -1; y++) {
+                    BlockState state;
+                    if (y == bedY || wall) {
+                        state = stone;
+                    } else if (y == -1) {
+                        state = air;
+                    } else {
+                        state = water;
+                    }
+                    level.setBlock(origin.offset(x, y, z), state, Block.UPDATE_CLIENTS);
+                }
+            }
+        }
+    }
+}

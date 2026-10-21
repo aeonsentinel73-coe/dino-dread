@@ -72,6 +72,25 @@ and a little shorter, with less of the hitbox wasted on the tail.
   breaking anything. It is now `investigateReachFromEdge` (1.5, from the hitbox edge; the old key is retired so stale configs cannot apply the
   wrong meaning). Two M4 tests that placed structures from a fixed 9 wide body now derive them from the real hitbox.
 
+## Playtest 3 follow-up: water (2026-10-20)
+
+Report: "he seemed to get stuck in the water"; idea: a rex that can swim fast but stays slower than a boat, so hiding in water fails but a boat still escapes.
+Reproduced first in `RexWaterGameTests` (a 27 block lake with the bank a block above the water, as on a real shore, the player on the far side):
+
+- **Slow:** a land mob crawls in water (vanilla swim acceleration 0.02, drag 0.8). This T-rex measured 0.5 to 0.9 blocks/s, so a lake took over a minute.
+- **Stuck:** vanilla only lets a swimmer pull itself out onto a ledge about 0.6 blocks up, so a bank a block above the water was a wall: the rex sat against the far
+  bank for the rest of the test (3000 ticks), bobbing a quarter block short of the top. My first assist lived inside the water-only physics and stopped
+  the moment the feet left the water, a quarter block too early; the trace (collision, vertical speed, in-water flag per tick) showed that. It now keeps
+  pushing for 10 ticks after leaving the water (`waterExitHeight`, 3 blocks; 0 turns it off).
+- **Speed fix and a trap in it:** `water_movement_efficiency` cannot do it (it is halved while swimming), so the config is NeoForge's swim speed attribute
+  (`swimSpeedMultiplier`, 8). But NeoForge also multiplies the float nudge by that attribute, and at 8 the rex was thrown out of the water and leapt across the lake like a
+  dolphin (only 45 of about 200 crossing ticks counted as in water; the position log showed it 1.6 blocks above the surface). `TRex.jumpInFluid` keeps the vanilla 0.04.
+- **Result:** in the water it charges at about 6.3 blocks/s and stalks at about 3.1 (swim acceleration scales with the hunt speed). A swimming player manages roughly
+  2 to 4, and a boat 8 (0.04 / (1 - 0.9); friction is applied before the acceleration is added). Test bands: charging 5.0 to 6.8, average at least 3.5.
+- **Mutation checks:** swim multiplier 1 fails both lakes (0.80 blocks/s); the assist off (`waterExitHeight = 0`) fails both (the deep one never gets across).
+- A theory-first estimate of the speed was off by about a factor of two; measuring was the only thing that worked. The lake tests also left their dug-out basin
+  behind and broke an unrelated spawner test that reuses the same ground, so they now restore the arena floor in a cleanup.
+
 ## Not verified
 
 Nothing has been heard or felt in a real client: how the placeholder sounds sound, whether the shake strengths feel right,

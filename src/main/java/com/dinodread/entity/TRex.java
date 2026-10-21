@@ -34,6 +34,9 @@ import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.common.NeoForgeMod;
+import net.neoforged.neoforge.fluids.FluidType;
 
 // T-rex. Attributes come from RexConfig (STARTUP config); the hunting brain lives in entity.ai.
 public class TRex extends Monster implements GeoEntity {
@@ -70,6 +73,11 @@ public class TRex extends Monster implements GeoEntity {
     private static final double MAX_WALK_SPEED = 3.0;
     // Vanilla counts walking in units of 0.6 of a block (Entity.moveDist), and plays a footstep when it passes nextStep().
     private static final double VANILLA_MOVE_DIST_PER_BLOCK = 0.6;
+    // Upward speed while hauling itself out of the water; the same 0.3 vanilla uses for its own (much shorter) pull out.
+    private static final double WATER_EXIT_CLIMB_SPEED = 0.3;
+    private static final int WATER_EXIT_GRACE_TICKS = 10;
+    // Vanilla's upward nudge per tick while a mob floats (LivingEntity.jumpInLiquid), before NeoForge scales it by the swim speed.
+    private static final double FLUID_JUMP_NUDGE = 0.04;
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 
@@ -80,6 +88,7 @@ public class TRex extends Monster implements GeoEntity {
     private HuntState huntState = HuntState.WANDER;
     private int actionTicksLeft;
     private int lastHorizontalCollisionTick = Integer.MIN_VALUE / 2;
+    private int lastInWaterTick = Integer.MIN_VALUE / 2;
 
     public TRex(EntityType<? extends TRex> type, Level level) {
         super(type, level);
@@ -202,7 +211,35 @@ public class TRex extends Monster implements GeoEntity {
             .add(Attributes.ATTACK_DAMAGE, RexConfig.ATTACK_DAMAGE.get())
             .add(Attributes.FOLLOW_RANGE, RexConfig.FOLLOW_RANGE.get())
             .add(Attributes.STEP_HEIGHT, RexConfig.STEP_HEIGHT.get())
+            .add(NeoForgeMod.SWIM_SPEED, RexConfig.SWIM_SPEED_MULTIPLIER.get())
             .add(Attributes.SCALE, RexConfig.SCALE.get());
+    }
+
+    // Floating: a mob in water keeps tapping jump to stay at the surface, an upward nudge of 0.04 a tick. NeoForge multiplies that nudge by the swim speed
+    // attribute, so with the swim speed that makes it fast enough, the rex was thrown clear of the water and bounced across the lake like a dolphin.
+    // The attribute is for how fast it swims, not for how it bobs: keep the vanilla nudge.
+    @Override
+    public void jumpInFluid(FluidType type) {
+        setDeltaMovement(getDeltaMovement().add(0.0, FLUID_JUMP_NUDGE, 0.0));
+    }
+
+    // Vanilla lets a swimmer that bumps a ledge pull itself out of the water only if the ledge is within about 0.6 blocks; that made any bank a
+    // block above the water a wall for a T-rex. Same idea with waterExitHeight: if the body, raised that far, would clear what it bumped, climb.
+    // It keeps pushing for a few ticks after the rex has risen out of the water, which it does before it clears the bank: the water physics
+    // that vanilla's own pull-out lives in stop applying the moment the feet are out.
+    @Override
+    public void travel(Vec3 input) {
+        super.travel(input);
+        if (isInWater()) {
+            lastInWaterTick = tickCount;
+        }
+        double exitHeight = RexConfig.WATER_EXIT_HEIGHT.get();
+        if (exitHeight > 0.0 && horizontalCollision && !onGround() && tickCount - lastInWaterTick <= WATER_EXIT_GRACE_TICKS) {
+            Vec3 movement = getDeltaMovement();
+            if (isFree(movement.x, exitHeight, movement.z)) {
+                setDeltaMovement(movement.x, WATER_EXIT_CLIMB_SPEED, movement.z);
+            }
+        }
     }
 
     @Override

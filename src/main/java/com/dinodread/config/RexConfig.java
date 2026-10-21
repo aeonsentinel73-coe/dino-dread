@@ -23,6 +23,8 @@ public final class RexConfig {
     public static final ModConfigSpec.DoubleValue HITBOX_HEIGHT;
     public static final ModConfigSpec.DoubleValue EYE_HEIGHT;
     public static final ModConfigSpec.DoubleValue MODEL_OFFSET_BLOCKS;
+    public static final ModConfigSpec.DoubleValue SWIM_SPEED_MULTIPLIER;
+    public static final ModConfigSpec.DoubleValue WATER_EXIT_HEIGHT;
 
     public static final ModConfigSpec.DoubleValue SIGHT_RANGE;
     public static final ModConfigSpec.DoubleValue SIGHT_FOV_DEGREES;
@@ -135,6 +137,17 @@ public final class RexConfig {
                 .gameRestart()
                 .comment("How far the model is shifted straight back from the hitbox centre, in blocks before the scale (0.5 at scale 3 is 1.5 blocks), so the hitbox sits over the chest and legs instead of the hips and little of it is wasted on the tail, which clips through walls.")
                 .defineInRange("modelOffsetBlocks", 0.5, -2.0, 4.0);
+        SWIM_SPEED_MULTIPLIER = BUILDER
+                .gameRestart()
+                .comment("How fast it moves in water: NeoForge's swim speed attribute, a multiplier on vanilla's water acceleration. A land mob crawls through water at under 1 block",
+                        "a second at 1.0 (this T-rex measured 0.5 to 0.9). The swim acceleration also scales with its hunt speed, so it swims slower while stalking than while charging.",
+                        "The default 8 measures about 6.3 blocks a second charging and 3.1 stalking: a swimming player is overtaken, but a boat (8 blocks a second) still escapes.")
+                .defineInRange("swimSpeedMultiplier", 8.0, 0.1, 64.0);
+        WATER_EXIT_HEIGHT = BUILDER
+                .gameRestart()
+                .comment("Highest ledge, in blocks, it can haul itself up onto when it swims into a bank (vanilla only manages about 0.6, so a lake whose shore is a block above the water was a wall).",
+                        "0 turns this off and leaves only vanilla's short pull-out.")
+                .defineInRange("waterExitHeight", 3.0, 0.0, 8.0);
         BUILDER.pop();
 
         BUILDER.push("senses");
