@@ -25,6 +25,7 @@ public final class RexConfig {
     public static final ModConfigSpec.DoubleValue MODEL_OFFSET_BLOCKS;
     public static final ModConfigSpec.DoubleValue SWIM_SPEED_MULTIPLIER;
     public static final ModConfigSpec.DoubleValue WATER_EXIT_HEIGHT;
+    public static final ModConfigSpec.DoubleValue SWIM_DEPTH;
 
     public static final ModConfigSpec.DoubleValue SIGHT_RANGE;
     public static final ModConfigSpec.DoubleValue SIGHT_FOV_DEGREES;
@@ -148,6 +149,12 @@ public final class RexConfig {
                 .comment("Highest ledge, in blocks, it can haul itself up onto when it swims into a bank (vanilla only manages about 0.6, so a lake whose shore is a block above the water was a wall).",
                         "0 turns this off and leaves only vanilla's short pull-out.")
                 .defineInRange("waterExitHeight", 3.0, 0.0, 8.0);
+        SWIM_DEPTH = BUILDER
+                .gameRestart()
+                .comment("How many blocks of its body are under the surface while it swims, in real blocks (its hitbox is 6.6 tall at the default scale). Vanilla mobs ride on top of the water",
+                        "with their feet about 0.4 blocks under; at the default 3 the T-rex wades through deep water with its legs under and its head and back out. In water shallower than this it",
+                        "wades along the bottom instead. It floats up to the vanilla level when it bumps a bank, so it can climb out. 0 turns this off.")
+                .defineInRange("swimDepth", 3.0, 0.0, 6.0);
         BUILDER.pop();
 
         BUILDER.push("senses");

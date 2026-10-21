@@ -13,6 +13,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -58,6 +59,12 @@ public final class RexWaterGameTests {
     private static final double MIN_AVERAGE_WATER_SPEED = 3.5;
     // Fewer in-water ticks than this and the speeds say nothing (they would be the bank, not the lake).
     private static final int MIN_WATER_TICKS = 30;
+    // Where the sinking is measured: far enough from both banks that it has settled (it dives on entering the lake and rises to climb out).
+    private static final int MID_LAKE_FIRST_Z = 16;
+    private static final int MID_LAKE_LAST_Z = 28;
+    private static final int MIN_MID_LAKE_TICKS = 10;
+    // The default swim depth is 3 blocks of body under water; the average over the middle of the lake has to show most of that (it bobs a little).
+    private static final double MIN_SUBMERGED_BLOCKS = 2.0;
 
     static {
         FUNCTIONS.register(SHALLOW, () -> RexWaterGameTests::crossesAShallowLake);
@@ -76,18 +83,23 @@ public final class RexWaterGameTests {
         RexGameTests.addTest(event, DEEP, TEST_TIMEOUT_TICKS);
     }
 
-    /** A lake 3 deep: the T-rex still floats (its feet are off the bottom), it does not wade. */
+    /** A lake with 2 blocks of water: shallower than the swim depth, so the T-rex wades along the bed and steps out; only the speed is checked. */
     private static void crossesAShallowLake(GameTestHelper helper) {
-        crossesALake(helper, SHALLOW_DEPTH);
+        crossesALake(helper, SHALLOW_DEPTH, false);
     }
 
+    /** Deep water: the T-rex swims with its legs under the surface (not on top of it) and its head clear of the water. */
     private static void swimsAcrossADeepLake(GameTestHelper helper) {
-        crossesALake(helper, DEEP_DEPTH);
+        crossesALake(helper, DEEP_DEPTH, true);
     }
 
-    private static void crossesALake(GameTestHelper helper, int depth) {
+    private static void crossesALake(GameTestHelper helper, int depth, boolean expectSubmerged) {
         float[] startHealth = new float[1];
         Vec3[] last = new Vec3[1];
+        // Blocks of body under water (Entity.getFluidHeight, what the float logic measures) summed over the middle of the lake, and whether the eyes ever went under.
+        double[] submergedSum = new double[1];
+        int[] midLakeTicks = new int[1];
+        boolean[] eyesUnderWater = new boolean[1];
         // Horizontal distance and ticks spent in the water, in total and per hunt state (the speed multipliers differ per state on land).
         double[] distanceByState = new double[HuntState.values().length];
         int[] ticksByState = new int[HuntState.values().length];
@@ -110,6 +122,12 @@ public final class RexWaterGameTests {
                     distanceByState[state] += now.subtract(last[0]).horizontalDistance();
                 }
                 last[0] = now;
+                double lakeZ = now.z - run.origin.getZ();
+                if (run.rex.isInWater() && lakeZ >= MID_LAKE_FIRST_Z && lakeZ <= MID_LAKE_LAST_Z) {
+                    midLakeTicks[0]++;
+                    submergedSum[0] += run.rex.getFluidHeight(FluidTags.WATER);
+                }
+                eyesUnderWater[0] |= run.rex.isEyeInFluid(FluidTags.WATER);
                 int waterTicks = total(ticksByState);
                 double averageSpeed = waterTicks == 0 ? 0.0 : total(distanceByState) / waterTicks * TICKS_PER_SECOND;
                 run.status = "rex never got across the lake and bit the player: z=" + String.format("%.1f", now.z - run.origin.getZ()) + " y=" + String.format("%.1f", now.y - run.origin.getY())
@@ -129,6 +147,15 @@ public final class RexWaterGameTests {
                     run.check(chargeSpeed <= MAX_CHARGE_WATER_SPEED, "too fast when charging in the water: " + String.format("%.2f", chargeSpeed)
                         + " blocks/s, a boat (8) would be no escape; needs at most " + MAX_CHARGE_WATER_SPEED);
                     run.check(averageSpeed >= MIN_AVERAGE_WATER_SPEED, "too slow on average in the water: " + String.format("%.2f", averageSpeed) + " blocks/s; needs at least " + MIN_AVERAGE_WATER_SPEED);
+                    double averageSubmerged = midLakeTicks[0] == 0 ? 0.0 : submergedSum[0] / midLakeTicks[0];
+                    DinoDread.LOGGER.info("[gametest] lake(depth {}): {} ticks in mid-lake, {} blocks of body under water on average, eyes under water at some point: {}", depth, midLakeTicks[0],
+                        String.format("%.2f", averageSubmerged), eyesUnderWater[0]);
+                    run.check(!eyesUnderWater[0], "the head went under the water");
+                    if (expectSubmerged) {
+                        run.check(midLakeTicks[0] >= MIN_MID_LAKE_TICKS, "only " + midLakeTicks[0] + " ticks in the middle of the lake: the depth says nothing");
+                        run.check(averageSubmerged >= MIN_SUBMERGED_BLOCKS, "it rides on top of the water: only " + String.format("%.2f", averageSubmerged)
+                            + " blocks of its body are under the surface in the middle of the lake, needs at least " + MIN_SUBMERGED_BLOCKS);
+                    }
                     run.pass();
                 }
             });
