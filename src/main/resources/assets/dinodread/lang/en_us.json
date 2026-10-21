@@ -47,6 +47,8 @@
   "dinodread.configuration.hitboxHeight": "Hitbox Height (before scale)",
   "dinodread.configuration.eyeHeight": "Eye Height (before scale)",
   "dinodread.configuration.modelOffsetBlocks": "Model Offset Back (before scale)",
+  "dinodread.configuration.swimSpeedMultiplier": "Swim Speed Multiplier",
+  "dinodread.configuration.waterExitHeight": "Water Exit Height",
   "dinodread.configuration.sightRange": "Sight Range",
   "dinodread.configuration.sightFieldOfViewDegrees": "Field Of View (degrees)",
   "dinodread.configuration.sneakSightMultiplier": "Sneak Sight Multiplier",
