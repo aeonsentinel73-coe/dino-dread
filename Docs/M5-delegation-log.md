@@ -91,6 +91,23 @@ Reproduced first in `RexWaterGameTests` (a 27 block lake with the bank a block a
 - A theory-first estimate of the speed was off by about a factor of two; measuring was the only thing that worked. The lake tests also left their dug-out basin
   behind and broke an unrelated spawner test that reuses the same ground, so they now restore the arena floor in a cleanup.
 
+## Playtest 3 follow-up: submerging (2026-10-20)
+
+Report, after the water fix was confirmed in the client: "he's doing a Jesus", i.e. a swimming rex rode on top of the water. Vanilla's float logic taps jump while more than 0.4 blocks
+of the body is under water (`Entity.getFluidJumpThreshold`), so the rex floated with its feet 0.4 under the surface. The test came first (deep lake, average body-under-water over the
+middle of the lake): 0.31 blocks on the old code, so it failed.
+
+- **Swim depth:** `swimDepth` (3 blocks by default; 0 turns it off) is the new threshold: `TRex.getFluidJumpThreshold()` returns it, so the float goal only pushes up from deeper than that.
+  In water shallower than the depth it does not float at all and wades along the bottom (the 2-block shallow lake measures 1.9 blocks under water and a charge speed of 6.5, the same as on land).
+- **Banks:** against a bank it needs the vanilla float level, because the climb-out assist only works when the body raised by `waterExitHeight` clears the bank, and at 3 blocks down it does not.
+  So the depth drops to 0 for 10 ticks after any horizontal collision. Mutation: without that clause the deep lake still gets across but slowly (charging 4.59 blocks/s, under the 5.0 floor).
+- **Sinking:** water sinks a mob by only about half a block a second, so after every time the rex rose to climb out it would have ridden the surface again for seconds. A 0.02 per tick
+  downward push applies while it is more than 0.3 blocks above its depth. Tested separately (placed at rest on the surface: 2.5 blocks down after 23 ticks; with the push off only 1.5 blocks after 50
+  ticks, so that test fails). The lake test alone did not catch this: the drop off the bank into the lake carries the rex down with it.
+- **Result** (four full runs, 61 of 61 each): in the deep lake it swims with 2.86 to 2.91 of its 6.6 blocks under water and the eyes never go under. The charge speed measured
+  over the whole crossing dropped from about 6.2 to 5.35 to 5.66 blocks/s, still inside the 5.0 to 6.8 band: the figure includes the moment at the far bank where it rises to climb out. The shallow
+  lake (wading) is 6.52 every time. A boat is 8.
+
 ## Not verified
 
 Nothing has been heard or felt in a real client: how the placeholder sounds sound, whether the shake strengths feel right,

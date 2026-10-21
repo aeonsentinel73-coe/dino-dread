@@ -24,6 +24,7 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -78,6 +79,12 @@ public class TRex extends Monster implements GeoEntity {
     private static final int WATER_EXIT_GRACE_TICKS = 10;
     // Vanilla's upward nudge per tick while a mob floats (LivingEntity.jumpInLiquid), before NeoForge scales it by the swim speed.
     private static final double FLUID_JUMP_NUDGE = 0.04;
+    // Swim depth: it counts as "at a bank", and floats up to climb out, for this long after it last ran into something.
+    private static final int SWIM_BANK_TICKS = 10;
+    // Water sinks a mob by only 0.005 a tick (about half a block a second at most), so on its own it would take seconds to get from the surface down to its swim depth.
+    private static final double SINK_NUDGE = 0.02;
+    // It is pushed down only while this far above its depth, and floats up only below it, so it settles at the depth instead of bobbing around it.
+    private static final double SINK_SETTLE_BAND = 0.3;
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 
@@ -223,6 +230,19 @@ public class TRex extends Monster implements GeoEntity {
         setDeltaMovement(getDeltaMovement().add(0.0, FLUID_JUMP_NUDGE, 0.0));
     }
 
+    /** Blocks of body to keep under the surface right now: the configured swim depth, or 0 (vanilla's float level) while it is against a bank, so it can rise and climb out. */
+    private double swimDepth() {
+        return collidedRecently(SWIM_BANK_TICKS) ? 0.0 : RexConfig.SWIM_DEPTH.get();
+    }
+
+    // The float goal taps jump only while more of the body than this is under water, which is what makes a mob ride on the surface (vanilla: 0.4 blocks, so a
+    // T-rex walked on the water). Ask for the swim depth instead: it floats up from deeper, and in water shallower than that it wades along the bottom.
+    @Override
+    public double getFluidJumpThreshold() {
+        double depth = swimDepth();
+        return depth > 0.0 ? depth : super.getFluidJumpThreshold();
+    }
+
     // Vanilla lets a swimmer that bumps a ledge pull itself out of the water only if the ledge is within about 0.6 blocks; that made any bank a
     // block above the water a wall for a T-rex. Same idea with waterExitHeight: if the body, raised that far, would clear what it bumped, climb.
     // It keeps pushing for a few ticks after the rex has risen out of the water, which it does before it clears the bank: the water physics
@@ -232,6 +252,10 @@ public class TRex extends Monster implements GeoEntity {
         super.travel(input);
         if (isInWater()) {
             lastInWaterTick = tickCount;
+        }
+        double depth = swimDepth();
+        if (depth > 0.0 && isInWater() && !onGround() && getFluidHeight(FluidTags.WATER) < depth - SINK_SETTLE_BAND) {
+            setDeltaMovement(getDeltaMovement().add(0.0, -SINK_NUDGE, 0.0));
         }
         double exitHeight = RexConfig.WATER_EXIT_HEIGHT.get();
         if (exitHeight > 0.0 && horizontalCollision && !onGround() && tickCount - lastInWaterTick <= WATER_EXIT_GRACE_TICKS) {
