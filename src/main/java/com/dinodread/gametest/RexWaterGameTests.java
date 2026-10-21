@@ -33,6 +33,9 @@ import net.neoforged.neoforge.registries.DeferredRegister;
  *     lake like a dolphin (it spent most of the crossing in the air).</li>
  * <li>Getting out: the bank is one block above the water, as on a real lake. Vanilla only lets a swimmer pull itself out onto a ledge about 0.6 blocks
  *     up, so the T-rex sat against the far bank for the rest of the test, bobbing a quarter of a block short of the top.</li>
+ * <li>Riding on top (the third playtest: "he's doing a Jesus"): vanilla floats a mob once more than 0.4 blocks of it is under water, so the T-rex walked on the surface.
+ *     The swim depth (3 blocks of body under water) fixes that; it wades along the bottom where the water is shallower, floats up when it bumps a bank (so it can climb out), and
+ *     is pushed down to its depth faster than the water alone would sink it.</li>
  * </ul>
  */
 public final class RexWaterGameTests {
@@ -41,6 +44,7 @@ public final class RexWaterGameTests {
 
     private static final String SHALLOW = "trex_crosses_a_shallow_lake";
     private static final String DEEP = "trex_swims_across_a_deep_lake";
+    private static final String SINKS = "trex_sinks_to_its_swim_depth";
 
     private static final int SHALLOW_DEPTH = 3;
     private static final int DEEP_DEPTH = 9;
@@ -65,10 +69,19 @@ public final class RexWaterGameTests {
     private static final int MIN_MID_LAKE_TICKS = 10;
     // The default swim depth is 3 blocks of body under water; the average over the middle of the lake has to show most of that (it bobs a little).
     private static final double MIN_SUBMERGED_BLOCKS = 2.0;
+    // Sinking: placed at rest on the surface in the middle of the lake (nothing carries it down), it has to be most of the way to its depth within 2.5 seconds. Water alone
+    // sinks a mob by about half a block a second, which would leave it riding the surface for seconds after every time it rose to climb out.
+    private static final int SINK_START_Z = 14;
+    private static final double SINK_START_BODY_UNDER_WATER = 0.4;
+    private static final double SINK_TARGET_BLOCKS = 2.5;
+    private static final int SINK_MAX_TICKS = 50;
+    // The top of a source block of water is 8/9 of the block.
+    private static final double WATER_SURFACE_IN_BLOCK = 8.0 / 9.0;
 
     static {
         FUNCTIONS.register(SHALLOW, () -> RexWaterGameTests::crossesAShallowLake);
         FUNCTIONS.register(DEEP, () -> RexWaterGameTests::swimsAcrossADeepLake);
+        FUNCTIONS.register(SINKS, () -> RexWaterGameTests::sinksToItsSwimDepth);
     }
 
     private RexWaterGameTests() {}
@@ -81,6 +94,7 @@ public final class RexWaterGameTests {
     private static void registerTests(RegisterGameTestsEvent event) {
         RexGameTests.addTest(event, SHALLOW, TEST_TIMEOUT_TICKS);
         RexGameTests.addTest(event, DEEP, TEST_TIMEOUT_TICKS);
+        RexGameTests.addTest(event, SINKS, TEST_TIMEOUT_TICKS);
     }
 
     /** A lake with 2 blocks of water: shallower than the swim depth, so the T-rex wades along the bed and steps out; only the speed is checked. */
@@ -91,6 +105,27 @@ public final class RexWaterGameTests {
     /** Deep water: the T-rex swims with its legs under the surface (not on top of it) and its head clear of the water. */
     private static void swimsAcrossADeepLake(GameTestHelper helper) {
         crossesALake(helper, DEEP_DEPTH, true);
+    }
+
+    private static void sinksToItsSwimDepth(GameTestHelper helper) {
+        RexGameTests.scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, new Vec3(0.5, 0, PLAYER_Z), false, SINK_MAX_TICKS,
+            origin -> buildLake(helper.getLevel(), origin, DEEP_DEPTH),
+            run -> {
+                run.cleanups.add(() -> removeLake(helper.getLevel(), run.origin, DEEP_DEPTH));
+                // Water surface, minus the little of the body that floats under it; at rest.
+                double surfaceY = run.origin.getY() - 2 + WATER_SURFACE_IN_BLOCK;
+                run.rex.setPos(run.origin.getX() + 0.5, surfaceY - SINK_START_BODY_UNDER_WATER, run.origin.getZ() + SINK_START_Z + 0.5);
+                run.rex.setDeltaMovement(Vec3.ZERO);
+            },
+            run -> {
+                double submerged = run.rex.getFluidHeight(FluidTags.WATER);
+                run.status = "it has not sunk to its swim depth: " + String.format("%.2f", submerged) + " blocks of its body under water after " + run.age()
+                    + " ticks, needs " + SINK_TARGET_BLOCKS + " within " + SINK_MAX_TICKS;
+                if (submerged >= SINK_TARGET_BLOCKS) {
+                    DinoDread.LOGGER.info("[gametest] sink: {} blocks of body under water after {} ticks", String.format("%.2f", submerged), run.age());
+                    run.pass();
+                }
+            });
     }
 
     private static void crossesALake(GameTestHelper helper, int depth, boolean expectSubmerged) {
