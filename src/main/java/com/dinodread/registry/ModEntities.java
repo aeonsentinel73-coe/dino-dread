@@ -1,6 +1,7 @@
 package com.dinodread.registry;
 
 import com.dinodread.DinoDread;
+import com.dinodread.config.RexConfig;
 import com.dinodread.entity.TRex;
 
 import net.minecraft.world.entity.EntityType;
@@ -12,15 +13,15 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 public final class ModEntities {
     public static final DeferredRegister.Entities ENTITY_TYPES = DeferredRegister.createEntities(DinoDread.MODID);
 
-    // Base hitbox in blocks, before the TRex SCALE attribute (3x) is applied: in game it is 9 wide x 12 tall.
-    private static final float TREX_WIDTH = 3.0F;
-    private static final float TREX_HEIGHT = 4.0F;
-    private static final float TREX_EYE_HEIGHT = 3.6F;
     private static final int TREX_TRACKING_RANGE = 10;
 
+    // The hitbox is the base size in blocks before the TRex SCALE attribute is applied (hitboxWidth, hitboxHeight and eyeHeight in the STARTUP
+    // config, which is loaded before registration). The builder runs during registration, so those values are readable here.
     public static final DeferredHolder<EntityType<?>, EntityType<TRex>> TREX = ENTITY_TYPES.registerEntityType(
         "trex", TRex::new, MobCategory.MONSTER,
-        builder -> builder.sized(TREX_WIDTH, TREX_HEIGHT).eyeHeight(TREX_EYE_HEIGHT).clientTrackingRange(TREX_TRACKING_RANGE));
+        builder -> builder.sized(RexConfig.HITBOX_WIDTH.get().floatValue(), RexConfig.HITBOX_HEIGHT.get().floatValue())
+            .eyeHeight(RexConfig.EYE_HEIGHT.get().floatValue())
+            .clientTrackingRange(TREX_TRACKING_RANGE));
 
     private ModEntities() {}
 

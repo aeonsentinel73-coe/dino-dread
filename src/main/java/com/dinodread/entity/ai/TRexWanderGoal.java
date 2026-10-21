@@ -15,7 +15,8 @@ import net.minecraft.world.phys.Vec3;
  * {@code RandomStrollGoal} + {@code PathNavigation} to path through forests or bounded areas, so it picks a
  * random point at the edge of its wander range and walks straight at it through the shared {@link RexMover},
  * picking another when it arrives or gets stuck. It keeps roaming with nobody nearby (vanilla stops idle mobs
- * that have gone a while without a player) and wandering never breaks blocks.
+ * that have gone a while without a player). It breaks foliage (trees: {@code foliageBlocks}) that is in its way and nothing else, so a
+ * rex that lost its target in a forest is never trapped by the last leaves, while a player's build is left alone.
  */
 public class TRexWanderGoal extends Goal {
     private final TRex rex;
@@ -37,6 +38,13 @@ public class TRexWanderGoal extends Goal {
     @Override
     public boolean canContinueToUse() {
         return destination != null && !rex.getSenses().hasQuarry();
+    }
+
+    // The mover's break cooldown and stuck timers count calls, so tick every tick like the hunt does: at the default of every second
+    // tick, wandering broke blocks at half the speed of hunting.
+    @Override
+    public boolean requiresUpdateEveryTick() {
+        return true;
     }
 
     @Override
@@ -63,7 +71,7 @@ public class TRexWanderGoal extends Goal {
             return;
         }
 
-        if (mover.driveTo(destination, RexConfig.WANDER_SPEED_MULTIPLIER.get(), false, false) == RexStuckDetector.Level.GIVE_UP) {
+        if (mover.driveTo(destination, RexConfig.WANDER_SPEED_MULTIPLIER.get(), false, RexBlockBreaker.Policy.FOLIAGE) == RexStuckDetector.Level.GIVE_UP) {
             destination = null;
         }
     }

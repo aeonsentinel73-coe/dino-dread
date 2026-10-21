@@ -12,10 +12,13 @@ import net.neoforged.neoforge.common.NeoForge;
 
 import com.dinodread.config.RexConfig;
 import com.dinodread.entity.ai.TRexSenses;
+import com.dinodread.gametest.RexAudioGameTests;
 import com.dinodread.gametest.RexGameTests;
 import com.dinodread.gametest.RexObstacleGameTests;
+import com.dinodread.gametest.RexTerrainGameTests;
 import com.dinodread.registry.ModEntities;
 import com.dinodread.registry.ModItems;
+import com.dinodread.registry.ModSounds;
 
 // The value here must match modId in META-INF/neoforge.mods.toml (generated from mod_id in gradle.properties)
 @Mod(DinoDread.MODID)
@@ -28,11 +31,14 @@ public class DinoDread {
         container.registerConfig(ModConfig.Type.STARTUP, RexConfig.SPEC);
         ModEntities.ENTITY_TYPES.register(modEventBus);
         ModItems.ITEMS.register(modEventBus);
+        ModSounds.SOUND_EVENTS.register(modEventBus);
         modEventBus.addListener(ModEntities::registerAttributes);
         modEventBus.addListener(ModItems::addToCreativeTabs);
         NeoForge.EVENT_BUS.addListener(TRexSenses::onGameEvent);
         RexGameTests.register(modEventBus);
         RexObstacleGameTests.register(modEventBus);
+        RexAudioGameTests.register(modEventBus);
+        RexTerrainGameTests.register(modEventBus);
         LOGGER.info("Dino Dread loading");
     }
 }

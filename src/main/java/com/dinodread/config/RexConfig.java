@@ -19,6 +19,10 @@ public final class RexConfig {
     public static final ModConfigSpec.DoubleValue FOLLOW_RANGE;
     public static final ModConfigSpec.DoubleValue STEP_HEIGHT;
     public static final ModConfigSpec.DoubleValue SCALE;
+    public static final ModConfigSpec.DoubleValue HITBOX_WIDTH;
+    public static final ModConfigSpec.DoubleValue HITBOX_HEIGHT;
+    public static final ModConfigSpec.DoubleValue EYE_HEIGHT;
+    public static final ModConfigSpec.DoubleValue MODEL_OFFSET_BLOCKS;
 
     public static final ModConfigSpec.DoubleValue SIGHT_RANGE;
     public static final ModConfigSpec.DoubleValue SIGHT_FOV_DEGREES;
@@ -38,8 +42,9 @@ public final class RexConfig {
     public static final ModConfigSpec.IntValue CHARGE_COOLDOWN_TICKS;
     public static final ModConfigSpec.IntValue GIVE_UP_TICKS;
     public static final ModConfigSpec.BooleanValue USE_PATHFINDING;
-    public static final ModConfigSpec.DoubleValue INVESTIGATE_REACH_DISTANCE;
+    public static final ModConfigSpec.DoubleValue INVESTIGATE_REACH_FROM_EDGE;
     public static final ModConfigSpec.DoubleValue BITE_REACH;
+    public static final ModConfigSpec.DoubleValue BITE_REACH_BELOW;
     public static final ModConfigSpec.IntValue BITE_WINDUP_TICKS;
     public static final ModConfigSpec.IntValue BITE_COOLDOWN_TICKS;
 
@@ -47,6 +52,7 @@ public final class RexConfig {
 
     public static final ModConfigSpec.BooleanValue GRIEFING_ENABLED;
     public static final ModConfigSpec.ConfigValue<List<? extends String>> UNBREAKABLE_BLOCKS;
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> FOLIAGE_BLOCKS;
     public static final ModConfigSpec.BooleanValue BREAK_BLOCK_ENTITIES;
     public static final ModConfigSpec.DoubleValue MAX_BREAK_HARDNESS;
     public static final ModConfigSpec.IntValue BREAK_INTERVAL_TICKS;
@@ -71,6 +77,15 @@ public final class RexConfig {
     public static final ModConfigSpec.DoubleValue PREY_SPEED_MULTIPLIER;
     public static final ModConfigSpec.IntValue PREY_EAT_TICKS;
     public static final ModConfigSpec.IntValue PREY_MAX_CHASE_TICKS;
+
+    public static final ModConfigSpec.DoubleValue FOOTSTEP_VOLUME;
+    public static final ModConfigSpec.DoubleValue FOOTSTEP_STRIDE_BLOCKS;
+    public static final ModConfigSpec.DoubleValue BITE_VOLUME;
+    public static final ModConfigSpec.DoubleValue ROAR_VOLUME;
+    public static final ModConfigSpec.IntValue ROAR_COOLDOWN_TICKS;
+    public static final ModConfigSpec.BooleanValue DISTANT_ROAR_ENABLED;
+    public static final ModConfigSpec.IntValue DISTANT_ROAR_INTERVAL_TICKS;
+    public static final ModConfigSpec.DoubleValue DISTANT_ROAR_VOLUME;
 
     public static final ModConfigSpec SPEC;
 
@@ -104,6 +119,22 @@ public final class RexConfig {
                 .gameRestart()
                 .comment("Scale attribute: multiplies the base hitbox and the model.")
                 .defineInRange("scale", 3.0, 0.0625, 16.0);
+        HITBOX_WIDTH = BUILDER
+                .gameRestart()
+                .comment("Width of the hitbox, in blocks before the scale (so 1.5 at scale 3 is 4.5 blocks wide). It is a square: it is both the width and the length. The model is far longer than this (head and tail stick out), on purpose: a narrow hitbox gets through trees and gaps.")
+                .defineInRange("hitboxWidth", 1.5, 0.25, 8.0);
+        HITBOX_HEIGHT = BUILDER
+                .gameRestart()
+                .comment("Height of the hitbox, in blocks before the scale (2.2 at scale 3 is 6.6 blocks tall).")
+                .defineInRange("hitboxHeight", 2.2, 0.25, 8.0);
+        EYE_HEIGHT = BUILDER
+                .gameRestart()
+                .comment("Eye height, in blocks before the scale: where it sees from. Keep it at or below hitboxHeight.")
+                .defineInRange("eyeHeight", 1.95, 0.1, 8.0);
+        MODEL_OFFSET_BLOCKS = BUILDER
+                .gameRestart()
+                .comment("How far the model is shifted straight back from the hitbox centre, in blocks before the scale (0.5 at scale 3 is 1.5 blocks), so the hitbox sits over the chest and legs instead of the hips and little of it is wasted on the tail, which clips through walls.")
+                .defineInRange("modelOffsetBlocks", 0.5, -2.0, 4.0);
         BUILDER.pop();
 
         BUILDER.push("senses");
@@ -163,12 +194,16 @@ public final class RexConfig {
                 .comment("Use vanilla pathfinding while hunting. Off = walk straight at the target, which is reliable on open ground",
                         "but ignores terrain. Vanilla pathfinding is slow and unreliable for a body this wide (milestone 4 replaces both).")
                 .define("usePathfinding", false);
-        INVESTIGATE_REACH_DISTANCE = BUILDER
-                .comment("How close to a heard noise counts as having arrived.")
-                .defineInRange("investigateReachDistance", 6.0, 1.0, 32.0);
+        INVESTIGATE_REACH_FROM_EDGE = BUILDER
+                .comment("How close to a heard noise counts as having arrived, measured from the edge of the T-rex's hitbox (so it does not depend on how wide the body is).",
+                        "Replaces the old investigateReachDistance, which was measured from its centre: it stopped far short of the noise once the body got narrower.")
+                .defineInRange("investigateReachFromEdge", 1.5, 0.0, 32.0);
         BITE_REACH = BUILDER
                 .comment("Bite reach in blocks, measured from the edge of the T-rex's hitbox (so it stays correct at any scale).")
                 .defineInRange("biteReach", 3.0, 0.5, 16.0);
+        BITE_REACH_BELOW = BUILDER
+                .comment("How far below its own feet, in blocks, the T-rex can bite down at a target (on top of biteReach). A body this wide cannot get into a narrow valley or pit, but the head can reach down into it.")
+                .defineInRange("biteReachBelow", 8.0, 0.0, 32.0);
         BITE_WINDUP_TICKS = BUILDER
                 .comment("Ticks between starting a bite and the damage landing (telegraph).")
                 .defineInRange("biteWindupTicks", 10, 0, 100);
@@ -196,6 +231,12 @@ public final class RexConfig {
                                 "minecraft:chorus_plant", "minecraft:chorus_flower", "minecraft:dragon_egg"),
                         () -> "minecraft:obsidian",
                         element -> element instanceof String);
+        FOLIAGE_BLOCKS = BUILDER
+                .comment("Trees and the like. While the T-rex is not hunting a player (wandering, or going for an animal) these are the only blocks it breaks, so a tree line is never a trap and everything else is left alone then. Hunting a player uses unbreakableBlocks instead. Entries are block ids (minecraft:oak_leaves) or block tags with a leading # (#minecraft:leaves).")
+                .defineListAllowEmpty("foliageBlocks",
+                        List.of("#minecraft:leaves", "#minecraft:logs"),
+                        () -> "minecraft:oak_leaves",
+                        element -> element instanceof String);
         BREAK_BLOCK_ENTITIES = BUILDER
                 .comment("Allow breaking blocks that hold data (chests, furnaces, signs...) when they match the list above. Off = those blocks are never broken.")
                 .define("breakBlockEntities", false);
@@ -204,16 +245,16 @@ public final class RexConfig {
                 .defineInRange("maxBreakHardness", 5.0, 0.0, 3600000.0);
         BREAK_INTERVAL_TICKS = BUILDER
                 .comment("Ticks between break actions while the T-rex is pushing against obstacles.")
-                .defineInRange("breakIntervalTicks", 4, 1, 200);
+                .defineInRange("breakIntervalTicks", 2, 1, 200);
         BLOCKS_PER_BREAK = BUILDER
-                .comment("Most blocks removed in one break action.")
-                .defineInRange("blocksPerBreak", 6, 1, 256);
+                .comment("Most blocks removed in one break action. With the defaults (24 blocks every 3 ticks, about 8 per tick) a house wall or a tree line goes in a second or two; lower this and raise breakIntervalTicks for a slower, easier-on-the-server rex.")
+                .defineInRange("blocksPerBreak", 24, 1, 256);
         BREAK_REACH = BUILDER
                 .comment("How far in front of its hitbox, in blocks, the T-rex breaks blocks.")
                 .defineInRange("breakReach", 1.5, 0.5, 16.0);
         BREAK_DROPS_ITEMS = BUILDER
-                .comment("Broken blocks drop their items.")
-                .define("breakDropsItems", true);
+                .comment("Broken blocks drop their items. Off by default: the T-rex leaves rubble (the break particles and sound, a wrecked structure) and no loot, which is also far kinder to the server when a whole forest goes.")
+                .define("breakDropsItems", false);
         BUILDER.pop();
 
         BUILDER.push("stuck");
@@ -268,6 +309,34 @@ public final class RexConfig {
         PREY_MAX_CHASE_TICKS = BUILDER
                 .comment("Longest it chases one animal before losing interest.")
                 .defineInRange("preyMaxChaseTicks", 400, 20, 2400);
+        BUILDER.pop();
+
+        BUILDER.push("audio");
+        FOOTSTEP_VOLUME = BUILDER
+                .comment("Volume of its footsteps. A sound carries about 16 blocks per 1.0 of volume, so 10.0 is heard out to roughly 160 blocks, well past render distance.",
+                        "The game never plays anything louder than 1.0 at the listener's ear: above 1.0 this only makes the footsteps reach further (and fade out later).")
+                .defineInRange("footstepVolume", 10.0, 0.1, 16.0);
+        FOOTSTEP_STRIDE_BLOCKS = BUILDER
+                .comment("Blocks it walks between two footsteps. Vanilla steps every ~1.7 blocks, far too fast for a body this big.")
+                .defineInRange("footstepStrideBlocks", 7.0, 1.0, 20.0);
+        BITE_VOLUME = BUILDER
+                .comment("Volume of its bite (audible out to about 16 blocks per 1.0).")
+                .defineInRange("biteVolume", 3.0, 0.1, 16.0);
+        ROAR_VOLUME = BUILDER
+                .comment("Volume of the roar when it starts hunting a player (audible out to about 16 blocks per 1.0).")
+                .defineInRange("roarVolume", 5.0, 0.1, 16.0);
+        ROAR_COOLDOWN_TICKS = BUILDER
+                .comment("Minimum ticks between two detection roars, so a player who keeps ducking in and out of sight does not trigger a roar every few seconds.")
+                .defineInRange("roarCooldownTicks", 600, 0, 72000);
+        DISTANT_ROAR_ENABLED = BUILDER
+                .comment("Whether it occasionally roars at night while it is not hunting, to be heard from far away.")
+                .define("distantRoarEnabled", true);
+        DISTANT_ROAR_INTERVAL_TICKS = BUILDER
+                .comment("Average ticks between distant roars at night while it is not hunting (6000 ticks = 5 minutes).")
+                .defineInRange("distantRoarIntervalTicks", 6000, 200, 720000);
+        DISTANT_ROAR_VOLUME = BUILDER
+                .comment("Volume of the distant roar (audible out to about 16 blocks per 1.0, so 12.0 is about 192 blocks).")
+                .defineInRange("distantRoarVolume", 12.0, 0.1, 16.0);
         BUILDER.pop();
 
         BUILDER.push("daytime");
