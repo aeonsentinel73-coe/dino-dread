@@ -86,6 +86,7 @@ public final class RexTerrainGameTests {
     private static final int ESCAPE_MAX_TICKS = 4000;
     private static final int PLANK_WATCH_TICKS = 1500;
     private static final int LEAF_CAGE_LOG_DENSE_TICKS = 600;
+    private static final double NANOS_PER_MILLI = 1_000_000.0;
 
     // Dense oak forest: a jittered grid of trees (trunks 4 to 7 high, a real oak canopy of two wide and two narrow leaf layers) close enough that the canopies touch.
     private static final long OAK_FOREST_SEED = 20261020L;
@@ -193,7 +194,8 @@ public final class RexTerrainGameTests {
                 run.status = "rex never got out of the leaf cage (distance from start: " + String.format("%.1f", fromStart) + " blocks, needs " + ESCAPE_DISTANCE
                     + "; " + broken + " of " + cage.size() + " cage blocks broken; collided=" + run.rex.horizontalCollision + ")";
                 if (run.age() % LOG_INTERVAL_TICKS == 0 && (run.age() < LEAF_CAGE_LOG_DENSE_TICKS || run.age() % (LOG_INTERVAL_TICKS * 5) == 0)) {
-                    DinoDread.LOGGER.info("[gametest] leaf cage tick {}: {} state={}", run.age(), run.status, run.rex.getHuntState());
+                    DinoDread.LOGGER.info("[gametest] leaf cage tick {}: {} state={} server tick={}ms", run.age(), run.status, run.rex.getHuntState(),
+                        String.format("%.1f", run.helper.getLevel().getServer().getAverageTickTimeNanos() / NANOS_PER_MILLI));
                 }
                 if (fromStart >= ESCAPE_DISTANCE) {
                     DinoDread.LOGGER.info("[gametest] leaf cage: out {} ticks after the start", run.age());

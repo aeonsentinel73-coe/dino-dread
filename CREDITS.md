@@ -14,7 +14,7 @@ with source URL, author and license. Nothing enters the repo without an entry.
 
 | Item | Source | Author | License | How used |
 |---|---|---|---|---|
-| `geckolib/models/entity/trex.geo.json`, `geckolib/animations/entity/trex.animation.json`, and the source project `art/tarbosaurus-rex.bbmodel` | "Tarbosaurus Rex", https://blockbenchworkshop.com/model/ziiwplay/tarbosaurus-rex (downloaded 2026-10-19) | ziiwplay on Blockbench Workshop. "Original work" is the uploader's own statement, which the site says it has not verified; AI use is listed as "Undisclosed" | CC BY 4.0, https://creativecommons.org/licenses/by/4.0/ | The T-rex model and its four animations (idle, walk, roar, bite). Changes: the two JSON files are the GeckoLib export of the unmodified project; the entity renders it at 3x scale, and the code adapts the walk animation's playback speed to the walking speed |
+| `geckolib/models/entity/trex.geo.json`, `geckolib/animations/entity/trex.animation.json`, and the source project `art/tarbosaurus-rex.bbmodel` | "Tarbosaurus Rex", https://blockbenchworkshop.com/model/ziiwplay/tarbosaurus-rex (downloaded 2026-10-19) | ziiwplay on Blockbench Workshop. "Original work" is the uploader's own statement, which the site says it has not verified; AI use is listed as "Undisclosed" | CC BY 4.0, https://creativecommons.org/licenses/by/4.0/ | The T-rex model and its four animations (idle, walk, roar, bite). Changes: the two JSON files are the GeckoLib export of the unmodified project; the entity renders it at 3x scale, shifted back from the hitbox centre (config `modelOffsetBlocks`), and the code adapts the walk animation's playback speed to the walking speed |
 
 ## Textures
 

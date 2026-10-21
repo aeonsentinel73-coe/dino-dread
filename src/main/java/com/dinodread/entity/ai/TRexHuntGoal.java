@@ -102,7 +102,8 @@ public class TRexHuntGoal extends Goal {
 
         boolean inBiteRange = visible && rex.isInBiteRange(target);
         double horizontalDistanceSqr = rex.position().subtract(destination).horizontalDistanceSqr();
-        double arrival = RexConfig.INVESTIGATE_REACH_DISTANCE.get();
+        // Measured from the edge of the hitbox, not its centre: a centre-based distance stopped a narrow rex far short of the noise.
+        double arrival = RexConfig.INVESTIGATE_REACH_FROM_EDGE.get() + rex.getBbWidth() / 2.0;
         if (state == HuntState.INVESTIGATE && horizontalDistanceSqr <= arrival * arrival) {
             // Nothing here: stand and stare until it gives up or hears something else.
             mover.reset();

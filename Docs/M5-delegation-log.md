@@ -54,6 +54,24 @@ code: the plain ramps already passed (the M4 "sand hill" had only ever been a st
   against 48 for a hunt). Fix: `TRex.collidedRecently()` samples every tick, and the wander goal ticks every tick. Cage escape went from
   about 2000 ticks to about 500.
 
+## Playtest 2 follow-up (2026-10-20)
+
+Feedback: the rex climbs over trees and walks on top of them; it needs to break blocks faster and may leave rubble (no drops); it must be skinnier
+and a little shorter, with less of the hitbox wasted on the tail.
+
+- **Climbing:** the stuck-recovery hop (0.9 upward speed, about 4.5 blocks under vanilla gravity) plus the 3 block step height lands it on a canopy.
+  With foliage breaking fixed the rex no longer needed to hop in the dense-forest test (it stayed at ground level), but nothing made it come
+  down once up there. Test first (a rex on a leaf platform inside an unbreakable stone ring: stayed up forever), then
+  `RexBlockBreaker.breakFoliageBeneath()`: foliage under its feet is broken, so treetops are not ground (back on the ground in ~100 ticks).
+- **Faster, no drops:** `breakIntervalTicks` 4 to 2, `blocksPerBreak` 6 to 24, `breakDropsItems` off. About 6.7x faster; server tick time stayed at 3-4 ms
+  while it cleared 243 blocks.
+- **Hitbox:** now config (`hitboxWidth`, `hitboxHeight`, `eyeHeight`, `modelOffsetBlocks`): 4.5 wide x 6.6 tall (was 9 x 8.1), and the model is shifted
+  1.5 blocks back in the renderer so the hitbox sits over the chest and legs, not the hips and tail.
+- **What the narrower body broke** (found by the suite): the investigate-arrival distance was measured from the rex's centre (6 blocks), fine
+  for a 9 wide body but it stopped a narrow one 3.75 blocks short of a player hidden in a roofed house, where it stared forever without
+  breaking anything. It is now `investigateReachFromEdge` (1.5, from the hitbox edge; the old key is retired so stale configs cannot apply the
+  wrong meaning). Two M4 tests that placed structures from a fixed 9 wide body now derive them from the real hitbox.
+
 ## Not verified
 
 Nothing has been heard or felt in a real client: how the placeholder sounds sound, whether the shake strengths feel right,

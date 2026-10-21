@@ -121,12 +121,29 @@ public final class RexObstacleGameTests {
     private static final double PIG_Z = 20.5;
     private static final int PREY_MAX_TICKS = 20000;
     private static final int HUNT_PREY_MAX_TICKS = 900;
-    private static final int BREAKER_ROW_LAYERS = 2;
-    private static final int BREAKER_FIRST_ROW_Z = 5;
-    private static final int BREAKER_ROW_HALF_WIDTH = 4;
+    // Three layers of two rows: room for every material in the breaker rules test even for a narrow rex.
+    private static final int BREAKER_ROW_LAYERS = 3;
     private static final double STUCK_TEST_DISTANCE = 50.0;
-    // Rex centre z at which its front edge (4.5 blocks ahead) touches the house wall, with a little slack.
-    private static final double HOUSE_WALL_CONTACT_Z = HOUSE_FRONT_Z - 4.5 - 1.5;
+    private static final double WALL_CONTACT_SLACK = 1.5;
+
+    /** Half the rex's width in blocks (it is a square, hitboxWidth at the configured scale): the tests place their structures from this, not from a fixed 9 wide body. */
+    private static double rexHalfWidth() {
+        return RexConfig.HITBOX_WIDTH.get() * RexConfig.SCALE.get() / 2.0;
+    }
+
+    /** First row of blocks just in front of the rex, which starts at REX_START_Z: the first block column whose cell lies past its front edge. */
+    private static int breakerFirstRowZ() {
+        return (int) Math.ceil(REX_START_Z + rexHalfWidth());
+    }
+
+    private static int breakerRowHalfWidth() {
+        return (int) Math.floor(rexHalfWidth());
+    }
+
+    /** Rex centre z at which its front edge touches the house wall, with a little slack. */
+    private static double houseWallContactZ() {
+        return HOUSE_FRONT_Z - rexHalfWidth() - WALL_CONTACT_SLACK;
+    }
 
     static {
         FUNCTIONS.register(WOOD_HOUSE, () -> RexObstacleGameTests::breaksIntoWoodenHouse);
@@ -250,7 +267,7 @@ public final class RexObstacleGameTests {
                 paceTheFloor(run);
                 int broken = countBroken(run, house);
                 run.check(broken == 0, broken + " house blocks were broken with mobGriefing off");
-                reachedWall[0] |= rexZ(run) >= HOUSE_WALL_CONTACT_Z;
+                reachedWall[0] |= rexZ(run) >= houseWallContactZ();
                 run.status = "rex never reached the wall (rex z=" + String.format("%.1f", rexZ(run)) + "), so the test proves nothing";
                 logProgress(run, broken);
                 if (run.age() >= NO_GRIEF_WATCH_TICKS) {
@@ -376,11 +393,13 @@ public final class RexObstacleGameTests {
             Blocks.SANDSTONE.defaultBlockState(), Blocks.COAL_ORE.defaultBlockState(), Blocks.SNOW_BLOCK.defaultBlockState(),
             Blocks.SMOOTH_STONE.defaultBlockState(), Blocks.OBSIDIAN.defaultBlockState(), Blocks.IRON_BLOCK.defaultBlockState(), Blocks.CONCRETE.pick(DyeColor.WHITE).defaultBlockState(),
             Blocks.END_STONE.defaultBlockState(), Blocks.PURPUR_BLOCK.defaultBlockState(), Blocks.CHEST.defaultBlockState(), Blocks.BEDROCK.defaultBlockState());
-        // Offsets from the arena origin; the rex (9 wide) stands at (0.5, 0, 0.5), so its front edge is at z=5 and the default reach is 1.5.
+        // Offsets from the arena origin; the rex stands at (0.5, 0, 0.5), so its front edge is half its width ahead of that and the default reach is 1.5.
+        int firstRowZ = breakerFirstRowZ();
+        int rowHalfWidth = breakerRowHalfWidth();
         List<BlockPos> slots = new ArrayList<>();
         for (int y = 1; y <= BREAKER_ROW_LAYERS; y++) {
-            for (int z = BREAKER_FIRST_ROW_Z; z <= BREAKER_FIRST_ROW_Z + 1; z++) {
-                for (int x = -BREAKER_ROW_HALF_WIDTH; x <= BREAKER_ROW_HALF_WIDTH; x++) {
+            for (int z = firstRowZ; z <= firstRowZ + 1; z++) {
+                for (int x = -rowHalfWidth; x <= rowHalfWidth; x++) {
                     slots.add(new BlockPos(x, y, z));
                 }
             }
@@ -396,8 +415,8 @@ public final class RexObstacleGameTests {
         if (breakables.size() + unbreakables.size() > slots.size()) {
             helper.fail("test setup: more materials than slots");
         }
-        shouldStay.put(new BlockPos(0, 1, BREAKER_FIRST_ROW_Z + 2), Blocks.OAK_PLANKS.defaultBlockState());
-        shouldStay.put(new BlockPos(-BREAKER_ROW_HALF_WIDTH, -1, 0), Blocks.OAK_PLANKS.defaultBlockState());
+        shouldStay.put(new BlockPos(0, 1, firstRowZ + 2), Blocks.OAK_PLANKS.defaultBlockState());
+        shouldStay.put(new BlockPos(0, -1, 0), Blocks.OAK_PLANKS.defaultBlockState());
         RexBlockBreaker[] breaker = new RexBlockBreaker[1];
         RexGameTests.scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, null, false, BREAKER_MAX_TICKS,
             origin -> {
