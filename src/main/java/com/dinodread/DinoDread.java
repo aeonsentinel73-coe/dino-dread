@@ -11,14 +11,18 @@ import net.neoforged.fml.config.ModConfig;
 import net.neoforged.neoforge.common.NeoForge;
 
 import com.dinodread.config.RexConfig;
+import com.dinodread.config.SpawnConfig;
 import com.dinodread.entity.ai.TRexSenses;
 import com.dinodread.gametest.RexAudioGameTests;
 import com.dinodread.gametest.RexGameTests;
 import com.dinodread.gametest.RexObstacleGameTests;
+import com.dinodread.gametest.RexSpawnGameTests;
 import com.dinodread.gametest.RexTerrainGameTests;
 import com.dinodread.registry.ModEntities;
 import com.dinodread.registry.ModItems;
 import com.dinodread.registry.ModSounds;
+import com.dinodread.spawn.HostileBlocker;
+import com.dinodread.spawn.RexSpawner;
 
 // The value here must match modId in META-INF/neoforge.mods.toml (generated from mod_id in gradle.properties)
 @Mod(DinoDread.MODID)
@@ -29,16 +33,20 @@ public class DinoDread {
     public DinoDread(IEventBus modEventBus, ModContainer container) {
         // STARTUP configs load right here, so RexConfig values are readable when entity attributes are created.
         container.registerConfig(ModConfig.Type.STARTUP, RexConfig.SPEC);
+        container.registerConfig(ModConfig.Type.STARTUP, SpawnConfig.SPEC, "dinodread-spawning.toml");
         ModEntities.ENTITY_TYPES.register(modEventBus);
         ModItems.ITEMS.register(modEventBus);
         ModSounds.SOUND_EVENTS.register(modEventBus);
         modEventBus.addListener(ModEntities::registerAttributes);
         modEventBus.addListener(ModItems::addToCreativeTabs);
         NeoForge.EVENT_BUS.addListener(TRexSenses::onGameEvent);
+        NeoForge.EVENT_BUS.addListener(RexSpawner::onLevelTick);
+        HostileBlocker.fromConfig().register(NeoForge.EVENT_BUS);
         RexGameTests.register(modEventBus);
         RexObstacleGameTests.register(modEventBus);
         RexAudioGameTests.register(modEventBus);
         RexTerrainGameTests.register(modEventBus);
+        RexSpawnGameTests.register(modEventBus);
         LOGGER.info("Dino Dread loading");
     }
 }

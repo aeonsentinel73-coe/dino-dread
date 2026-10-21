@@ -109,6 +109,17 @@ public class TRexSenses {
         }
     }
 
+    /**
+     * Something told it where a player is, with no noise or sight needed: it investigates that spot as if it had heard a noise there.
+     * The natural spawner uses this so a T-rex that appears beyond its own senses heads for the players instead of wandering aimlessly.
+     */
+    public void alertTo(Vec3 pos) {
+        if (rex.getTarget() == null) {
+            lastKnownPos = pos;
+            ticksSinceContact = 0;
+        }
+    }
+
     private void scanForPlayers(ServerLevel level) {
         LivingEntity current = rex.getTarget();
         Player closest = null;
