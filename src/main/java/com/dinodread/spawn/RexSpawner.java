@@ -117,7 +117,12 @@ public final class RexSpawner {
             if (!canStandAt(level, rex, x, surfaceY, z)) {
                 continue;
             }
-            return place(level, rex, random); // canStandAt already moved the rex to this spot
+            // canStandAt already moved the rex to this spot
+            TRex placed = place(level, rex, random);
+            if (placed != null && rules.spawnAlerted()) {
+                placed.getSenses().alertTo(player.position());
+            }
+            return placed;
         }
         return null;
     }

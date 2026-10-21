@@ -23,6 +23,7 @@ public final class SpawnConfig {
     public static final ModConfigSpec.DoubleValue MIN_SPAWN_DISTANCE;
     public static final ModConfigSpec.DoubleValue MAX_SPAWN_DISTANCE;
     public static final ModConfigSpec.IntValue PLACEMENT_ATTEMPTS;
+    public static final ModConfigSpec.BooleanValue SPAWN_ALERTED;
 
     public static final ModConfigSpec.IntValue MAX_REX_PER_PLAYER;
     public static final ModConfigSpec.DoubleValue CAP_RADIUS;
@@ -76,6 +77,10 @@ public final class SpawnConfig {
         PLACEMENT_ATTEMPTS = BUILDER
                 .comment("Random spots tried per roll. The T-rex needs room for its whole body, so forests and hills fail more often; raise this if spawns seem too rare there.")
                 .defineInRange("placementAttempts", 24, 1, 256);
+        SPAWN_ALERTED = BUILDER
+                .comment("A newly spawned T-rex is told where the player who rolled the spawn is, so it heads that way (and roars as it sets off) instead of wandering aimlessly.",
+                        "Off = it spawns calm and may never find anyone, since it spawns beyond its own sight and hearing.")
+                .define("spawnAlerted", true);
         BUILDER.pop();
 
         BUILDER.push("limits");

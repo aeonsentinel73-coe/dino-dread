@@ -8,6 +8,7 @@ import static com.dinodread.gametest.RexGameTests.TEST_TIMEOUT_TICKS;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import org.jspecify.annotations.Nullable;
 
@@ -77,6 +78,11 @@ public final class RexSpawnGameTests {
     private static final int CHANCE_HIGHEST = 42;
     private static final double ARENA_CENTER_Z = 35.0;
     private static final double CROWDED_RING_MIN = 40.0;
+    // Beyond the night sight range (40), inside the ring the arena can host from the back-of-arena player position.
+    private static final double ALERT_RING_MIN = 50.0;
+    private static final double ALERT_RING_MAX = 60.0;
+    private static final double ALERT_MIN_APPROACH = 10.0;
+    private static final int ALERT_MAX_TICKS = 1200;
     private static final double WALL_FRACTION = 0.25;
     private static final List<String> DEFAULT_BLOCKED_REASONS = List.of("NATURAL", "CHUNK_GENERATION", "PATROL", "STRUCTURE");
     private static final double SPAWN_DISTANCE_FAR_AWAY = 1.0E6;
@@ -94,6 +100,8 @@ public final class RexSpawnGameTests {
         test("spawner_despawns_natural_rexes_by_the_rules", RexSpawnGameTests::despawnsNaturalRexesByTheRules);
         test("spawner_respects_the_mob_spawning_game_rules", RexSpawnGameTests::respectsTheMobSpawningGameRules);
         test("spawner_keeps_its_distance_from_every_player", RexSpawnGameTests::keepsItsDistanceFromEveryPlayer);
+        test("spawner_alerts_the_new_rex_only_when_asked", RexSpawnGameTests::alertsTheNewRexOnlyWhenAsked);
+        test("spawner_alerted_rex_heads_for_the_player_and_roars", RexSpawnGameTests::alertedRexHeadsForThePlayerAndRoars);
         test("spawner_defaults_are_one_rare_rex_far_away", RexSpawnGameTests::defaultsAreOneRareRexFarAway);
         test("hostile_blocker_stops_natural_hostiles", RexSpawnGameTests::blocksNaturalHostiles);
         test("hostile_blocker_spares_eggs_commands_and_spawners", RexSpawnGameTests::sparesEggsCommandsAndSpawners);
@@ -123,7 +131,7 @@ public final class RexSpawnGameTests {
 
     /** Rules that let a spawn through in the test arena; each test switches off or changes the one rule it is about. */
     private static SpawnRules baseline() {
-        return new SpawnRules(true, true, 0.5, 0, 1, 1.0, List.of("minecraft:overworld"), List.of(), RING_MIN, RING_MAX, RING_ATTEMPTS, 1, 160.0, 1, true, 128.0, 0);
+        return new SpawnRules(true, true, 0.5, 0, 1, 1.0, List.of("minecraft:overworld"), List.of(), RING_MIN, RING_MAX, RING_ATTEMPTS, 1, 160.0, 1, true, 128.0, 0, false);
     }
 
     /**
@@ -136,17 +144,25 @@ public final class RexSpawnGameTests {
             if (!keepScenarioRex) {
                 run.rex.discard();
             }
-            GameRules rules = helper.getLevel().getGameRules();
-            MinecraftServer server = helper.getLevel().getServer();
-            boolean mobsWere = rules.get(GameRules.SPAWN_MOBS);
-            rules.set(GameRules.SPAWN_MOBS, true, server);
-            try {
+            withMobSpawning(helper, () -> {
                 body.accept(run);
-            } finally {
-                rules.set(GameRules.SPAWN_MOBS, mobsWere, server);
-            }
+                return null;
+            });
             run.pass();
         }, run -> {});
+    }
+
+    /** Runs the body with the spawn_mobs game rule on, and puts it back afterwards. */
+    private static <T> @Nullable T withMobSpawning(GameTestHelper helper, Supplier<@Nullable T> body) {
+        GameRules rules = helper.getLevel().getGameRules();
+        MinecraftServer server = helper.getLevel().getServer();
+        boolean mobsWere = rules.get(GameRules.SPAWN_MOBS);
+        rules.set(GameRules.SPAWN_MOBS, true, server);
+        try {
+            return body.get();
+        } finally {
+            rules.set(GameRules.SPAWN_MOBS, mobsWere, server);
+        }
     }
 
     private static @Nullable TRex spawn(Run run, SpawnRules rules) {
@@ -401,6 +417,48 @@ public final class RexSpawnGameTests {
             near.getSenses().forget();
             run.check(RexSpawner.despawnStrayRexes(level, lifetime.withMaxLifetimeTicks(500)) == 1 && near.isRemoved(), "a rex that outlived maxLifetimeTicks and is not hunting was not removed");
         });
+    }
+
+    /** spawnAlerted on: the new rex already knows where the rolling player is; off: it spawns with nothing to hunt. */
+    private static void alertsTheNewRexOnlyWhenAsked(GameTestHelper helper) {
+        spawnerScenario(helper, MIDNIGHT_TICKS, false, run -> {
+            TRex calm = spawn(run, baseline().withSpawnAlerted(false));
+            run.check(calm != null, "test setup: a spawn with spawnAlerted off must work");
+            run.check(!calm.getSenses().hasQuarry(), "a rex spawned with spawnAlerted off already had something to hunt");
+            calm.discard();
+
+            TRex alerted = spawn(run, baseline().withSpawnAlerted(true));
+            run.check(alerted != null, "test setup: a spawn with spawnAlerted on must work");
+            run.check(alerted.getSenses().hasQuarry(), "a rex spawned with spawnAlerted on was not told about the player");
+            Vec3 told = alerted.getSenses().getLastKnownPos();
+            run.check(told != null && told.distanceTo(run.player.position()) < RING_EPSILON, "the rex was told " + told + " instead of the player's position " + run.player.position());
+        });
+    }
+
+    /**
+     * The point of the alert: a rex that spawns beyond its own sight, at night, with the player making no noise, still sets off
+     * for the player and roars as it does (so the player hears it before seeing it).
+     */
+    private static void alertedRexHeadsForThePlayerAndRoars(GameTestHelper helper) {
+        TRex[] spawned = new TRex[1];
+        double[] startDistance = new double[1];
+        RexGameTests.scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, PLAYER_AT, false, ALERT_MAX_TICKS, origin -> {},
+            run -> {
+                run.rex.discard();
+                spawned[0] = withMobSpawning(helper, () -> spawn(run, baseline().withMinSpawnDistance(ALERT_RING_MIN).withMaxSpawnDistance(ALERT_RING_MAX).withSpawnAlerted(true)));
+                run.check(spawned[0] != null, "test setup: no spawn in the ring " + ALERT_RING_MIN + " to " + ALERT_RING_MAX);
+                startDistance[0] = spawned[0].distanceTo(run.player);
+                run.check(startDistance[0] > RexConfig.SIGHT_RANGE.get(), "test setup: the rex must start beyond its sight range, not " + startDistance[0] + " blocks away");
+                run.check(spawned[0].getVoice().roarCount() == 0, "test setup: the rex must not have roared yet");
+            },
+            run -> {
+                TRex rex = spawned[0];
+                double closed = startDistance[0] - rex.distanceTo(run.player);
+                run.status = "the alerted rex closed only " + String.format("%.1f", closed) + " blocks and has roared " + rex.getVoice().roarCount() + " times";
+                if (closed >= ALERT_MIN_APPROACH && rex.getVoice().roarCount() >= 1) {
+                    run.pass();
+                }
+            });
     }
 
     /** On a server a spawn is never conjured within the minimum distance of ANY player, not just the one who rolled. */

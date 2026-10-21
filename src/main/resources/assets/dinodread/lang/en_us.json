@@ -120,6 +120,7 @@
   "dinodread.configuration.minSpawnDistance": "Minimum Spawn Distance",
   "dinodread.configuration.maxSpawnDistance": "Maximum Spawn Distance",
   "dinodread.configuration.placementAttempts": "Placement Attempts",
+  "dinodread.configuration.spawnAlerted": "Alert New T-rex",
   "dinodread.configuration.limits": "Limits",
   "dinodread.configuration.maxRexPerPlayer": "Most Near One Player",
   "dinodread.configuration.capRadius": "Near-Player Radius",
