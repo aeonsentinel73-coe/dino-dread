@@ -400,7 +400,7 @@ public final class RexSpawnGameTests {
 
             RexSpawner.markNatural(near);
             RexSpawner.markNatural(far);
-            run.check(RexSpawner.despawnStrayRexes(level, rules.withDespawnDistance(50.0).withDespawnWhenFar(false)) == 0 && !far.isRemoved(),
+            run.check(RexSpawner.despawnStrayRexes(level, rules.withDespawnDistance(20.0).withDespawnWhenFar(false)) == 0 && !far.isRemoved(),
                 "despawnWhenFar off must keep a natural rex that is far from every player");
             run.check(RexSpawner.despawnStrayRexes(level, rules.withDespawnDistance(50.0)) == 0 && !far.isRemoved(),
                 "a natural rex was despawned although a player is within despawnDistance");
