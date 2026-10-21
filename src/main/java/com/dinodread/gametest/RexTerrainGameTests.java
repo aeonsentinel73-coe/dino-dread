@@ -81,9 +81,9 @@ public final class RexTerrainGameTests {
     // The wall's outer face is 8 blocks from the origin, 7.5 from the rex's centre at its start. A centre that far out has pushed through the whole
     // wall; much further is not possible here, because the arena floor ends 13 blocks out and beyond it is natural terrain.
     private static final double ESCAPE_DISTANCE = 7.5;
-    // The wander direction is random. Measured over 6 full runs: out after 375, 432, 452, 560, 750 and 1017 ticks (median ~500); 4000 is
-    // about 4x the slowest. (Before wandering could break foliage it never got out at all; before it ticked every tick it took ~2000.)
-    private static final int ESCAPE_MAX_TICKS = 4000;
+    // The wander direction is random. Measured over 6 full runs with the current break speed and hitbox: out after 132, 179, 185, 257, 280 and
+    // 353 ticks; 1500 is over 4x the slowest. (Before wandering could break foliage it never got out at all; with the old slower breaking it took 375 to 1017.)
+    private static final int ESCAPE_MAX_TICKS = 1500;
     private static final int PLANK_WATCH_TICKS = 1500;
     private static final int LEAF_CAGE_LOG_DENSE_TICKS = 600;
     private static final double NANOS_PER_MILLI = 1_000_000.0;
