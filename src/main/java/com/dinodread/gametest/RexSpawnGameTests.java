@@ -83,6 +83,8 @@ public final class RexSpawnGameTests {
     private static final double ALERT_RING_MAX = 60.0;
     private static final double ALERT_MIN_APPROACH = 10.0;
     private static final int ALERT_MAX_TICKS = 1200;
+    // The despawn sweep runs every 100 ticks of game time.
+    private static final int WIRING_MAX_TICKS = 250;
     private static final double WALL_FRACTION = 0.25;
     private static final List<String> DEFAULT_BLOCKED_REASONS = List.of("NATURAL", "CHUNK_GENERATION", "PATROL", "STRUCTURE");
     private static final double SPAWN_DISTANCE_FAR_AWAY = 1.0E6;
@@ -100,6 +102,7 @@ public final class RexSpawnGameTests {
         test("spawner_despawns_natural_rexes_by_the_rules", RexSpawnGameTests::despawnsNaturalRexesByTheRules);
         test("spawner_respects_the_mob_spawning_game_rules", RexSpawnGameTests::respectsTheMobSpawningGameRules);
         test("spawner_keeps_its_distance_from_every_player", RexSpawnGameTests::keepsItsDistanceFromEveryPlayer);
+        test("spawner_level_tick_is_on_the_game_bus", RexSpawnGameTests::levelTickIsOnTheGameBus);
         test("spawner_alerts_the_new_rex_only_when_asked", RexSpawnGameTests::alertsTheNewRexOnlyWhenAsked);
         test("spawner_alerted_rex_heads_for_the_player_and_roars", RexSpawnGameTests::alertedRexHeadsForThePlayerAndRoars);
         test("spawner_defaults_are_one_rare_rex_far_away", RexSpawnGameTests::defaultsAreOneRareRexFarAway);
@@ -491,6 +494,24 @@ public final class RexSpawnGameTests {
             rules.set(GameRules.SPAWN_MOBS, false, server);
             run.check(!spawns(run, baseline()), "spawned although the spawn_mobs game rule is off");
         });
+    }
+
+    /**
+     * The production wiring, with no hand-built event: the game's own level tick runs the spawner with the shipped config. A natural rex with
+     * no player anywhere near it is removed by the despawn sweep (every 100 ticks), so it disappearing proves {@code onLevelTick} is on the game bus.
+     */
+    private static void levelTickIsOnTheGameBus(GameTestHelper helper) {
+        RexGameTests.scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, null, false, WIRING_MAX_TICKS, origin -> {},
+            run -> {
+                run.check(SpawnConfig.DESPAWN_WHEN_FAR.get(), "test setup: despawnWhenFar must default to on");
+                RexSpawner.markNatural(run.rex);
+            },
+            run -> {
+                run.status = "a natural rex with no player in the level was never removed: RexSpawner.onLevelTick is not on the game bus";
+                if (run.rex.isRemoved()) {
+                    run.pass();
+                }
+            });
     }
 
     /** The shipped defaults: one rex at a time, rare, never conjured in view, and the vanilla hostiles left alone until someone opts in. */
