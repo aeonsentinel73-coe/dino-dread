@@ -408,7 +408,7 @@ public final class RexGameTests {
     }
 
     /** A real survival ServerPlayer on a dummy connection (same recipe the vanilla test helper uses for its mock player). */
-    private static ServerPlayer spawnPlayer(GameTestHelper helper, Vec3 relativePos) {
+    static ServerPlayer spawnPlayer(GameTestHelper helper, Vec3 relativePos) {
         ServerLevel level = helper.getLevel();
         CommonListenerCookie cookie = CommonListenerCookie.createInitial(new GameProfile(UUID.randomUUID(), "dread-test"), false);
         ServerPlayer player = new ServerPlayer(level.getServer(), level, cookie.gameProfile(), cookie.clientInformation());

@@ -28,6 +28,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
@@ -91,6 +92,7 @@ public final class RexSpawnGameTests {
         test("spawner_rolls_once_per_interval", RexSpawnGameTests::rollsOncePerInterval);
         test("spawner_despawns_natural_rexes_by_the_rules", RexSpawnGameTests::despawnsNaturalRexesByTheRules);
         test("spawner_respects_the_mob_spawning_game_rules", RexSpawnGameTests::respectsTheMobSpawningGameRules);
+        test("spawner_keeps_its_distance_from_every_player", RexSpawnGameTests::keepsItsDistanceFromEveryPlayer);
         test("spawner_defaults_are_one_rare_rex_far_away", RexSpawnGameTests::defaultsAreOneRareRexFarAway);
         test("hostile_blocker_stops_natural_hostiles", RexSpawnGameTests::blocksNaturalHostiles);
         test("hostile_blocker_spares_eggs_commands_and_spawners", RexSpawnGameTests::sparesEggsCommandsAndSpawners);
@@ -397,6 +399,18 @@ public final class RexSpawnGameTests {
             run.check(RexSpawner.despawnStrayRexes(level, lifetime.withMaxLifetimeTicks(500)) == 0 && !near.isRemoved(), "a hunting rex was removed for outliving maxLifetimeTicks");
             near.getSenses().forget();
             run.check(RexSpawner.despawnStrayRexes(level, lifetime.withMaxLifetimeTicks(500)) == 1 && near.isRemoved(), "a rex that outlived maxLifetimeTicks and is not hunting was not removed");
+        });
+    }
+
+    /** On a server a spawn is never conjured within the minimum distance of ANY player, not just the one who rolled. */
+    private static void keepsItsDistanceFromEveryPlayer(GameTestHelper helper) {
+        spawnerScenario(helper, MIDNIGHT_TICKS, false, run -> {
+            // The only open ground in the ring is in front of the rolling player; a second player standing in the middle of it covers all of it.
+            ServerPlayer other = RexGameTests.spawnPlayer(helper, new Vec3(0.5, 0, ARENA_CENTER_Z + 0.5));
+            run.cleanups.add(() -> helper.getLevel().getServer().getPlayerList().remove(other));
+            run.check(!spawns(run, baseline()), "spawned within " + RING_MIN + " blocks of a second player");
+            other.snapTo(run.player.position());
+            run.check(spawns(run, baseline()), "with the second player out of the way the same rules must spawn (otherwise something else refused the first one)");
         });
     }
 
