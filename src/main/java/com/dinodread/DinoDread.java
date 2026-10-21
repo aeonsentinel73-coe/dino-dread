@@ -11,6 +11,7 @@ import net.neoforged.fml.config.ModConfig;
 import net.neoforged.neoforge.common.NeoForge;
 
 import com.dinodread.config.RexConfig;
+import com.dinodread.config.SpawnConfig;
 import com.dinodread.entity.ai.TRexSenses;
 import com.dinodread.gametest.RexAudioGameTests;
 import com.dinodread.gametest.RexGameTests;
@@ -29,6 +30,7 @@ public class DinoDread {
     public DinoDread(IEventBus modEventBus, ModContainer container) {
         // STARTUP configs load right here, so RexConfig values are readable when entity attributes are created.
         container.registerConfig(ModConfig.Type.STARTUP, RexConfig.SPEC);
+        container.registerConfig(ModConfig.Type.STARTUP, SpawnConfig.SPEC, "dinodread-spawning.toml");
         ModEntities.ENTITY_TYPES.register(modEventBus);
         ModItems.ITEMS.register(modEventBus);
         ModSounds.SOUND_EVENTS.register(modEventBus);
