@@ -137,6 +137,10 @@ public final class RaptorSpawner {
                 double distance = 1.0 + random.nextDouble() * (spread - 1.0);
                 double x = anchorX + Math.cos(angle) * distance;
                 double z = anchorZ + Math.sin(angle) * distance;
+                // The anchor's chunk being live does not cover a member spread across a chunk border: check each body's own spot.
+                if (!level.isPositionEntityTicking(new BlockPos(Mth.floor(x), Mth.floor(anchorY), Mth.floor(z)))) {
+                    continue;
+                }
                 int surfaceY = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Mth.floor(x), Mth.floor(z));
                 seated = RexSpawner.canStandAt(level, raptor, x, surfaceY, z);
             }
@@ -195,13 +199,15 @@ public final class RaptorSpawner {
     }
 
     public static int despawnStrayRaptors(ServerLevel level, RaptorRules rules) {
-        if (!rules.despawnWhenFar()) {
-            return 0;
-        }
         int removed = 0;
         for (Velociraptor raptor : level.getEntities(EntityTypeTest.forClass(Velociraptor.class),
                 candidate -> candidate.entityTags().contains(RexSpawner.NATURAL_TAG))) {
-            if (level.getNearestPlayer(raptor.getX(), raptor.getY(), raptor.getZ(), rules.despawnDistance(), false) == null) {
+            // A pack whose flight clock ran out always despawns, even if this raptor itself never ticked again
+            // (it can wander into a chunk that is not entity-ticking, where a self-ticking countdown would stall).
+            boolean flightOver = raptor.fleeExpired();
+            boolean tooFar = rules.despawnWhenFar()
+                    && level.getNearestPlayer(raptor.getX(), raptor.getY(), raptor.getZ(), rules.despawnDistance(), false) == null;
+            if (flightOver || tooFar) {
                 raptor.discard();
                 removed++;
             }

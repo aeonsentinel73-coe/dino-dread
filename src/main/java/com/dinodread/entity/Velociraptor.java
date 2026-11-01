@@ -21,6 +21,8 @@ import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.neoforged.neoforge.common.NeoForgeMod;
 import net.neoforged.neoforge.registries.DeferredHolder;
 
@@ -36,8 +38,6 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 public class Velociraptor extends TRex {
     /** Prefix of the scoreboard tag that binds a natural pack together. */
     public static final String PACK_TAG_PREFIX = "dinodread_pack_";
-
-    private int fleeTicksLeft;
 
     public Velociraptor(EntityType<? extends Velociraptor> type, Level level) {
         super(type, level);
@@ -220,26 +220,52 @@ public class Velociraptor extends TRex {
         return null;
     }
 
-    /** Start (or restart) the post-pack-death flight. Safe to call on every survivor at once. */
+    // When the flight ends, in absolute level game time (not a countdown): an entity that wanders into a chunk
+    // that is not entity-ticking stops ticking entirely, and a tick countdown would never expire. The spawner's
+    // sweep despawns those by the clock instead.
+    private long fleeUntilGameTime;
+
+    /** Start (or extend) the post-pack-death flight. Safe to call on every survivor at once. */
     public void startFleeing() {
         int ticks = RaptorConfig.FLEE_TICKS.get();
-        if (ticks > 0 && fleeTicksLeft <= 0) {
-            fleeTicksLeft = ticks;
+        if (ticks > 0 && !level().isClientSide()) {
+            fleeUntilGameTime = Math.max(fleeUntilGameTime, level().getGameTime() + ticks);
         }
     }
 
     public boolean isFleeing() {
-        return fleeTicksLeft > 0;
+        return fleeUntilGameTime > 0 && level().getGameTime() <= fleeUntilGameTime;
+    }
+
+    /** True once the flight's clock has run out, whether or not this entity has been ticking. */
+    public boolean fleeExpired() {
+        return fleeUntilGameTime > 0 && level().getGameTime() > fleeUntilGameTime;
     }
 
     /**
-     * Counts the flee down, called by {@link RaptorFleeGoal} every tick it runs. When the flight ends, a naturally spawned
-     * raptor despawns with it; a spawn-egg or /summon raptor just stops running.
+     * Ends a due flight, called by {@link RaptorFleeGoal} every tick it runs: a naturally spawned raptor despawns
+     * with the flight; a spawn-egg or /summon raptor just stops running.
      */
-    public void tickFleeing() {
-        if (!level().isClientSide() && fleeTicksLeft > 0 && --fleeTicksLeft == 0
-                && entityTags().contains(RexSpawner.NATURAL_TAG)) {
-            discard();
+    public void endFleeIfDue() {
+        if (!level().isClientSide() && fleeExpired()) {
+            fleeUntilGameTime = 0;
+            if (entityTags().contains(RexSpawner.NATURAL_TAG)) {
+                discard();
+            }
         }
+    }
+
+    @Override
+    public void addAdditionalSaveData(ValueOutput output) {
+        super.addAdditionalSaveData(output);
+        if (fleeUntilGameTime > 0) {
+            output.putLong("FleeUntilGameTime", fleeUntilGameTime);
+        }
+    }
+
+    @Override
+    public void readAdditionalSaveData(ValueInput input) {
+        super.readAdditionalSaveData(input);
+        fleeUntilGameTime = input.getLongOr("FleeUntilGameTime", 0L);
     }
 }

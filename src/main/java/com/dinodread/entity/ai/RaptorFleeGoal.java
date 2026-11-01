@@ -1,8 +1,11 @@
 package com.dinodread.entity.ai;
 
+import java.util.EnumSet;
+
 import org.jspecify.annotations.Nullable;
 
 import com.dinodread.config.RaptorConfig;
+import com.dinodread.entity.TRex;
 import com.dinodread.entity.Velociraptor;
 
 import net.minecraft.util.Mth;
@@ -34,6 +37,9 @@ public class RaptorFleeGoal extends Goal {
     public RaptorFleeGoal(Velociraptor raptor) {
         this.raptor = raptor;
         this.mover = new RexMover(raptor);
+        // Without the MOVE/LOOK flags the flee runs alongside the hunt goal instead of suspending it, and the hunt
+        // (which ticks after the flee) overwrites the flight path: a raptor that already had quarry keeps attacking.
+        this.setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.LOOK));
     }
 
     @Override
@@ -53,7 +59,7 @@ public class RaptorFleeGoal extends Goal {
 
     @Override
     public void tick() {
-        raptor.tickFleeing();
+        raptor.endFleeIfDue();
         if (!raptor.isFleeing()) {
             return;
         }
@@ -93,7 +99,8 @@ public class RaptorFleeGoal extends Goal {
         LivingEntity closest = null;
         double closestDistSqr = Double.MAX_VALUE;
         for (Monster mob : raptor.level().getEntitiesOfClass(Monster.class, raptor.getBoundingBox().inflate(MOB_THREAT_RADIUS))) {
-            if (!mob.isAlive() || mob == raptor) {
+            // TRex extends Monster: neither raptors nor T-rexes count as a threat to flee from, or a pack would run from itself.
+            if (!mob.isAlive() || mob == raptor || mob instanceof TRex) {
                 continue;
             }
             double distSqr = raptor.distanceToSqr(mob);

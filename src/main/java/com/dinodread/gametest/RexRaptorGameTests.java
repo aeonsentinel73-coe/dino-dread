@@ -160,6 +160,7 @@ public final class RexRaptorGameTests {
 
             // A lone untagged raptor (like a spawn-egg one), far from the pack: must neither flee nor despawn.
             bystander[0] = helper.spawnEntity(ModEntities.VELOCIRAPTOR.get(), new Vec3(0.5, 0, 50.5)).requirePersistence(true).spawn();
+            run.cleanups.add(bystander[0]::discard);
 
             int fleeTicksWere = RaptorConfig.FLEE_TICKS.get();
             RaptorConfig.FLEE_TICKS.set(FLEE_TEST_TICKS);
@@ -197,6 +198,7 @@ public final class RexRaptorGameTests {
             run.rex.discard();
             run.rex = spawnRaptor(helper, FACING_SOUTH, new Vec3(0.5, 0, 0.5));
             zombie[0] = helper.spawnEntity(EntityTypes.ZOMBIE, new Vec3(0.5, 0, 14.5)).requirePersistence(true).spawn();
+            run.cleanups.add(zombie[0]::discard);
             pinned[0] = helper.absoluteVec(new Vec3(0.5, 0, 14.5));
         }, run -> {
             Zombie target = zombie[0];
@@ -225,9 +227,11 @@ public final class RexRaptorGameTests {
 
     /** The T-rex's senses must not pick up hostile mobs: a zombie nearby stays none of its business. */
     private static void trexIgnoresHostileMobs(GameTestHelper helper) {
+        Zombie[] zombie = new Zombie[1];
         scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, null, false, IGNORE_WATCH_TICKS + 40, origin -> {}, run -> {
-            Zombie zombie = helper.spawnEntity(EntityTypes.ZOMBIE, new Vec3(0.5, 0, 14.5)).requirePersistence(true).spawn();
-            zombie.setHealth(zombie.getMaxHealth());
+            zombie[0] = helper.spawnEntity(EntityTypes.ZOMBIE, new Vec3(0.5, 0, 14.5)).requirePersistence(true).spawn();
+            zombie[0].setHealth(zombie[0].getMaxHealth());
+            run.cleanups.add(zombie[0]::discard);
         }, run -> {
             run.status = "the T-rex took a zombie as quarry";
             run.check(!(run.rex.getTarget() instanceof Zombie), "the T-rex must not target hostile mobs");
