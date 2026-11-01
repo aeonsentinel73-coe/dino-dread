@@ -14,5 +14,39 @@
   "entity.trex.bite": {
     "subtitle": "subtitles.dinodread.entity.trex.bite",
     "sounds": ["dinodread:entity/trex/bite1", "dinodread:entity/trex/bite2", "dinodread:entity/trex/bite3", "dinodread:entity/trex/bite4"]
+  },
+  "entity.velociraptor.roar": {
+    "subtitle": "subtitles.dinodread.entity.velociraptor.roar",
+    "sounds": [
+      { "name": "dinodread:entity/trex/roar1", "pitch": 1.7 },
+      { "name": "dinodread:entity/trex/roar2", "pitch": 1.7 },
+      { "name": "dinodread:entity/trex/roar3", "pitch": 1.7 }
+    ]
+  },
+  "entity.velociraptor.roar_distant": {
+    "subtitle": "subtitles.dinodread.entity.velociraptor.roar_distant",
+    "sounds": [
+      { "name": "dinodread:entity/trex/roar_distant1", "pitch": 1.7 },
+      { "name": "dinodread:entity/trex/roar_distant2", "pitch": 1.7 },
+      { "name": "dinodread:entity/trex/roar_distant3", "pitch": 1.7 }
+    ]
+  },
+  "entity.velociraptor.step": {
+    "subtitle": "subtitles.dinodread.entity.velociraptor.step",
+    "sounds": [
+      { "name": "dinodread:entity/trex/step1", "pitch": 1.8 },
+      { "name": "dinodread:entity/trex/step2", "pitch": 1.8 },
+      { "name": "dinodread:entity/trex/step3", "pitch": 1.8 },
+      { "name": "dinodread:entity/trex/step4", "pitch": 1.8 }
+    ]
+  },
+  "entity.velociraptor.bite": {
+    "subtitle": "subtitles.dinodread.entity.velociraptor.bite",
+    "sounds": [
+      { "name": "dinodread:entity/trex/bite1", "pitch": 1.8 },
+      { "name": "dinodread:entity/trex/bite2", "pitch": 1.8 },
+      { "name": "dinodread:entity/trex/bite3", "pitch": 1.8 },
+      { "name": "dinodread:entity/trex/bite4", "pitch": 1.8 }
+    ]
   }
 }

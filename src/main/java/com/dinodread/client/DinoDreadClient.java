@@ -2,6 +2,7 @@ package com.dinodread.client;
 
 import com.dinodread.DinoDread;
 import com.dinodread.client.renderer.TRexRenderer;
+import com.dinodread.client.renderer.VelociraptorRenderer;
 import com.dinodread.registry.ModEntities;
 
 import net.neoforged.api.distmarker.Dist;
@@ -25,5 +26,6 @@ public class DinoDreadClient {
 
     private static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntities.TREX.get(), TRexRenderer::new);
+        event.registerEntityRenderer(ModEntities.VELOCIRAPTOR.get(), VelociraptorRenderer::new);
     }
 }

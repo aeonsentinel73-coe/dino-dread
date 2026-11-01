@@ -2,6 +2,7 @@ package com.dinodread.entity.ai;
 
 import org.jspecify.annotations.Nullable;
 
+import com.dinodread.config.RaptorConfig;
 import com.dinodread.config.RexConfig;
 import com.dinodread.entity.TRex;
 
@@ -10,7 +11,10 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.GameEventTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EntitySelector;
+import net.minecraft.world.entity.Leashable;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.OwnableEntity;
+import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -38,14 +42,15 @@ public class TRexSenses {
         this.rex = rex;
     }
 
-    /** Game-bus listener (wired up in DinoDread): tells every T-rex in earshot about a noise a player made. */
+    /** Game-bus listener (wired up in DinoDread): tells every rex in earshot about a noise a player made. */
     public static void onGameEvent(VanillaGameEvent event) {
         if (!(event.getLevel() instanceof ServerLevel level) || !(event.getCause() instanceof Player player) || !event.getVanillaEvent().is(GameEventTags.VIBRATIONS)) {
             return;
         }
 
         Vec3 noisePos = event.getEventPosition();
-        double radius = RexConfig.HEARING_RADIUS.get();
+        // Cover the most far-hearing rex type; each rex then filters by its own hearingRadius in hearNoise.
+        double radius = Math.max(RexConfig.HEARING_RADIUS.get(), RaptorConfig.HEARING_RADIUS.get());
         for (TRex rex : level.getEntitiesOfClass(TRex.class, new AABB(noisePos, noisePos).inflate(radius))) {
             rex.getSenses().hearNoise(player, noisePos);
         }
@@ -83,10 +88,10 @@ public class TRexSenses {
         }
 
         if (rex.tickCount % SIGHT_CHECK_INTERVAL_TICKS == 0) {
-            scanForPlayers(level);
+            scanForTargets(level);
         }
 
-        if (hasQuarry() && ticksSinceContact > RexConfig.GIVE_UP_TICKS.get() * rex.activity()) {
+        if (hasQuarry() && ticksSinceContact > rex.giveUpTicks() * rex.activity()) {
             forget();
         }
     }
@@ -97,7 +102,7 @@ public class TRexSenses {
             return;
         }
 
-        double radius = RexConfig.HEARING_RADIUS.get() * rex.activity() * (player.isSteppingCarefully() ? RexConfig.SNEAK_HEARING_MULTIPLIER.get() : 1.0);
+        double radius = rex.hearingRadius() * rex.activity() * (player.isSteppingCarefully() ? rex.sneakHearingMultiplier() : 1.0);
         if (rex.distanceToSqr(noisePos) > radius * radius) {
             return;
         }
@@ -120,16 +125,16 @@ public class TRexSenses {
         }
     }
 
-    private void scanForPlayers(ServerLevel level) {
+    private void scanForTargets(ServerLevel level) {
         LivingEntity current = rex.getTarget();
-        Player closest = null;
+        LivingEntity closest = null;
         double closestDistSqr = Double.MAX_VALUE;
         boolean currentSeen = false;
+
         for (ServerPlayer player : level.players()) {
             if (!canSee(player, player == current)) {
                 continue;
             }
-
             currentSeen |= player == current;
             double distSqr = rex.distanceToSqr(player);
             if (distSqr < closestDistSqr) {
@@ -138,7 +143,22 @@ public class TRexSenses {
             }
         }
 
-        Player seen = currentSeen ? (Player) current : closest;
+        if (rex.huntsHostileMobs()) {
+            double range = rex.sightRange() * rex.activity();
+            for (Monster mob : level.getEntitiesOfClass(Monster.class, rex.getBoundingBox().inflate(range), mob -> isHuntableMob(mob))) {
+                if (!canSee(mob, mob == current)) {
+                    continue;
+                }
+                currentSeen |= mob == current;
+                double distSqr = rex.distanceToSqr(mob);
+                if (distSqr < closestDistSqr) {
+                    closest = mob;
+                    closestDistSqr = distSqr;
+                }
+            }
+        }
+
+        LivingEntity seen = currentSeen ? current : closest;
         targetVisible = seen != null;
         if (seen != null) {
             rex.setTarget(seen);
@@ -148,28 +168,43 @@ public class TRexSenses {
     }
 
     /** Range and line of sight always apply; the field of view only for acquiring a new target (an alerted T-rex turns its head). */
-    private boolean canSee(Player player, boolean alreadyTracking) {
-        if (!isHuntable(player)) {
+    private boolean canSee(LivingEntity target, boolean alreadyTracking) {
+        if (!isHuntable(target)) {
             return false;
         }
 
-        double range = RexConfig.SIGHT_RANGE.get() * rex.activity() * (player.isSteppingCarefully() ? RexConfig.SNEAK_SIGHT_MULTIPLIER.get() : 1.0);
-        if (rex.distanceToSqr(player) > range * range) {
+        double range = rex.sightRange() * rex.activity() * (target instanceof Player player && player.isSteppingCarefully() ? rex.sneakSightMultiplier() : 1.0);
+        if (rex.distanceToSqr(target) > range * range) {
             return false;
         }
 
         if (!alreadyTracking) {
-            Vec3 toPlayer = player.getEyePosition().subtract(rex.getEyePosition());
-            float yawToPlayer = (float) (Mth.atan2(toPlayer.z, toPlayer.x) * Mth.RAD_TO_DEG) - 90.0F;
-            if (Mth.degreesDifferenceAbs(yawToPlayer, rex.getYHeadRot()) > RexConfig.SIGHT_FOV_DEGREES.get() / 2.0) {
+            Vec3 toTarget = target.getEyePosition().subtract(rex.getEyePosition());
+            float yawToTarget = (float) (Mth.atan2(toTarget.z, toTarget.x) * Mth.RAD_TO_DEG) - 90.0F;
+            if (Mth.degreesDifferenceAbs(yawToTarget, rex.getYHeadRot()) > rex.sightFieldOfViewDegrees() / 2.0) {
                 return false;
             }
         }
 
-        return rex.getSensing().hasLineOfSight(player);
+        return rex.getSensing().hasLineOfSight(target);
     }
 
     private static boolean isHuntable(LivingEntity entity) {
-        return entity.isAlive() && EntitySelector.NO_CREATIVE_OR_SPECTATOR.test(entity);
+        if (!entity.isAlive()) {
+            return false;
+        }
+        if (entity instanceof Player player) {
+            return EntitySelector.NO_CREATIVE_OR_SPECTATOR.test(player);
+        }
+        // Animals and villagers are never "quarry": the T-rex eats them through its own prey goal. Only hostiles qualify here.
+        return entity instanceof Monster && isHuntableMob(entity);
+    }
+
+    /** Hostile mobs are fair game for a raptor unless they are another rex, someone's pet, or named. */
+    private static boolean isHuntableMob(LivingEntity entity) {
+        if (entity instanceof TRex || entity.hasCustomName() || (entity instanceof Leashable leashable && leashable.isLeashed())) {
+            return false;
+        }
+        return !(entity instanceof OwnableEntity ownable && ownable.getOwnerReference() != null);
     }
 }

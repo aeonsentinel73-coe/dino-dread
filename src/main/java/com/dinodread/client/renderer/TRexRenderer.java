@@ -2,24 +2,38 @@ package com.dinodread.client.renderer;
 
 import com.dinodread.config.RexConfig;
 import com.dinodread.entity.TRex;
+import com.dinodread.entity.Velociraptor;
 import com.dinodread.registry.ModEntities;
 import com.geckolib.renderer.GeoEntityRenderer;
 import com.geckolib.renderer.base.RenderPassInfo;
 
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.phys.AABB;
 
-// Client-only. GeckoLib derives the model/animation/texture paths from the entity type id:
-// geckolib/models/entity/trex.geo.json, geckolib/animations/entity/trex.animation.json, textures/entity/trex.png
-// (the Tarbosaurus Rex model by ziiwplay, CC BY 4.0; see CREDITS.md).
-public class TRexRenderer extends GeoEntityRenderer<TRex, LivingEntityRenderState> {
+/**
+ * Client-only. GeckoLib derives the model/animation/texture paths from the entity type id:
+ * geckolib/models/entity/&lt;type&gt;.geo.json, geckolib/animations/entity/&lt;type&gt;.animation.json,
+ * textures/entity/&lt;type&gt;.png. The velociraptor's files are still copies of the T-rex's
+ * (the Tarbosaurus Rex model by ziiwplay, CC BY 4.0; see CREDITS.md) until a real raptor model is picked.
+ */
+public class TRexRenderer<T extends TRex> extends GeoEntityRenderer<T, LivingEntityRenderState> {
     // The model's tail tip is 72 model units (4.5 blocks) behind its origin at scale 1: far outside the hitbox, which is
     // all vanilla frustum culling looks at, so the tail would pop out of existence when only the hitbox is off screen.
     private static final double MODEL_TAIL_REACH_BLOCKS_AT_SCALE_ONE = 4.5;
 
+    public TRexRenderer(EntityRendererProvider.Context context, EntityType<T> type) {
+        super(context, type);
+    }
+
     public TRexRenderer(EntityRendererProvider.Context context) {
-        super(context, ModEntities.TREX.get());
+        this(context, unchecked(ModEntities.TREX.get()));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T extends TRex> EntityType<T> unchecked(EntityType<?> type) {
+        return (EntityType<T>) type;
     }
 
     // The model is shifted straight back from the hitbox centre (modelOffsetBlocks), so the hitbox sits over the chest and legs and less of it is
@@ -34,7 +48,7 @@ public class TRexRenderer extends GeoEntityRenderer<TRex, LivingEntityRenderStat
     }
 
     @Override
-    protected AABB getBoundingBoxForCulling(TRex entity, float partialTicks) {
+    protected AABB getBoundingBoxForCulling(T entity, float partialTicks) {
         double reach = (MODEL_TAIL_REACH_BLOCKS_AT_SCALE_ONE + Math.max(0.0, RexConfig.MODEL_OFFSET_BLOCKS.get())) * entity.getScale();
         return super.getBoundingBoxForCulling(entity, partialTicks).inflate(reach);
     }

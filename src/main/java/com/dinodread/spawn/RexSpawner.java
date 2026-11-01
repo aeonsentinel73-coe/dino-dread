@@ -3,6 +3,7 @@ package com.dinodread.spawn;
 import org.jspecify.annotations.Nullable;
 
 import com.dinodread.entity.TRex;
+import com.dinodread.entity.Velociraptor;
 import com.dinodread.registry.ModEntities;
 import com.dinodread.world.DayNight;
 import com.dinodread.world.IdTagList;
@@ -157,7 +158,8 @@ public final class RexSpawner {
 
     public static int despawnStrayRexes(ServerLevel level, SpawnRules rules) {
         int removed = 0;
-        for (TRex rex : level.getEntities(EntityTypeTest.forClass(TRex.class), candidate -> candidate.entityTags().contains(NATURAL_TAG))) {
+        for (TRex rex : level.getEntities(EntityTypeTest.forClass(TRex.class),
+                candidate -> candidate.entityTags().contains(NATURAL_TAG) && !(candidate instanceof Velociraptor))) {
             boolean tooFar = rules.despawnWhenFar()
                     && level.getNearestPlayer(rex.getX(), rex.getY(), rex.getZ(), rules.despawnDistance(), false) == null;
             boolean tooOld = rules.maxLifetimeTicks() > 0 && rex.tickCount > rules.maxLifetimeTicks() && !rex.getSenses().hasQuarry();
@@ -171,7 +173,8 @@ public final class RexSpawner {
 
     private static int countRex(ServerLevel level, @Nullable Vec3 center, double radius) {
         int count = 0;
-        for (TRex rex : level.getEntities(EntityTypeTest.forClass(TRex.class), candidate -> candidate.isAlive())) {
+        // Raptors run under their own caps (RaptorSpawner); they never count toward the T-rex's.
+        for (TRex rex : level.getEntities(EntityTypeTest.forClass(TRex.class), candidate -> candidate.isAlive() && !(candidate instanceof Velociraptor))) {
             if (center == null || rex.position().distanceToSqr(center) <= radius * radius) {
                 count++;
             }

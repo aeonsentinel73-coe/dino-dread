@@ -8,6 +8,7 @@ import com.dinodread.entity.ai.TRexPreyGoal;
 import com.dinodread.entity.ai.TRexSenses;
 import com.dinodread.entity.ai.TRexVoice;
 import com.dinodread.entity.ai.TRexWanderGoal;
+import com.dinodread.registry.ModSounds;
 import com.dinodread.world.DayNight;
 
 import com.geckolib.animatable.GeoEntity;
@@ -24,6 +25,7 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EntityType;
@@ -38,6 +40,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.NeoForgeMod;
 import net.neoforged.neoforge.fluids.FluidType;
+import net.neoforged.neoforge.registries.DeferredHolder;
 
 // T-rex. Attributes come from RexConfig (STARTUP config); the hunting brain lives in entity.ai.
 public class TRex extends Monster implements GeoEntity {
@@ -169,7 +172,7 @@ public class TRex extends Monster implements GeoEntity {
     // A footstep every footstepStrideBlocks blocks walked instead of vanilla's ~1.7, which is far too quick for this body.
     @Override
     protected float nextStep() {
-        return moveDist + (float) (RexConfig.FOOTSTEP_STRIDE_BLOCKS.get() * VANILLA_MOVE_DIST_PER_BLOCK);
+        return moveDist + (float) (footstepStrideBlocks() * VANILLA_MOVE_DIST_PER_BLOCK);
     }
 
     // The footstep is its own sound, at a volume that carries; the block's step sound would be a faint tick under it.
@@ -203,11 +206,132 @@ public class TRex extends Monster implements GeoEntity {
     }
 
     /**
+     * Tunables read per entity instead of straight from {@link RexConfig}, so the velociraptor
+     * ({@link Velociraptor}) can run the same brain on its own numbers. Every default is the T-rex config value.
+     */
+    public double sightRange() {
+        return RexConfig.SIGHT_RANGE.get();
+    }
+
+    public double sightFieldOfViewDegrees() {
+        return RexConfig.SIGHT_FOV_DEGREES.get();
+    }
+
+    public double sneakSightMultiplier() {
+        return RexConfig.SNEAK_SIGHT_MULTIPLIER.get();
+    }
+
+    public double hearingRadius() {
+        return RexConfig.HEARING_RADIUS.get();
+    }
+
+    public double sneakHearingMultiplier() {
+        return RexConfig.SNEAK_HEARING_MULTIPLIER.get();
+    }
+
+    public int giveUpTicks() {
+        return RexConfig.GIVE_UP_TICKS.get();
+    }
+
+    public double biteReach() {
+        return RexConfig.BITE_REACH.get();
+    }
+
+    public double biteReachBelow() {
+        return RexConfig.BITE_REACH_BELOW.get();
+    }
+
+    public int biteWindupTicks() {
+        return RexConfig.BITE_WINDUP_TICKS.get();
+    }
+
+    public int biteCooldownTicks() {
+        return RexConfig.BITE_COOLDOWN_TICKS.get();
+    }
+
+    /** Whether the hunt goal may enter the CHARGE state at all (raptors have no charge). */
+    public boolean canCharge() {
+        return true;
+    }
+
+    /** Whether the senses also look for hostile mobs (zombies, skeletons, ...) next to players. */
+    public boolean huntsHostileMobs() {
+        return false;
+    }
+
+    /** Which blocks the hunt mover may break on the way to a target (raptors only push through foliage). */
+    public RexBlockBreaker.Policy huntBreakPolicy() {
+        return RexBlockBreaker.Policy.ANY;
+    }
+
+    /** Blocks of body to keep under the surface while swimming; 0 = vanilla floating. */
+    public double swimDepthBlocks() {
+        return RexConfig.SWIM_DEPTH.get();
+    }
+
+    public double waterExitHeight() {
+        return RexConfig.WATER_EXIT_HEIGHT.get();
+    }
+
+    public double footstepStrideBlocks() {
+        return RexConfig.FOOTSTEP_STRIDE_BLOCKS.get();
+    }
+
+    public double footstepVolume() {
+        return RexConfig.FOOTSTEP_VOLUME.get();
+    }
+
+    public double biteVolume() {
+        return RexConfig.BITE_VOLUME.get();
+    }
+
+    public double roarVolume() {
+        return RexConfig.ROAR_VOLUME.get();
+    }
+
+    public int roarCooldownTicks() {
+        return RexConfig.ROAR_COOLDOWN_TICKS.get();
+    }
+
+    public boolean distantRoarEnabled() {
+        return RexConfig.DISTANT_ROAR_ENABLED.get();
+    }
+
+    public int distantRoarIntervalTicks() {
+        return RexConfig.DISTANT_ROAR_INTERVAL_TICKS.get();
+    }
+
+    public double distantRoarVolume() {
+        return RexConfig.DISTANT_ROAR_VOLUME.get();
+    }
+
+    /**
+     * The sound events this rex type plays. The raptor has its own ids (the same placeholder files for now):
+     * the client camera shake keys off {@link ModSounds#TREX_STEP} and {@link ModSounds#TREX_ROAR},
+     * so a raptor never shakes the camera.
+     */
+    public DeferredHolder<SoundEvent, SoundEvent> stepSound() {
+        return ModSounds.TREX_STEP;
+    }
+
+    public DeferredHolder<SoundEvent, SoundEvent> roarSound() {
+        return ModSounds.TREX_ROAR;
+    }
+
+    public DeferredHolder<SoundEvent, SoundEvent> distantRoarSound() {
+        return ModSounds.TREX_ROAR_DISTANT;
+    }
+
+    public DeferredHolder<SoundEvent, SoundEvent> biteSound() {
+        return ModSounds.TREX_BITE;
+    }
+
+    /**
      * True if the target is within bite reach, measured from the edge of the (scaled) hitbox, and further down by biteReachBelow: a body
      * this wide cannot get into a narrow valley or pit, but its head can reach down into one.
      */
     public boolean isInBiteRange(LivingEntity target) {
-        return getAttackBoundingBox(RexConfig.BITE_REACH.get()).expandTowards(0.0, -RexConfig.BITE_REACH_BELOW.get(), 0.0).intersects(target.getHitbox());
+        return getAttackBoundingBox(biteReach()).expandTowards(0.0, -biteReachBelow(), 0.0).intersects(target.getHitbox());
     }
 
     public static AttributeSupplier.Builder createAttributes() {
@@ -232,7 +356,7 @@ public class TRex extends Monster implements GeoEntity {
 
     /** Blocks of body to keep under the surface right now: the configured swim depth, or 0 (vanilla's float level) while it is against a bank, so it can rise and climb out. */
     private double swimDepth() {
-        return collidedRecently(SWIM_BANK_TICKS) ? 0.0 : RexConfig.SWIM_DEPTH.get();
+        return collidedRecently(SWIM_BANK_TICKS) ? 0.0 : swimDepthBlocks();
     }
 
     // The float goal taps jump only while more of the body than this is under water, which is what makes a mob ride on the surface (vanilla: 0.4 blocks, so a
@@ -257,7 +381,7 @@ public class TRex extends Monster implements GeoEntity {
         if (depth > 0.0 && isInWater() && !onGround() && getFluidHeight(FluidTags.WATER) < depth - SINK_SETTLE_BAND) {
             setDeltaMovement(getDeltaMovement().add(0.0, -SINK_NUDGE, 0.0));
         }
-        double exitHeight = RexConfig.WATER_EXIT_HEIGHT.get();
+        double exitHeight = waterExitHeight();
         if (exitHeight > 0.0 && horizontalCollision && !onGround() && tickCount - lastInWaterTick <= WATER_EXIT_GRACE_TICKS) {
             Vec3 movement = getDeltaMovement();
             if (isFree(movement.x, exitHeight, movement.z)) {
@@ -283,7 +407,7 @@ public class TRex extends Monster implements GeoEntity {
 
         TRex rex = state.animatable();
         double blocksPerSecond = Math.hypot(rex.getX() - rex.xo, rex.getZ() - rex.zo) * TICKS_PER_SECOND;
-        double animationBlocksPerSecond = RexConfig.FOOTSTEP_STRIDE_BLOCKS.get() * FOOTFALLS_PER_WALK_CYCLE / WALK_CYCLE_SECONDS;
+        double animationBlocksPerSecond = rex.footstepStrideBlocks() * FOOTFALLS_PER_WALK_CYCLE / WALK_CYCLE_SECONDS;
         state.setControllerSpeed((float) Mth.clamp(blocksPerSecond / animationBlocksPerSecond, MIN_WALK_SPEED, MAX_WALK_SPEED));
         return state.setAndContinue(WALK);
     }

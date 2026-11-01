@@ -112,7 +112,7 @@ public class TRexHuntGoal extends Goal {
         }
 
         double speed = state == HuntState.CHARGE ? RexConfig.CHARGE_SPEED_MULTIPLIER.get() : RexConfig.STALK_SPEED_MULTIPLIER.get();
-        if (mover.driveTo(destination, speed, inBiteRange, RexBlockBreaker.Policy.ANY) == RexStuckDetector.Level.GIVE_UP) {
+        if (mover.driveTo(destination, speed, inBiteRange, rex.huntBreakPolicy()) == RexStuckDetector.Level.GIVE_UP) {
             rex.getSenses().forget();
             rex.getNavigation().stop();
         }
@@ -131,7 +131,7 @@ public class TRexHuntGoal extends Goal {
             if (--chargeTicks == 0) {
                 chargeCooldownTicks = RexConfig.CHARGE_COOLDOWN_TICKS.get();
             }
-        } else {
+        } else if (rex.canCharge()) {
             stalkSeenTicks++;
             double activity = rex.activity();
             boolean close = rex.distanceTo(target) <= RexConfig.CHARGE_DISTANCE.get() * activity;
@@ -155,12 +155,12 @@ public class TRexHuntGoal extends Goal {
         if (biteWindupTicks > 0) {
             biteWindupTicks--;
         } else if (biteWindupTicks == NOT_BITING && biteCooldownTicks == 0 && rex.isInBiteRange(target)) {
-            biteWindupTicks = RexConfig.BITE_WINDUP_TICKS.get();
+            biteWindupTicks = rex.biteWindupTicks();
         }
 
         if (biteWindupTicks == 0) {
             biteWindupTicks = NOT_BITING;
-            biteCooldownTicks = RexConfig.BITE_COOLDOWN_TICKS.get();
+            biteCooldownTicks = rex.biteCooldownTicks();
             if (rex.isInBiteRange(target) && rex.level() instanceof ServerLevel level) {
                 rex.swingForAttack(InteractionHand.MAIN_HAND);
                 rex.getVoice().bite();

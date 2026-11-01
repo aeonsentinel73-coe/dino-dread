@@ -38,27 +38,27 @@ public class TRexVoice {
         this.distantRoarCountdown = nextDistantRoarDelay();
     }
 
-    /** The roar of a T-rex that has just noticed a player. Returns false (and stays quiet) while still on cooldown. */
+    /** The roar of a rex that has just noticed a player. Returns false (and stays quiet) while still on cooldown. */
     public boolean roar() {
-        if (rex.tickCount - lastRoarTick < RexConfig.ROAR_COOLDOWN_TICKS.get()) {
+        if (rex.tickCount - lastRoarTick < rex.roarCooldownTicks()) {
             return false;
         }
 
         lastRoarTick = rex.tickCount;
         roarCount++;
-        play(ModSounds.TREX_ROAR, RexConfig.ROAR_VOLUME.get());
+        play(rex.roarSound(), rex.roarVolume());
         rex.startAction(TRex.Action.ROAR);
         return true;
     }
 
     public void step() {
         stepCount++;
-        play(ModSounds.TREX_STEP, RexConfig.FOOTSTEP_VOLUME.get());
+        play(rex.stepSound(), rex.footstepVolume());
     }
 
     public void bite() {
         biteCount++;
-        play(ModSounds.TREX_BITE, RexConfig.BITE_VOLUME.get());
+        play(rex.biteSound(), rex.biteVolume());
         rex.startAction(TRex.Action.BITE);
     }
 
@@ -67,7 +67,7 @@ public class TRexVoice {
      * hunting; in daylight or during a hunt it simply waits, so the roar is never wasted on a moment that has its own sounds.
      */
     public void tick(ServerLevel level) {
-        if (!RexConfig.DISTANT_ROAR_ENABLED.get()
+        if (!rex.distantRoarEnabled()
             || rex.getHuntState() != HuntState.WANDER
             || rex.getSenses().hasQuarry()
             || DayNight.nightFactor(level, rex.position()) < DISTANT_ROAR_MIN_NIGHT_FACTOR) {
@@ -80,7 +80,7 @@ public class TRexVoice {
 
         distantRoarCountdown = nextDistantRoarDelay();
         distantRoarCount++;
-        play(ModSounds.TREX_ROAR_DISTANT, RexConfig.DISTANT_ROAR_VOLUME.get());
+        play(rex.distantRoarSound(), rex.distantRoarVolume());
     }
 
     /** Test hook: make the next distant roar come after this many qualifying ticks. */
@@ -106,7 +106,7 @@ public class TRexVoice {
 
     /** Between half and one and a half times the configured average, so the roars are not on a metronome. */
     private int nextDistantRoarDelay() {
-        int average = RexConfig.DISTANT_ROAR_INTERVAL_TICKS.get();
+        int average = rex.distantRoarIntervalTicks();
         return average / 2 + rex.getRandom().nextInt(average);
     }
 

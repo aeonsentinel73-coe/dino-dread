@@ -14,12 +14,16 @@ public final class ModItems {
     public static final DeferredItem<SpawnEggItem> TREX_SPAWN_EGG = ITEMS.registerItem(
         "trex_spawn_egg", SpawnEggItem::new, props -> props.spawnEgg(ModEntities.TREX.get()));
 
+    public static final DeferredItem<SpawnEggItem> VELOCIRAPTOR_SPAWN_EGG = ITEMS.registerItem(
+        "velociraptor_spawn_egg", SpawnEggItem::new, props -> props.spawnEgg(ModEntities.VELOCIRAPTOR.get()));
+
     private ModItems() {}
 
     // Mod-bus listener; wired up in DinoDread.
     public static void addToCreativeTabs(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() == CreativeModeTabs.SPAWN_EGGS) {
             event.accept(TREX_SPAWN_EGG);
+            event.accept(VELOCIRAPTOR_SPAWN_EGG);
         }
     }
 }
