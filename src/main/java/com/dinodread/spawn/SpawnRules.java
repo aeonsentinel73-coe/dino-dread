@@ -15,6 +15,7 @@ public record SpawnRules(
         int firstSpawnDelayDays,
         int attemptIntervalTicks,
         double spawnChance,
+        double superRexChance,
         List<? extends String> allowedDimensions,
         List<? extends String> allowedBiomes,
         double minSpawnDistance,
@@ -36,6 +37,7 @@ public record SpawnRules(
                 SpawnConfig.FIRST_SPAWN_DELAY_DAYS.get(),
                 SpawnConfig.ATTEMPT_INTERVAL_TICKS.get(),
                 SpawnConfig.SPAWN_CHANCE.get(),
+                SpawnConfig.SUPER_REX_CHANCE.get(),
                 SpawnConfig.ALLOWED_DIMENSIONS.get(),
                 SpawnConfig.ALLOWED_BIOMES.get(),
                 SpawnConfig.MIN_SPAWN_DISTANCE.get(),
@@ -51,74 +53,78 @@ public record SpawnRules(
     }
 
     public SpawnRules withSpawnEnabled(boolean value) {
-        return new SpawnRules(value, nightOnly, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, allowedDimensions, allowedBiomes, minSpawnDistance, maxSpawnDistance, placementAttempts, maxRexPerPlayer, capRadius, maxRexInWorld, despawnWhenFar, despawnDistance, maxLifetimeTicks, spawnAlerted);
+        return new SpawnRules(value, nightOnly, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, superRexChance, allowedDimensions, allowedBiomes, minSpawnDistance, maxSpawnDistance, placementAttempts, maxRexPerPlayer, capRadius, maxRexInWorld, despawnWhenFar, despawnDistance, maxLifetimeTicks, spawnAlerted);
     }
 
     public SpawnRules withNightOnly(boolean value) {
-        return new SpawnRules(spawnEnabled, value, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, allowedDimensions, allowedBiomes, minSpawnDistance, maxSpawnDistance, placementAttempts, maxRexPerPlayer, capRadius, maxRexInWorld, despawnWhenFar, despawnDistance, maxLifetimeTicks, spawnAlerted);
+        return new SpawnRules(spawnEnabled, value, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, superRexChance, allowedDimensions, allowedBiomes, minSpawnDistance, maxSpawnDistance, placementAttempts, maxRexPerPlayer, capRadius, maxRexInWorld, despawnWhenFar, despawnDistance, maxLifetimeTicks, spawnAlerted);
     }
 
     public SpawnRules withMinNightFactor(double value) {
-        return new SpawnRules(spawnEnabled, nightOnly, value, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, allowedDimensions, allowedBiomes, minSpawnDistance, maxSpawnDistance, placementAttempts, maxRexPerPlayer, capRadius, maxRexInWorld, despawnWhenFar, despawnDistance, maxLifetimeTicks, spawnAlerted);
+        return new SpawnRules(spawnEnabled, nightOnly, value, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, superRexChance, allowedDimensions, allowedBiomes, minSpawnDistance, maxSpawnDistance, placementAttempts, maxRexPerPlayer, capRadius, maxRexInWorld, despawnWhenFar, despawnDistance, maxLifetimeTicks, spawnAlerted);
     }
 
     public SpawnRules withFirstSpawnDelayDays(int value) {
-        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, value, attemptIntervalTicks, spawnChance, allowedDimensions, allowedBiomes, minSpawnDistance, maxSpawnDistance, placementAttempts, maxRexPerPlayer, capRadius, maxRexInWorld, despawnWhenFar, despawnDistance, maxLifetimeTicks, spawnAlerted);
+        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, value, attemptIntervalTicks, spawnChance, superRexChance, allowedDimensions, allowedBiomes, minSpawnDistance, maxSpawnDistance, placementAttempts, maxRexPerPlayer, capRadius, maxRexInWorld, despawnWhenFar, despawnDistance, maxLifetimeTicks, spawnAlerted);
     }
 
     public SpawnRules withAttemptIntervalTicks(int value) {
-        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, firstSpawnDelayDays, value, spawnChance, allowedDimensions, allowedBiomes, minSpawnDistance, maxSpawnDistance, placementAttempts, maxRexPerPlayer, capRadius, maxRexInWorld, despawnWhenFar, despawnDistance, maxLifetimeTicks, spawnAlerted);
+        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, firstSpawnDelayDays, value, spawnChance, superRexChance, allowedDimensions, allowedBiomes, minSpawnDistance, maxSpawnDistance, placementAttempts, maxRexPerPlayer, capRadius, maxRexInWorld, despawnWhenFar, despawnDistance, maxLifetimeTicks, spawnAlerted);
     }
 
     public SpawnRules withSpawnChance(double value) {
-        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, value, allowedDimensions, allowedBiomes, minSpawnDistance, maxSpawnDistance, placementAttempts, maxRexPerPlayer, capRadius, maxRexInWorld, despawnWhenFar, despawnDistance, maxLifetimeTicks, spawnAlerted);
+        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, value, superRexChance, allowedDimensions, allowedBiomes, minSpawnDistance, maxSpawnDistance, placementAttempts, maxRexPerPlayer, capRadius, maxRexInWorld, despawnWhenFar, despawnDistance, maxLifetimeTicks, spawnAlerted);
+    }
+
+    public SpawnRules withSuperRexChance(double value) {
+        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, value, allowedDimensions, allowedBiomes, minSpawnDistance, maxSpawnDistance, placementAttempts, maxRexPerPlayer, capRadius, maxRexInWorld, despawnWhenFar, despawnDistance, maxLifetimeTicks, spawnAlerted);
     }
 
     public SpawnRules withAllowedDimensions(List<? extends String> value) {
-        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, value, allowedBiomes, minSpawnDistance, maxSpawnDistance, placementAttempts, maxRexPerPlayer, capRadius, maxRexInWorld, despawnWhenFar, despawnDistance, maxLifetimeTicks, spawnAlerted);
+        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, superRexChance, value, allowedBiomes, minSpawnDistance, maxSpawnDistance, placementAttempts, maxRexPerPlayer, capRadius, maxRexInWorld, despawnWhenFar, despawnDistance, maxLifetimeTicks, spawnAlerted);
     }
 
     public SpawnRules withAllowedBiomes(List<? extends String> value) {
-        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, allowedDimensions, value, minSpawnDistance, maxSpawnDistance, placementAttempts, maxRexPerPlayer, capRadius, maxRexInWorld, despawnWhenFar, despawnDistance, maxLifetimeTicks, spawnAlerted);
+        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, superRexChance, allowedDimensions, value, minSpawnDistance, maxSpawnDistance, placementAttempts, maxRexPerPlayer, capRadius, maxRexInWorld, despawnWhenFar, despawnDistance, maxLifetimeTicks, spawnAlerted);
     }
 
     public SpawnRules withMinSpawnDistance(double value) {
-        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, allowedDimensions, allowedBiomes, value, maxSpawnDistance, placementAttempts, maxRexPerPlayer, capRadius, maxRexInWorld, despawnWhenFar, despawnDistance, maxLifetimeTicks, spawnAlerted);
+        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, superRexChance, allowedDimensions, allowedBiomes, value, maxSpawnDistance, placementAttempts, maxRexPerPlayer, capRadius, maxRexInWorld, despawnWhenFar, despawnDistance, maxLifetimeTicks, spawnAlerted);
     }
 
     public SpawnRules withMaxSpawnDistance(double value) {
-        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, allowedDimensions, allowedBiomes, minSpawnDistance, value, placementAttempts, maxRexPerPlayer, capRadius, maxRexInWorld, despawnWhenFar, despawnDistance, maxLifetimeTicks, spawnAlerted);
+        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, superRexChance, allowedDimensions, allowedBiomes, minSpawnDistance, value, placementAttempts, maxRexPerPlayer, capRadius, maxRexInWorld, despawnWhenFar, despawnDistance, maxLifetimeTicks, spawnAlerted);
     }
 
     public SpawnRules withPlacementAttempts(int value) {
-        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, allowedDimensions, allowedBiomes, minSpawnDistance, maxSpawnDistance, value, maxRexPerPlayer, capRadius, maxRexInWorld, despawnWhenFar, despawnDistance, maxLifetimeTicks, spawnAlerted);
+        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, superRexChance, allowedDimensions, allowedBiomes, minSpawnDistance, maxSpawnDistance, value, maxRexPerPlayer, capRadius, maxRexInWorld, despawnWhenFar, despawnDistance, maxLifetimeTicks, spawnAlerted);
     }
 
     public SpawnRules withMaxRexPerPlayer(int value) {
-        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, allowedDimensions, allowedBiomes, minSpawnDistance, maxSpawnDistance, placementAttempts, value, capRadius, maxRexInWorld, despawnWhenFar, despawnDistance, maxLifetimeTicks, spawnAlerted);
+        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, superRexChance, allowedDimensions, allowedBiomes, minSpawnDistance, maxSpawnDistance, placementAttempts, value, capRadius, maxRexInWorld, despawnWhenFar, despawnDistance, maxLifetimeTicks, spawnAlerted);
     }
 
     public SpawnRules withCapRadius(double value) {
-        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, allowedDimensions, allowedBiomes, minSpawnDistance, maxSpawnDistance, placementAttempts, maxRexPerPlayer, value, maxRexInWorld, despawnWhenFar, despawnDistance, maxLifetimeTicks, spawnAlerted);
+        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, superRexChance, allowedDimensions, allowedBiomes, minSpawnDistance, maxSpawnDistance, placementAttempts, maxRexPerPlayer, value, maxRexInWorld, despawnWhenFar, despawnDistance, maxLifetimeTicks, spawnAlerted);
     }
 
     public SpawnRules withMaxRexInWorld(int value) {
-        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, allowedDimensions, allowedBiomes, minSpawnDistance, maxSpawnDistance, placementAttempts, maxRexPerPlayer, capRadius, value, despawnWhenFar, despawnDistance, maxLifetimeTicks, spawnAlerted);
+        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, superRexChance, allowedDimensions, allowedBiomes, minSpawnDistance, maxSpawnDistance, placementAttempts, maxRexPerPlayer, capRadius, value, despawnWhenFar, despawnDistance, maxLifetimeTicks, spawnAlerted);
     }
 
     public SpawnRules withDespawnWhenFar(boolean value) {
-        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, allowedDimensions, allowedBiomes, minSpawnDistance, maxSpawnDistance, placementAttempts, maxRexPerPlayer, capRadius, maxRexInWorld, value, despawnDistance, maxLifetimeTicks, spawnAlerted);
+        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, superRexChance, allowedDimensions, allowedBiomes, minSpawnDistance, maxSpawnDistance, placementAttempts, maxRexPerPlayer, capRadius, maxRexInWorld, value, despawnDistance, maxLifetimeTicks, spawnAlerted);
     }
 
     public SpawnRules withDespawnDistance(double value) {
-        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, allowedDimensions, allowedBiomes, minSpawnDistance, maxSpawnDistance, placementAttempts, maxRexPerPlayer, capRadius, maxRexInWorld, despawnWhenFar, value, maxLifetimeTicks, spawnAlerted);
+        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, superRexChance, allowedDimensions, allowedBiomes, minSpawnDistance, maxSpawnDistance, placementAttempts, maxRexPerPlayer, capRadius, maxRexInWorld, despawnWhenFar, value, maxLifetimeTicks, spawnAlerted);
     }
 
     public SpawnRules withMaxLifetimeTicks(int value) {
-        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, allowedDimensions, allowedBiomes, minSpawnDistance, maxSpawnDistance, placementAttempts, maxRexPerPlayer, capRadius, maxRexInWorld, despawnWhenFar, despawnDistance, value, spawnAlerted);
+        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, superRexChance, allowedDimensions, allowedBiomes, minSpawnDistance, maxSpawnDistance, placementAttempts, maxRexPerPlayer, capRadius, maxRexInWorld, despawnWhenFar, despawnDistance, value, spawnAlerted);
     }
 
     public SpawnRules withSpawnAlerted(boolean value) {
-        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, allowedDimensions, allowedBiomes, minSpawnDistance, maxSpawnDistance, placementAttempts, maxRexPerPlayer, capRadius, maxRexInWorld, despawnWhenFar, despawnDistance, maxLifetimeTicks, value);
+        return new SpawnRules(spawnEnabled, nightOnly, minNightFactor, firstSpawnDelayDays, attemptIntervalTicks, spawnChance, superRexChance, allowedDimensions, allowedBiomes, minSpawnDistance, maxSpawnDistance, placementAttempts, maxRexPerPlayer, capRadius, maxRexInWorld, despawnWhenFar, despawnDistance, maxLifetimeTicks, value);
     }
 }

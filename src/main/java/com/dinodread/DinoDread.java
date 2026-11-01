@@ -12,11 +12,13 @@ import net.neoforged.neoforge.common.NeoForge;
 
 import com.dinodread.config.RexConfig;
 import com.dinodread.config.SpawnConfig;
+import com.dinodread.config.SuperRexConfig;
 import com.dinodread.entity.ai.TRexSenses;
 import com.dinodread.gametest.RexAudioGameTests;
 import com.dinodread.gametest.RexGameTests;
 import com.dinodread.gametest.RexObstacleGameTests;
 import com.dinodread.gametest.RexSpawnGameTests;
+import com.dinodread.gametest.RexSuperRexGameTests;
 import com.dinodread.gametest.RexTerrainGameTests;
 import com.dinodread.gametest.RexWaterGameTests;
 import com.dinodread.registry.ModEntities;
@@ -35,6 +37,7 @@ public class DinoDread {
         // STARTUP configs load right here, so RexConfig values are readable when entity attributes are created.
         container.registerConfig(ModConfig.Type.STARTUP, RexConfig.SPEC);
         container.registerConfig(ModConfig.Type.STARTUP, SpawnConfig.SPEC, "dinodread-spawning.toml");
+        container.registerConfig(ModConfig.Type.STARTUP, SuperRexConfig.SPEC, "dinodread-superrex.toml");
         ModEntities.ENTITY_TYPES.register(modEventBus);
         ModItems.ITEMS.register(modEventBus);
         ModSounds.SOUND_EVENTS.register(modEventBus);
@@ -49,6 +52,7 @@ public class DinoDread {
         RexTerrainGameTests.register(modEventBus);
         RexSpawnGameTests.register(modEventBus);
         RexWaterGameTests.register(modEventBus);
+        RexSuperRexGameTests.register(modEventBus);
         LOGGER.info("Dino Dread loading");
     }
 }

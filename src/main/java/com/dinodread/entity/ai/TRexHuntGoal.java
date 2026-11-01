@@ -103,7 +103,7 @@ public class TRexHuntGoal extends Goal {
         boolean inBiteRange = visible && rex.isInBiteRange(target);
         double horizontalDistanceSqr = rex.position().subtract(destination).horizontalDistanceSqr();
         // Measured from the edge of the hitbox, not its centre: a centre-based distance stopped a narrow rex far short of the noise.
-        double arrival = RexConfig.INVESTIGATE_REACH_FROM_EDGE.get() + rex.getBbWidth() / 2.0;
+        double arrival = rex.investigateReachFromEdge() + rex.getBbWidth() / 2.0;
         if (state == HuntState.INVESTIGATE && horizontalDistanceSqr <= arrival * arrival) {
             // Nothing here: stand and stare until it gives up or hears something else.
             mover.reset();
@@ -129,15 +129,15 @@ public class TRexHuntGoal extends Goal {
 
         if (chargeTicks > 0) {
             if (--chargeTicks == 0) {
-                chargeCooldownTicks = RexConfig.CHARGE_COOLDOWN_TICKS.get();
+                chargeCooldownTicks = rex.chargeCooldownTicks();
             }
         } else {
             stalkSeenTicks++;
             double activity = rex.activity();
-            boolean close = rex.distanceTo(target) <= RexConfig.CHARGE_DISTANCE.get() * activity;
-            boolean watchedLongEnough = stalkSeenTicks >= RexConfig.STALK_TICKS_BEFORE_CHARGE.get();
+            boolean close = rex.distanceTo(target) <= rex.chargeDistance() * activity;
+            boolean watchedLongEnough = stalkSeenTicks >= rex.stalkTicksBeforeCharge();
             if (chargeCooldownTicks == 0 && (close || watchedLongEnough)) {
-                chargeTicks = Math.max(1, (int) Math.round(RexConfig.CHARGE_MAX_TICKS.get() * activity));
+                chargeTicks = Math.max(1, (int) Math.round(rex.chargeMaxTicks() * activity));
                 stalkSeenTicks = 0;
             }
         }
@@ -147,7 +147,7 @@ public class TRexHuntGoal extends Goal {
 
     private void endCharge() {
         chargeTicks = 0;
-        chargeCooldownTicks = RexConfig.CHARGE_COOLDOWN_TICKS.get();
+        chargeCooldownTicks = rex.chargeCooldownTicks();
     }
 
     /** Bite: start a windup when the target is in reach, land the bite when it ends if the target is still in reach. */
@@ -155,12 +155,12 @@ public class TRexHuntGoal extends Goal {
         if (biteWindupTicks > 0) {
             biteWindupTicks--;
         } else if (biteWindupTicks == NOT_BITING && biteCooldownTicks == 0 && rex.isInBiteRange(target)) {
-            biteWindupTicks = RexConfig.BITE_WINDUP_TICKS.get();
+            biteWindupTicks = rex.biteWindupTicks();
         }
 
         if (biteWindupTicks == 0) {
             biteWindupTicks = NOT_BITING;
-            biteCooldownTicks = RexConfig.BITE_COOLDOWN_TICKS.get();
+            biteCooldownTicks = rex.biteCooldownTicks();
             if (rex.isInBiteRange(target) && rex.level() instanceof ServerLevel level) {
                 rex.swingForAttack(InteractionHand.MAIN_HAND);
                 rex.getVoice().bite();

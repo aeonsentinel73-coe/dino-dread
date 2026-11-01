@@ -203,11 +203,75 @@ public class TRex extends Monster implements GeoEntity {
     }
 
     /**
+     * Tunables the senses and the hunt goal read per entity instead of straight from {@link RexConfig}, so the
+     * super rex ({@link SuperRex}) can run the same brain on its own numbers. Every default is the T-rex config value.
+     */
+    public double sightRange() {
+        return RexConfig.SIGHT_RANGE.get();
+    }
+
+    public double sightFieldOfViewDegrees() {
+        return RexConfig.SIGHT_FOV_DEGREES.get();
+    }
+
+    public double sneakSightMultiplier() {
+        return RexConfig.SNEAK_SIGHT_MULTIPLIER.get();
+    }
+
+    public double hearingRadius() {
+        return RexConfig.HEARING_RADIUS.get();
+    }
+
+    public double sneakHearingMultiplier() {
+        return RexConfig.SNEAK_HEARING_MULTIPLIER.get();
+    }
+
+    public double chargeDistance() {
+        return RexConfig.CHARGE_DISTANCE.get();
+    }
+
+    public int stalkTicksBeforeCharge() {
+        return RexConfig.STALK_TICKS_BEFORE_CHARGE.get();
+    }
+
+    public int chargeMaxTicks() {
+        return RexConfig.CHARGE_MAX_TICKS.get();
+    }
+
+    public int chargeCooldownTicks() {
+        return RexConfig.CHARGE_COOLDOWN_TICKS.get();
+    }
+
+    public int giveUpTicks() {
+        return RexConfig.GIVE_UP_TICKS.get();
+    }
+
+    public double investigateReachFromEdge() {
+        return RexConfig.INVESTIGATE_REACH_FROM_EDGE.get();
+    }
+
+    public double biteReach() {
+        return RexConfig.BITE_REACH.get();
+    }
+
+    public double biteReachBelow() {
+        return RexConfig.BITE_REACH_BELOW.get();
+    }
+
+    public int biteWindupTicks() {
+        return RexConfig.BITE_WINDUP_TICKS.get();
+    }
+
+    public int biteCooldownTicks() {
+        return RexConfig.BITE_COOLDOWN_TICKS.get();
+    }
+
+    /**
      * True if the target is within bite reach, measured from the edge of the (scaled) hitbox, and further down by biteReachBelow: a body
      * this wide cannot get into a narrow valley or pit, but its head can reach down into one.
      */
     public boolean isInBiteRange(LivingEntity target) {
-        return getAttackBoundingBox(RexConfig.BITE_REACH.get()).expandTowards(0.0, -RexConfig.BITE_REACH_BELOW.get(), 0.0).intersects(target.getHitbox());
+        return getAttackBoundingBox(biteReach()).expandTowards(0.0, -biteReachBelow(), 0.0).intersects(target.getHitbox());
     }
 
     public static AttributeSupplier.Builder createAttributes() {

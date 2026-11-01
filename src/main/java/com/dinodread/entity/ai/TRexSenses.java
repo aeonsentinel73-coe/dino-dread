@@ -3,6 +3,7 @@ package com.dinodread.entity.ai;
 import org.jspecify.annotations.Nullable;
 
 import com.dinodread.config.RexConfig;
+import com.dinodread.config.SuperRexConfig;
 import com.dinodread.entity.TRex;
 
 import net.minecraft.server.level.ServerLevel;
@@ -45,7 +46,8 @@ public class TRexSenses {
         }
 
         Vec3 noisePos = event.getEventPosition();
-        double radius = RexConfig.HEARING_RADIUS.get();
+        // Cover the most far-hearing rex type; each rex then filters by its own hearingRadius in hearNoise.
+        double radius = Math.max(RexConfig.HEARING_RADIUS.get(), SuperRexConfig.HEARING_RADIUS.get());
         for (TRex rex : level.getEntitiesOfClass(TRex.class, new AABB(noisePos, noisePos).inflate(radius))) {
             rex.getSenses().hearNoise(player, noisePos);
         }
@@ -86,7 +88,7 @@ public class TRexSenses {
             scanForPlayers(level);
         }
 
-        if (hasQuarry() && ticksSinceContact > RexConfig.GIVE_UP_TICKS.get() * rex.activity()) {
+        if (hasQuarry() && ticksSinceContact > rex.giveUpTicks() * rex.activity()) {
             forget();
         }
     }
@@ -97,7 +99,7 @@ public class TRexSenses {
             return;
         }
 
-        double radius = RexConfig.HEARING_RADIUS.get() * rex.activity() * (player.isSteppingCarefully() ? RexConfig.SNEAK_HEARING_MULTIPLIER.get() : 1.0);
+        double radius = rex.hearingRadius() * rex.activity() * (player.isSteppingCarefully() ? rex.sneakHearingMultiplier() : 1.0);
         if (rex.distanceToSqr(noisePos) > radius * radius) {
             return;
         }
@@ -153,7 +155,7 @@ public class TRexSenses {
             return false;
         }
 
-        double range = RexConfig.SIGHT_RANGE.get() * rex.activity() * (player.isSteppingCarefully() ? RexConfig.SNEAK_SIGHT_MULTIPLIER.get() : 1.0);
+        double range = rex.sightRange() * rex.activity() * (player.isSteppingCarefully() ? rex.sneakSightMultiplier() : 1.0);
         if (rex.distanceToSqr(player) > range * range) {
             return false;
         }
@@ -161,7 +163,7 @@ public class TRexSenses {
         if (!alreadyTracking) {
             Vec3 toPlayer = player.getEyePosition().subtract(rex.getEyePosition());
             float yawToPlayer = (float) (Mth.atan2(toPlayer.z, toPlayer.x) * Mth.RAD_TO_DEG) - 90.0F;
-            if (Mth.degreesDifferenceAbs(yawToPlayer, rex.getYHeadRot()) > RexConfig.SIGHT_FOV_DEGREES.get() / 2.0) {
+            if (Mth.degreesDifferenceAbs(yawToPlayer, rex.getYHeadRot()) > rex.sightFieldOfViewDegrees() / 2.0) {
                 return false;
             }
         }

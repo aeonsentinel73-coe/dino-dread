@@ -17,6 +17,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.entity.EntitySelector;
 import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.entity.EntityTypeTest;
@@ -88,7 +89,7 @@ public final class RexSpawner {
             return null;
         }
 
-        TRex rex = ModEntities.TREX.get().create(level, EntitySpawnReason.NATURAL);
+        TRex rex = pickType(rules, random).create(level, EntitySpawnReason.NATURAL);
         if (rex == null) {
             return null;
         }
@@ -125,6 +126,14 @@ public final class RexSpawner {
             return placed;
         }
         return null;
+    }
+
+    /** One in {@code superRexChance} of natural spawns is a super rex instead (0.05 = one in 20). */
+    private static EntityType<? extends TRex> pickType(SpawnRules rules, RandomSource random) {
+        if (rules.superRexChance() > 0.0 && random.nextDouble() < rules.superRexChance()) {
+            return ModEntities.SUPER_REX.get();
+        }
+        return ModEntities.TREX.get();
     }
 
     private static @Nullable TRex place(ServerLevel level, TRex rex, RandomSource random) {

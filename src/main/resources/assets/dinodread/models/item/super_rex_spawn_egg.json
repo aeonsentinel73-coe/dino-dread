@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "dinodread:item/super_rex_spawn_egg"
+  }
+}

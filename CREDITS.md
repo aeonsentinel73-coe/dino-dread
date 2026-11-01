@@ -21,7 +21,10 @@ with source URL, author and license. Nothing enters the repo without an entry.
 | Item | Source | Author | License | How used |
 |---|---|---|---|---|
 | `textures/entity/trex.png` | Extracted unchanged from the texture embedded in the "Tarbosaurus Rex" project above | ziiwplay | CC BY 4.0, https://creativecommons.org/licenses/by/4.0/ | T-rex texture |
+| `geckolib/models/entity/super_rex.geo.json`, `geckolib/animations/entity/super_rex.animation.json` | Unmodified copies of the two trex files above (GeckoLib derives the asset paths from the entity type id) | ziiwplay | CC BY 4.0, https://creativecommons.org/licenses/by/4.0/ | Super rex model and animations (same model as the T-rex) |
+| `textures/entity/super_rex.png` | Generated for this repo from `textures/entity/trex.png` | Dino Dread project (derived from ziiwplay's texture) | CC BY 4.0, https://creativecommons.org/licenses/by/4.0/ | Super rex texture: every red-family pixel recolored green and every green-family pixel recolored red (hue swap in HSV, saturation and value kept); all other colors unchanged |
 | `textures/item/trex_spawn_egg.png` | Generated for this repo | Dino Dread project | CC0 | T-rex spawn egg icon |
+| `textures/item/super_rex_spawn_egg.png` | Generated for this repo from `textures/item/trex_spawn_egg.png` with the same red/green hue swap | Dino Dread project | CC0 | Super rex spawn egg icon |
 
 ## Sounds
 
