@@ -51,7 +51,7 @@ public class TRex extends Monster implements GeoEntity {
      * to clients as ordinary synced entity data (GeckoLib's own animation-trigger packet cannot be sent to the mock players in
      * GameTests), and each client plays the matching animation when it changes.
      */
-    public enum Action { NONE, ROAR, BITE, BITE_ALT }
+    public enum Action { NONE, ROAR, BITE, BITE_ALT, TAIL_WHIP }
 
     private static final EntityDataAccessor<Byte> DATA_ACTION = SynchedEntityData.defineId(TRex.class, EntityDataSerializers.BYTE);
     private static final Action[] ACTIONS = Action.values();
@@ -159,7 +159,7 @@ public class TRex extends Monster implements GeoEntity {
         return switch (action) {
             case ROAR -> ROAR_ACTION_TICKS;
             case BITE, BITE_ALT -> BITE_ACTION_TICKS;
-            case NONE -> 0;
+            case NONE, TAIL_WHIP -> 0; // the Tarbosaurus has no tail-whip animation; the raptor overrides this
         };
     }
 
@@ -186,7 +186,7 @@ public class TRex extends Monster implements GeoEntity {
         switch (action) {
             case ROAR -> triggerAnim(ACTION_CONTROLLER, ROAR_TRIGGER);
             case BITE, BITE_ALT -> triggerAnim(ACTION_CONTROLLER, BITE_TRIGGER);
-            case NONE -> { }
+            case NONE, TAIL_WHIP -> { } // the Tarbosaurus has no tail-whip animation; the raptor overrides this
         }
     }
 

@@ -55,10 +55,15 @@ public class Velociraptor extends TRex {
     private static final RawAnimation ATTACK_LEFT = RawAnimation.begin().thenPlay("animation.peridot_scout.attack_left");
     private static final RawAnimation ATTACK_RIGHT = RawAnimation.begin().thenPlay("animation.peridot_scout.attack_right");
     private static final RawAnimation DEATH = RawAnimation.begin().thenPlay("animation.peridot_scout.death");
+    private static final RawAnimation TAIL_WHIP = RawAnimation.begin().thenPlay("animation.peridot_scout.tail_whip");
     private static final String ATTACK_RIGHT_TRIGGER = "attack_right";
-    // The Peridot animations' own lengths, in ticks: call 3.0 s, attacks 1.0 s.
+    private static final String TAIL_WHIP_TRIGGER = "tail_whip";
+    // The Peridot animations' own lengths, in ticks: call 3.0 s, attacks 1.0 s, tail whip 1.6 s.
     private static final int CRY_ACTION_TICKS = 60;
     private static final int ATTACK_ACTION_TICKS = 20;
+    private static final int TAIL_WHIP_ACTION_TICKS = 32;
+    // Idle variety: while a raptor stands around wandering, a tail whip fires about every 15 seconds on average.
+    private static final double IDLE_TAIL_WHIP_CHANCE_PER_TICK = 1.0 / 300.0;
     // The walk animation is 4.8 s long with two strides per loop (each foot lands twice), so 4 footfalls per cycle.
     private static final double PERIDOT_WALK_CYCLE_SECONDS = 4.8;
     private static final int PERIDOT_FOOTFALLS_PER_CYCLE = 4;
@@ -277,6 +282,7 @@ public class Velociraptor extends TRex {
         return switch (action) {
             case ROAR -> CRY_ACTION_TICKS;
             case BITE, BITE_ALT -> ATTACK_ACTION_TICKS;
+            case TAIL_WHIP -> TAIL_WHIP_ACTION_TICKS;
             case NONE -> 0;
         };
     }
@@ -297,15 +303,17 @@ public class Velociraptor extends TRex {
 
     @Override
     protected AnimationController<TRex> registerActionAnims(AnimationController<TRex> controller) {
-        return super.registerActionAnims(controller).triggerableAnim(ATTACK_RIGHT_TRIGGER, ATTACK_RIGHT);
+        return super.registerActionAnims(controller)
+            .triggerableAnim(ATTACK_RIGHT_TRIGGER, ATTACK_RIGHT)
+            .triggerableAnim(TAIL_WHIP_TRIGGER, TAIL_WHIP);
     }
 
     @Override
     protected void playActionAnimation(Action action) {
-        if (action == Action.BITE_ALT) {
-            triggerAnim(ACTION_CONTROLLER, ATTACK_RIGHT_TRIGGER);
-        } else {
-            super.playActionAnimation(action);
+        switch (action) {
+            case BITE_ALT -> triggerAnim(ACTION_CONTROLLER, ATTACK_RIGHT_TRIGGER);
+            case TAIL_WHIP -> triggerAnim(ACTION_CONTROLLER, TAIL_WHIP_TRIGGER);
+            default -> super.playActionAnimation(action);
         }
     }
 
@@ -324,6 +332,15 @@ public class Velociraptor extends TRex {
             }
         } else {
             nextRunSoundTick = 0;
+        }
+        // Idle variety: a raptor standing around mid-wander flicks its tail now and then. The synced action (and its
+        // duration) keeps repeats out while the whip plays, and it never interrupts a hunt, a flight or another action.
+        if (getAction() == Action.NONE
+                && getHuntState() == HuntState.WANDER
+                && !isFleeing()
+                && getDeltaMovement().horizontalDistanceSqr() < 1.0E-4
+                && random.nextDouble() < IDLE_TAIL_WHIP_CHANCE_PER_TICK) {
+            startAction(Action.TAIL_WHIP);
         }
     }
 

@@ -23,11 +23,12 @@ mover, voice) on its own numbers. Everything raptor-specific lives in `config/di
 - Model/texture: the Peridot Scout by logan_kant (Blockbench Workshop, CC0; see CREDITS.md). Files:
   `velociraptor.geo.json`, `velociraptor.animation.json`, `velociraptor.png`; source project `art/peridot-scout.bbmodel`.
   Played animations: idle, walk, run (while hunting or fleeing), swim, roar (as the hunting-call pose),
-  attack_left/attack_right (alternated per bite), death. Unused: scan, tail_whip, hello, and the dead gray texture.
+  attack_left/attack_right (alternated per bite), tail_whip (an occasional idle flick, ~every 15 s of standing
+  around mid-wander), and death. Unused: scan, hello, and the dead gray texture.
 - Sounds (`sounds/entity/raptor/`, sources in `art/sounds/`): the two hunting cries play when a raptor starts hunting
   (`entity.velociraptor.roar`), and the running-gait loop plays while it sprints (`entity.velociraptor.run`, restarted
-  ~4.25 s apart, silent in water and at a walk). No distant call. Still a placeholder: the bite (`cry2` at pitch 1.5)
-  and the spawn-egg icon (a copy of the T-rex egg's).
+  ~4.25 s apart, silent in water and at a walk). No distant call. Still a placeholder: the bite (`cry2` at pitch 1.5).
+  The spawn-egg icon is the rex egg's shape in brown.
 
 ## Tuning (config/dinodread-raptors.toml)
 
