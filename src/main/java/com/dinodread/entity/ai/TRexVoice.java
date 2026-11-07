@@ -59,7 +59,7 @@ public class TRexVoice {
     public void bite() {
         biteCount++;
         play(rex.biteSound(), rex.biteVolume());
-        rex.startAction(TRex.Action.BITE);
+        rex.startAction(rex.nextBiteAction());
     }
 
     /**

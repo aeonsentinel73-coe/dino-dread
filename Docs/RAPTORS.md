@@ -18,12 +18,16 @@ mover, voice) on its own numbers. Everything raptor-specific lives in `config/di
   the raptor has its own ids (`entity.velociraptor.*`), so it never shakes the camera.
 - Pushes through foliage only when hunting - a raptor never breaks through a wall or a house.
 
-## Placeholders (to be replaced)
+## Assets
 
-- Model/texture: copies of the T-rex files (`velociraptor.geo.json`, `velociraptor.animation.json`, `velociraptor.png`),
-  rendered at scale 0.45. Swap in a licensed raptor model with the same file names.
-- Sounds: `sounds.json` maps `entity.velociraptor.*` to the T-rex oggs at pitch 1.7-1.8. Replace the entries with
-  real raptor files when they exist; no code changes needed.
+- Model/texture: the Peridot Scout by logan_kant (Blockbench Workshop, CC0; see CREDITS.md). Files:
+  `velociraptor.geo.json`, `velociraptor.animation.json`, `velociraptor.png`; source project `art/peridot-scout.bbmodel`.
+  Played animations: idle, walk, run (while hunting or fleeing), swim, roar (as the hunting-call pose),
+  attack_left/attack_right (alternated per bite), death. Unused: scan, tail_whip, hello, and the dead gray texture.
+- Sounds (`sounds/entity/raptor/`, sources in `art/sounds/`): the two hunting cries play when a raptor starts hunting
+  (`entity.velociraptor.roar`), and the running-gait loop plays while it sprints (`entity.velociraptor.run`, restarted
+  ~4.25 s apart, silent in water and at a walk). No distant call. Still a placeholder: the bite (`cry2` at pitch 1.5)
+  and the spawn-egg icon (a copy of the T-rex egg's).
 
 ## Tuning (config/dinodread-raptors.toml)
 
@@ -32,7 +36,7 @@ mover, voice) on its own numbers. Everything raptor-specific lives in `config/di
 | `maxHealth` | 40 | 20 hearts |
 | `attackDamage` | 6 | alone a nuisance, in a pack dangerous |
 | `movementSpeed` | 0.3 | equal to the T-rex's attribute; the raptor never charges, but it never stops |
-| `scale` | 0.45 | placeholder model shrunk to raptor size (~1.8 blocks tall) |
+| `scale` | 0.6 | Peridot Scout is 2.9 blocks tall at scale 1, so this matches the 3.8-block hitbox (~1.7-2.3 tall) |
 | `swimSpeedMultiplier` | 0.5 | the "hates water" dial; raise it and lakes stop being safety |
 | `sightRange` / `hearingRadius` | 32 | half the T-rex's |
 | `huntHostileMobs` | true | off = players only |

@@ -3,6 +3,7 @@ package com.dinodread.entity;
 import org.jspecify.annotations.Nullable;
 
 import com.dinodread.config.RaptorConfig;
+import com.dinodread.entity.ai.HuntState;
 import com.dinodread.entity.ai.RaptorFleeGoal;
 import com.dinodread.entity.ai.RexBlockBreaker;
 import com.dinodread.entity.ai.TRexHuntGoal;
@@ -12,6 +13,11 @@ import com.dinodread.registry.ModSounds;
 import com.dinodread.spawn.RexSpawner;
 import com.dinodread.world.DayNight;
 
+import com.geckolib.animation.AnimationController;
+import com.geckolib.animation.RawAnimation;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EntityType;
@@ -21,6 +27,7 @@ import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.neoforged.neoforge.common.NeoForgeMod;
@@ -33,11 +40,33 @@ import net.neoforged.neoforge.registries.DeferredHolder;
  * <p>
  * A natural pack shares a {@code dinodread_pack_<uuid>} scoreboard tag; when any member of a tagged pack dies, every
  * survivor starts fleeing (see {@link RaptorFleeGoal} and {@link com.dinodread.spawn.RaptorSpawner}) and despawns when
- * the flee runs out. The model and sounds are still the T-rex's placeholder files.
+ * the flee runs out. The model is the Peridot Scout (CC0, see CREDITS.md); its sounds were made for this mod.
  */
 public class Velociraptor extends TRex {
     /** Prefix of the scoreboard tag that binds a natural pack together. */
     public static final String PACK_TAG_PREFIX = "dinodread_pack_";
+
+    // Animation names inside geckolib/animations/entity/velociraptor.animation.json (the Peridot Scout's own names).
+    private static final RawAnimation IDLE = RawAnimation.begin().thenLoop("animation.peridot_scout.idle");
+    private static final RawAnimation WALK = RawAnimation.begin().thenLoop("animation.peridot_scout.walk");
+    private static final RawAnimation RUN = RawAnimation.begin().thenLoop("animation.peridot_scout.run");
+    private static final RawAnimation SWIM = RawAnimation.begin().thenLoop("animation.peridot_scout.swim");
+    private static final RawAnimation CRY = RawAnimation.begin().thenPlay("animation.peridot_scout.roar");
+    private static final RawAnimation ATTACK_LEFT = RawAnimation.begin().thenPlay("animation.peridot_scout.attack_left");
+    private static final RawAnimation ATTACK_RIGHT = RawAnimation.begin().thenPlay("animation.peridot_scout.attack_right");
+    private static final RawAnimation DEATH = RawAnimation.begin().thenPlay("animation.peridot_scout.death");
+    private static final String ATTACK_RIGHT_TRIGGER = "attack_right";
+    // The Peridot animations' own lengths, in ticks: call 3.0 s, attacks 1.0 s.
+    private static final int CRY_ACTION_TICKS = 60;
+    private static final int ATTACK_ACTION_TICKS = 20;
+    // The walk animation is 4.8 s long with two strides per loop (each foot lands twice), so 4 footfalls per cycle.
+    private static final double PERIDOT_WALK_CYCLE_SECONDS = 4.8;
+    private static final int PERIDOT_FOOTFALLS_PER_CYCLE = 4;
+    // The running-gait sound is a ~4.3 s file restarted this often while sprinting, so the gallop runs on without gaps.
+    private static final int RUN_SOUND_PERIOD_TICKS = 85;
+
+    private int nextRunSoundTick;
+    private boolean lastBiteWasLeft;
 
     public Velociraptor(EntityType<? extends Velociraptor> type, Level level) {
         super(type, level);
@@ -173,26 +202,17 @@ public class Velociraptor extends TRex {
         return RaptorConfig.ROAR_COOLDOWN_TICKS.get();
     }
 
+    // Packs are quiet until they find you: no ambient night calls. (The T-rex's distant-roar config does not apply here.)
     @Override
     public boolean distantRoarEnabled() {
-        return RaptorConfig.DISTANT_ROAR_ENABLED.get();
+        return false;
     }
 
-    @Override
-    public int distantRoarIntervalTicks() {
-        return RaptorConfig.DISTANT_ROAR_INTERVAL_TICKS.get();
-    }
-
-    @Override
-    public double distantRoarVolume() {
-        return RaptorConfig.DISTANT_ROAR_VOLUME.get();
-    }
-
-    // The raptor's own sound ids (placeholder files for now). The client camera shake listens for the T-rex's
-    // TREX_STEP and TREX_ROAR events by name, so these never shake the ground.
+    // The raptor's own sound ids. The client camera shake listens for the T-rex's TREX_STEP and TREX_ROAR events by name,
+    // so these never shake the ground. The bite is still a pitched-up cry stand-in until a real bite sound is made.
     @Override
     public DeferredHolder<SoundEvent, SoundEvent> stepSound() {
-        return ModSounds.RAPTOR_STEP;
+        return ModSounds.RAPTOR_RUN;
     }
 
     @Override
@@ -201,13 +221,110 @@ public class Velociraptor extends TRex {
     }
 
     @Override
-    public DeferredHolder<SoundEvent, SoundEvent> distantRoarSound() {
-        return ModSounds.RAPTOR_ROAR_DISTANT;
+    public DeferredHolder<SoundEvent, SoundEvent> biteSound() {
+        return ModSounds.RAPTOR_BITE;
+    }
+
+    // ---- Animations: the Peridot Scout's own clips (see the RawAnimation constants). ----
+
+    @Override
+    protected RawAnimation idleAnimation() {
+        return IDLE;
     }
 
     @Override
-    public DeferredHolder<SoundEvent, SoundEvent> biteSound() {
-        return ModSounds.RAPTOR_BITE;
+    protected RawAnimation walkAnimation() {
+        return WALK;
+    }
+
+    @Override
+    protected RawAnimation roarAnimation() {
+        return CRY;
+    }
+
+    @Override
+    protected RawAnimation biteAnimation() {
+        return ATTACK_LEFT;
+    }
+
+    @Override
+    protected RawAnimation swimAnimation() {
+        return SWIM;
+    }
+
+    @Override
+    protected RawAnimation runAnimation() {
+        return RUN;
+    }
+
+    @Override
+    protected RawAnimation deathAnimation() {
+        return DEATH;
+    }
+
+    @Override
+    protected double walkCycleSeconds() {
+        return PERIDOT_WALK_CYCLE_SECONDS;
+    }
+
+    @Override
+    protected int walkFootfallsPerCycle() {
+        return PERIDOT_FOOTFALLS_PER_CYCLE;
+    }
+
+    @Override
+    protected int actionDurationTicks(Action action) {
+        return switch (action) {
+            case ROAR -> CRY_ACTION_TICKS;
+            case BITE, BITE_ALT -> ATTACK_ACTION_TICKS;
+            case NONE -> 0;
+        };
+    }
+
+    // A raptor never charges, so "sprinting" means it has spotted quarry (or is fleeing the pack's loss).
+    @Override
+    public boolean sprintingVisual() {
+        HuntState state = getHuntState();
+        return state == HuntState.STALK || state == HuntState.CHARGE || isFleeing();
+    }
+
+    // Two attack animations, alternated so a pack biting together does not look like one clamped loop.
+    @Override
+    public Action nextBiteAction() {
+        lastBiteWasLeft = !lastBiteWasLeft;
+        return lastBiteWasLeft ? Action.BITE : Action.BITE_ALT;
+    }
+
+    @Override
+    protected AnimationController<TRex> registerActionAnims(AnimationController<TRex> controller) {
+        return super.registerActionAnims(controller).triggerableAnim(ATTACK_RIGHT_TRIGGER, ATTACK_RIGHT);
+    }
+
+    @Override
+    protected void playActionAnimation(Action action) {
+        if (action == Action.BITE_ALT) {
+            triggerAnim(ACTION_CONTROLLER, ATTACK_RIGHT_TRIGGER);
+        } else {
+            super.playActionAnimation(action);
+        }
+    }
+
+    // Footfalls are silent; the raptor's movement noise is the running-gait loop, played while sprinting (below).
+    @Override
+    protected void playStepSound(BlockPos pos, BlockState blockState) {
+    }
+
+    @Override
+    protected void customServerAiStep(ServerLevel level) {
+        super.customServerAiStep(level);
+        if (sprintingVisual() && !isInWater()) {
+            if (tickCount >= nextRunSoundTick) {
+                nextRunSoundTick = tickCount + RUN_SOUND_PERIOD_TICKS;
+                getVoice().step();
+            }
+        } else {
+            nextRunSoundTick = 0;
+        }
     }
 
     /** The pack tag this raptor carries, or null for a lone spawn-egg raptor (each of which is its own pack of one). */

@@ -46,9 +46,6 @@ public final class RaptorConfig {
     public static final ModConfigSpec.DoubleValue BITE_VOLUME;
     public static final ModConfigSpec.DoubleValue ROAR_VOLUME;
     public static final ModConfigSpec.IntValue ROAR_COOLDOWN_TICKS;
-    public static final ModConfigSpec.BooleanValue DISTANT_ROAR_ENABLED;
-    public static final ModConfigSpec.IntValue DISTANT_ROAR_INTERVAL_TICKS;
-    public static final ModConfigSpec.DoubleValue DISTANT_ROAR_VOLUME;
 
     public static final ModConfigSpec.IntValue PACK_MIN_SIZE;
     public static final ModConfigSpec.IntValue PACK_MAX_SIZE;
@@ -101,15 +98,15 @@ public final class RaptorConfig {
                 .defineInRange("stepHeight", 1.5, 0.0, 4.0);
         SCALE = BUILDER
                 .gameRestart()
-                .comment("Scale attribute: multiplies the base hitbox and the model. 0.45 shrinks the placeholder T-rex model to raptor size.")
-                .defineInRange("scale", 0.45, 0.0625, 16.0);
+                .comment("Scale attribute: multiplies the base hitbox and the model. The Peridot Scout model is 2.9 blocks tall at scale 1, so 0.6 matches the hitbox.")
+                .defineInRange("scale", 0.6, 0.0625, 16.0);
         HITBOX_WIDTH = BUILDER
                 .gameRestart()
-                .comment("Width of the hitbox, in blocks before the scale (2.0 at scale 0.45 is 0.9 blocks wide).")
+                .comment("Width of the hitbox, in blocks before the scale (2.0 at scale 0.6 is 1.2 blocks wide).")
                 .defineInRange("hitboxWidth", 2.0, 0.25, 8.0);
         HITBOX_HEIGHT = BUILDER
                 .gameRestart()
-                .comment("Height of the hitbox, in blocks before the scale (3.8 at scale 0.45 is 1.71 blocks tall).")
+                .comment("Height of the hitbox, in blocks before the scale (3.8 at scale 0.6 is 2.28 blocks tall).")
                 .defineInRange("hitboxHeight", 3.8, 0.25, 8.0);
         EYE_HEIGHT = BUILDER
                 .gameRestart()
@@ -179,10 +176,10 @@ public final class RaptorConfig {
 
         BUILDER.push("audio");
         FOOTSTEP_VOLUME = BUILDER
-                .comment("Volume of raptor footsteps. Raptors use their own sound events, which never feed the T-rex camera shake.")
+                .comment("Volume of the running-gait sound. Raptors use their own sound events, which never feed the T-rex camera shake.")
                 .defineInRange("footstepVolume", 3.0, 0.1, 16.0);
         FOOTSTEP_STRIDE_BLOCKS = BUILDER
-                .comment("Blocks a raptor walks between two footsteps.")
+                .comment("Blocks per footstep: tunes how fast the walk and run animations play against ground speed.")
                 .defineInRange("footstepStrideBlocks", 2.0, 0.5, 20.0);
         BITE_VOLUME = BUILDER
                 .comment("Volume of a raptor bite.")
@@ -193,15 +190,6 @@ public final class RaptorConfig {
         ROAR_COOLDOWN_TICKS = BUILDER
                 .comment("Minimum ticks between two hunting calls.")
                 .defineInRange("roarCooldownTicks", 600, 0, 72000);
-        DISTANT_ROAR_ENABLED = BUILDER
-                .comment("Whether raptors occasionally call out at night while not hunting. Off by default: packs are quiet until they find you.")
-                .define("distantRoarEnabled", false);
-        DISTANT_ROAR_INTERVAL_TICKS = BUILDER
-                .comment("Average ticks between distant calls at night.")
-                .defineInRange("distantRoarIntervalTicks", 6000, 200, 720000);
-        DISTANT_ROAR_VOLUME = BUILDER
-                .comment("Volume of the distant call.")
-                .defineInRange("distantRoarVolume", 6.0, 0.1, 16.0);
         BUILDER.pop();
 
         BUILDER.push("pack");

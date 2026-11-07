@@ -1,5 +1,7 @@
 package com.dinodread.entity;
 
+import org.jspecify.annotations.Nullable;
+
 import com.dinodread.config.RexConfig;
 import com.dinodread.entity.ai.HuntState;
 import com.dinodread.entity.ai.RexBlockBreaker;
@@ -49,7 +51,7 @@ public class TRex extends Monster implements GeoEntity {
      * to clients as ordinary synced entity data (GeckoLib's own animation-trigger packet cannot be sent to the mock players in
      * GameTests), and each client plays the matching animation when it changes.
      */
-    public enum Action { NONE, ROAR, BITE }
+    public enum Action { NONE, ROAR, BITE, BITE_ALT }
 
     private static final EntityDataAccessor<Byte> DATA_ACTION = SynchedEntityData.defineId(TRex.class, EntityDataSerializers.BYTE);
     private static final Action[] ACTIONS = Action.values();
@@ -57,10 +59,10 @@ public class TRex extends Monster implements GeoEntity {
     private static final int ROAR_ACTION_TICKS = 36;
     private static final int BITE_ACTION_TICKS = 15;
 
-    private static final String ACTION_CONTROLLER = "action";
+    protected static final String ACTION_CONTROLLER = "action";
     private static final String ROAR_TRIGGER = "roar";
     private static final String BITE_TRIGGER = "bite";
-    private static final String MOVEMENT_CONTROLLER = "movement";
+    protected static final String MOVEMENT_CONTROLLER = "movement";
     // Animation names inside geckolib/animations/entity/trex.animation.json (the Tarbosaurus model's own names).
     private static final RawAnimation IDLE = RawAnimation.begin().thenLoop("animation.tarbosaurus.idle");
     private static final RawAnimation WALK = RawAnimation.begin().thenLoop("animation.tarbosaurus.walk");
@@ -149,7 +151,21 @@ public class TRex extends Monster implements GeoEntity {
     /** Server side: the T-rex starts a roar or a bite, which clients show with its animation. */
     public void startAction(Action action) {
         entityData.set(DATA_ACTION, (byte) action.ordinal());
-        actionTicksLeft = action == Action.ROAR ? ROAR_ACTION_TICKS : BITE_ACTION_TICKS;
+        actionTicksLeft = actionDurationTicks(action);
+    }
+
+    /** How long a synced action stays set: the length of that action's animation in this model's animation file. */
+    protected int actionDurationTicks(Action action) {
+        return switch (action) {
+            case ROAR -> ROAR_ACTION_TICKS;
+            case BITE, BITE_ALT -> BITE_ACTION_TICKS;
+            case NONE -> 0;
+        };
+    }
+
+    /** The bite action to sync when a bite lands; BITE_ALT lets a model with two attack animations alternate them. */
+    public Action nextBiteAction() {
+        return Action.BITE;
     }
 
     public Action getAction() {
@@ -161,11 +177,16 @@ public class TRex extends Monster implements GeoEntity {
     public void onSyncedDataUpdated(EntityDataAccessor<?> accessor) {
         super.onSyncedDataUpdated(accessor);
         if (level().isClientSide() && DATA_ACTION.equals(accessor)) {
-            switch (getAction()) {
-                case ROAR -> triggerAnim(ACTION_CONTROLLER, ROAR_TRIGGER);
-                case BITE -> triggerAnim(ACTION_CONTROLLER, BITE_TRIGGER);
-                case NONE -> { }
-            }
+            playActionAnimation(getAction());
+        }
+    }
+
+    /** Client side: play the animation for a freshly synced one-off action. Trigger names must match registerControllers. */
+    protected void playActionAnimation(Action action) {
+        switch (action) {
+            case ROAR -> triggerAnim(ACTION_CONTROLLER, ROAR_TRIGGER);
+            case BITE, BITE_ALT -> triggerAnim(ACTION_CONTROLLER, BITE_TRIGGER);
+            case NONE -> { }
         }
     }
 
@@ -392,24 +413,87 @@ public class TRex extends Monster implements GeoEntity {
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<TRex>(MOVEMENT_CONTROLLER, MOVEMENT_TRANSITION_TICKS, TRex::movementAnimation));
+        controllers.add(new AnimationController<TRex>(MOVEMENT_CONTROLLER, MOVEMENT_TRANSITION_TICKS, this::movementAnimation));
         // Registered second, so a roar or bite overrides the bones it animates; otherwise this controller plays nothing.
-        controllers.add(new AnimationController<TRex>(ACTION_CONTROLLER, ACTION_TRANSITION_TICKS, state -> PlayState.STOP)
-            .triggerableAnim(ROAR_TRIGGER, ROAR)
-            .triggerableAnim(BITE_TRIGGER, BITE));
+        controllers.add(registerActionAnims(new AnimationController<TRex>(ACTION_CONTROLLER, ACTION_TRANSITION_TICKS, state -> PlayState.STOP)));
     }
 
-    private static PlayState movementAnimation(AnimationTest<TRex> state) {
+    /** The one-off action animations on the action controller; trigger names must match playActionAnimation. */
+    protected AnimationController<TRex> registerActionAnims(AnimationController<TRex> controller) {
+        return controller
+            .triggerableAnim(ROAR_TRIGGER, roarAnimation())
+            .triggerableAnim(BITE_TRIGGER, biteAnimation());
+    }
+
+    // The animations this rex type plays, by name inside its own animation file (GeckoLib finds the file by entity type id).
+    // The defaults are the Tarbosaurus model's; the velociraptor overrides them with its Peridot Scout animations.
+    protected RawAnimation idleAnimation() {
+        return IDLE;
+    }
+
+    protected RawAnimation walkAnimation() {
+        return WALK;
+    }
+
+    protected RawAnimation roarAnimation() {
+        return ROAR;
+    }
+
+    protected RawAnimation biteAnimation() {
+        return BITE;
+    }
+
+    /** Played instead of walk while moving through water, if this model has a swim animation. */
+    protected @Nullable RawAnimation swimAnimation() {
+        return null;
+    }
+
+    /** Played instead of walk while sprinting (a hunt or a flight), if this model has a run animation. */
+    protected @Nullable RawAnimation runAnimation() {
+        return null;
+    }
+
+    /** Played while this rex is dying, if this model has a death animation. */
+    protected @Nullable RawAnimation deathAnimation() {
+        return null;
+    }
+
+    /** Seconds and footfalls per loop of walkAnimation(): playback speed is matched to ground speed with these. */
+    protected double walkCycleSeconds() {
+        return WALK_CYCLE_SECONDS;
+    }
+
+    protected int walkFootfallsPerCycle() {
+        return FOOTFALLS_PER_WALK_CYCLE;
+    }
+
+    /** True while this rex visibly sprints: drives the run animation and the raptor's running-gait sound. */
+    public boolean sprintingVisual() {
+        return getHuntState() == HuntState.CHARGE;
+    }
+
+    private PlayState movementAnimation(AnimationTest<TRex> state) {
+        TRex rex = state.animatable();
+        RawAnimation death = deathAnimation();
+        if (death != null && rex.isDeadOrDying()) {
+            state.setControllerSpeed(1.0F);
+            return state.setAndContinue(death);
+        }
         if (!state.isMoving()) {
             state.setControllerSpeed(1.0F);
-            return state.setAndContinue(IDLE);
+            return state.setAndContinue(idleAnimation());
         }
-
-        TRex rex = state.animatable();
+        RawAnimation swim = swimAnimation();
+        if (swim != null && rex.isInWater()) {
+            state.setControllerSpeed(1.0F);
+            return state.setAndContinue(swim);
+        }
+        RawAnimation run = runAnimation();
+        RawAnimation animation = run != null && rex.sprintingVisual() ? run : walkAnimation();
         double blocksPerSecond = Math.hypot(rex.getX() - rex.xo, rex.getZ() - rex.zo) * TICKS_PER_SECOND;
-        double animationBlocksPerSecond = rex.footstepStrideBlocks() * FOOTFALLS_PER_WALK_CYCLE / WALK_CYCLE_SECONDS;
+        double animationBlocksPerSecond = rex.footstepStrideBlocks() * walkFootfallsPerCycle() / walkCycleSeconds();
         state.setControllerSpeed((float) Mth.clamp(blocksPerSecond / animationBlocksPerSecond, MIN_WALK_SPEED, MAX_WALK_SPEED));
-        return state.setAndContinue(WALK);
+        return state.setAndContinue(animation);
     }
 
     @Override

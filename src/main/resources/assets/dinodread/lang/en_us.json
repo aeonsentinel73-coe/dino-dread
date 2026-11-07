@@ -9,8 +9,7 @@
   "subtitles.dinodread.entity.trex.step": "Heavy footsteps",
   "subtitles.dinodread.entity.trex.bite": "Tyrannosaurus Rex bites",
   "subtitles.dinodread.entity.velociraptor.roar": "Velociraptor screeches",
-  "subtitles.dinodread.entity.velociraptor.roar_distant": "Distant screech",
-  "subtitles.dinodread.entity.velociraptor.step": "Quick footsteps",
+  "subtitles.dinodread.entity.velociraptor.run": "Raptor claws patter",
   "subtitles.dinodread.entity.velociraptor.bite": "Velociraptor bites",
 
   "dinodread.configuration.title": "Dino Dread",

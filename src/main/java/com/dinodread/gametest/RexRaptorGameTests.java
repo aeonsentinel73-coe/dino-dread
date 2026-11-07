@@ -252,8 +252,6 @@ public final class RexRaptorGameTests {
             helper.fail("raptors must be much slower swimmers than the T-rex");
         } else if (RaptorConfig.SWIM_DEPTH.get() != 0.0) {
             helper.fail("raptors must not swim submerged like the T-rex");
-        } else if (RaptorConfig.DISTANT_ROAR_ENABLED.get()) {
-            helper.fail("packs must be quiet until they find you");
         } else if (RaptorConfig.PACK_MIN_SIZE.get() != 3 || RaptorConfig.PACK_MAX_SIZE.get() != 4) {
             helper.fail("natural packs must be 3-4");
         } else if (RaptorConfig.FLEE_TICKS.get() != 600) {

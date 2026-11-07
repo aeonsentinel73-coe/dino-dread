@@ -15,11 +15,10 @@ public final class ModSounds {
     public static final DeferredHolder<SoundEvent, SoundEvent> TREX_STEP = register("entity.trex.step");
     public static final DeferredHolder<SoundEvent, SoundEvent> TREX_BITE = register("entity.trex.bite");
 
-    // The raptor's own ids: separate events (so the T-rex camera shake cannot catch them) whose sound entries are still
-    // the T-rex files, pitched up as a stand-in until real raptor sounds exist.
+    // The raptor's own ids: separate events (so the T-rex camera shake cannot catch them). Its sounds: two hunting cries,
+    // a running-gait loop, and the bite (still a pitched-up cry until a real bite sound is made). No distant call.
     public static final DeferredHolder<SoundEvent, SoundEvent> RAPTOR_ROAR = register("entity.velociraptor.roar");
-    public static final DeferredHolder<SoundEvent, SoundEvent> RAPTOR_ROAR_DISTANT = register("entity.velociraptor.roar_distant");
-    public static final DeferredHolder<SoundEvent, SoundEvent> RAPTOR_STEP = register("entity.velociraptor.step");
+    public static final DeferredHolder<SoundEvent, SoundEvent> RAPTOR_RUN = register("entity.velociraptor.run");
     public static final DeferredHolder<SoundEvent, SoundEvent> RAPTOR_BITE = register("entity.velociraptor.bite");
 
     private ModSounds() {}
