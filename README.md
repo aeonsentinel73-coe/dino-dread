@@ -1,25 +1,44 @@
+# Dino Dread
 
-Installation information
-=======
+A Minecraft Java Edition mod (NeoForge + GeckoLib) for a small friend-group server: big,
+scary dinosaurs that hunt players. A T-rex that stalks, charges, breaks through your walls,
+and can be beaten; a rare faster "super rex" variant that will hunt you until it dies or you
+survive its window; velociraptor packs of 3–4 that flank their quarry and scatter when they
+lose it; and a worldgen layer of very large trees so the forest feels big enough to hide
+something in.
 
-This template repository can be directly cloned to get you started with a new
-mod. Simply create a new repository cloned from this one, by following the
-instructions provided by [GitHub](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template).
+## Roster
+| Mob | Behaviour |
+|---|---|
+| Tyrannosaurus Rex | Stalk → charge → bite hunt, block breaking, sound- and scent-driven tracking |
+| Super Rex | 1-in-20 rex variant: faster, larger, recoloured; timed hunt, gives up after 90 s of losing you |
+| Velociraptor pack | Spawns in packs of 3–4; flankers circle the quarry; pack routs and despawns when one dies; scatters briefly when it loses sight of prey |
 
-Once you have your clone, simply open the repository in the IDE of your choice. The usual recommendation for an IDE is either IntelliJ IDEA or Eclipse.
+Worldgen: mega-jungle-trunk "giant trees" in every forest/jungle/taiga/savanna biome (plus
+swamps, cherry grove, meadow) and taller vanilla jungle trees. See `Docs/GIANT-TREES.md`.
 
-If at any point you are missing libraries in your IDE, or you've run into problems you can
-run `gradlew --refresh-dependencies` to refresh the local cache. `gradlew clean` to reset everything 
-{this does not affect your code} and then start the process again.
+## Building
+Requires Java 25; Minecraft 26.3 / NeoForge 26.3.0.85 / GeckoLib 5.5.7 (see `gradle.properties`).
 
-Mapping Names:
-============
-By default, the MDK is configured to use the official mapping names from Mojang for methods and fields 
-in the Minecraft codebase. These names are covered by a specific license. All modders should be aware of this
-license. For the latest license text, refer to the mapping file itself, or the reference copy here:
-https://github.com/NeoForged/NeoForm/blob/main/Mojang.md
+```
+gradlew build        # compile and package
+gradlew runClient    # dev client
+gradlew runGameTestServer   # headless gameplay test suite
+```
 
-Additional Resources: 
-==========
-Community Documentation: https://docs.neoforged.net/  
-NeoForged Discord: https://discord.neoforged.net/
+All gameplay tunables are config files under `run/config/` after first launch
+(`dinodread-startup.toml`, `dinodread-spawning.toml`, `dinodread-superrex.toml`,
+`dinodread-raptors.toml`).
+
+## Credits & provenance
+Third-party models, textures and sounds, with authors and licenses: [`CREDITS.md`](CREDITS.md).
+Design and milestone notes live in `Docs/`.
+
+**AI provenance:** this project is authored and directed by Aeon (design decisions,
+acceptance criteria, review and testing), with the code written largely by AI coding
+agents (Claude and a local Qwen model) under that direction. The game-test suite in
+`src/main/java/com/dinodread/gametest/` is the review record.
+
+## License
+All rights reserved (see `gradle.properties`), except third-party assets listed in
+`CREDITS.md`, which remain under their own licenses.
