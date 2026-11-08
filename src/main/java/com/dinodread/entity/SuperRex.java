@@ -1,5 +1,6 @@
 package com.dinodread.entity;
 
+import com.dinodread.config.RexConfig;
 import com.dinodread.config.SuperRexConfig;
 import com.dinodread.spawn.RexSpawner;
 import com.dinodread.world.DayNight;
@@ -143,6 +144,13 @@ public class SuperRex extends TRex {
     @Override
     public int biteCooldownTicks() {
         return SuperRexConfig.BITE_COOLDOWN_TICKS.get();
+    }
+
+    // Heavier and faster than the base rex, but a little more careful about the wreckage: a longer cooldown between
+    // volleys of block breaking so a forest slows him down somewhat.
+    @Override
+    public int breakIntervalTicks() {
+        return Math.max(1, (int) Math.round(RexConfig.BREAK_INTERVAL_TICKS.get() * SuperRexConfig.BREAK_SLOWDOWN.get()));
     }
 
     public static AttributeSupplier.Builder createAttributes() {

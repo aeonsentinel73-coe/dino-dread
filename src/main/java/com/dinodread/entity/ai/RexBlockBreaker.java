@@ -118,7 +118,7 @@ public class RexBlockBreaker {
             }
         }
 
-        cooldownTicks = RexConfig.BREAK_INTERVAL_TICKS.get();
+        cooldownTicks = rex.breakIntervalTicks();
         return broken;
     }
 
@@ -154,7 +154,7 @@ public class RexBlockBreaker {
         }
 
         if (broken > 0) {
-            stompCooldownTicks = RexConfig.BREAK_INTERVAL_TICKS.get();
+            stompCooldownTicks = rex.breakIntervalTicks();
         }
         return broken;
     }

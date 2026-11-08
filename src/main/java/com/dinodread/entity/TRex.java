@@ -266,6 +266,11 @@ public class TRex extends Monster implements GeoEntity {
         return RexConfig.BITE_COOLDOWN_TICKS.get();
     }
 
+    /** Ticks of cooldown between volleys of block breaking. */
+    public int breakIntervalTicks() {
+        return RexConfig.BREAK_INTERVAL_TICKS.get();
+    }
+
     /**
      * True if the target is within bite reach, measured from the edge of the (scaled) hitbox, and further down by biteReachBelow: a body
      * this wide cannot get into a narrow valley or pit, but its head can reach down into one.

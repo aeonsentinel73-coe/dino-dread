@@ -33,6 +33,7 @@ public final class SuperRexConfig {
     public static final ModConfigSpec.IntValue GIVE_UP_TICKS;
     public static final ModConfigSpec.IntValue BITE_WINDUP_TICKS;
     public static final ModConfigSpec.IntValue BITE_COOLDOWN_TICKS;
+    public static final ModConfigSpec.DoubleValue BREAK_SLOWDOWN;
 
     public static final ModConfigSpec.DoubleValue DAY_AGGRESSION;
 
@@ -53,8 +54,9 @@ public final class SuperRexConfig {
                 .defineInRange("attackDamage", 30.0, 0.0, 1024.0);
         MOVEMENT_SPEED = BUILDER
                 .gameRestart()
-                .comment("Base movement speed attribute. The T-rex default is 0.3; the super rex is meant to outwalk a fleeing player.")
-                .defineInRange("movementSpeed", 0.36, 0.05, 2.0);
+                .comment("Base movement speed attribute. The T-rex default is 0.3; the super rex outwalks a fleeing",
+                        "player without leaving them in the dust the way 0.36 did.")
+                .defineInRange("movementSpeed", 0.33, 0.05, 2.0);
         KNOCKBACK_RESISTANCE = BUILDER
                 .gameRestart()
                 .comment("1.0 = cannot be knocked back.")
@@ -118,6 +120,10 @@ public final class SuperRexConfig {
         BITE_COOLDOWN_TICKS = BUILDER
                 .comment("Ticks between bites.")
                 .defineInRange("biteCooldownTicks", 30, 5, 400);
+        BREAK_SLOWDOWN = BUILDER
+                .comment("Multiplier on the shared breakIntervalTicks for the super rex: > 1 makes it smash blocks less",
+                        "often, so a forest slows him down a little more than the base T-rex does.")
+                .defineInRange("breakSlowdown", 1.4, 1.0, 10.0);
         BUILDER.pop();
 
         BUILDER.push("daytime");
@@ -129,11 +135,11 @@ public final class SuperRexConfig {
 
         BUILDER.push("despawn");
         DESPAWN_AFTER_SPOTTED_TICKS = BUILDER
-                .comment("A naturally spawned super rex leaves this many ticks after a player first gets it in view (2400 = 2 minutes):",
+                .comment("A naturally spawned super rex leaves this many ticks after a player first gets it in view (1800 = 90 seconds):",
                         "the hunt is a timed event, and surviving the encounter ends it. It starts the clock when a survival player is within",
                         "spottedRange with clear line of sight to the rex. 0 = never despawn this way (the normal despawnWhenFar and",
                         "maxLifetimeTicks rules still apply). Spawn-egg and /summon super rexes are never touched.")
-                .defineInRange("despawnAfterSpottedTicks", 2400, 0, 24000);
+                .defineInRange("despawnAfterSpottedTicks", 1800, 0, 24000);
         SPOTTED_RANGE = BUILDER
                 .comment("How far a player can be and still 'get the super rex in view' for the despawn clock, in blocks.",
                         "Keep it near the client render distance: beyond it the player cannot actually see the rex.")

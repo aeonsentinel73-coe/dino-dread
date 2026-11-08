@@ -193,6 +193,9 @@ public final class RexSuperRexGameTests {
         if (SuperRexConfig.MOVEMENT_SPEED.get() <= RexConfig.MOVEMENT_SPEED.get()) {
             problems.add("super rex movementSpeed " + SuperRexConfig.MOVEMENT_SPEED.get() + " is not above the T-rex's " + RexConfig.MOVEMENT_SPEED.get());
         }
+        if (SuperRexConfig.BREAK_SLOWDOWN.get() <= 1.0) {
+            problems.add("super rex breakSlowdown " + SuperRexConfig.BREAK_SLOWDOWN.get() + " must be above 1 so a forest slows him down");
+        }
         if (SuperRexConfig.SWIM_SPEED_MULTIPLIER.get() >= RexConfig.SWIM_SPEED_MULTIPLIER.get()) {
             problems.add("super rex swimSpeedMultiplier " + SuperRexConfig.SWIM_SPEED_MULTIPLIER.get() + " is not below the T-rex's " + RexConfig.SWIM_SPEED_MULTIPLIER.get());
         }
@@ -228,7 +231,7 @@ public final class RexSuperRexGameTests {
         RexGameTests.scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, HUNT_PLAYER_AT, false, DESPAWN_MAX_TICKS, origin -> {}, run -> {
             limit[0] = HUNT_TEST_LIMIT_TICKS;
             SuperRexConfig.DESPAWN_AFTER_SPOTTED_TICKS.set(HUNT_TEST_LIMIT_TICKS);
-            run.cleanups.add(() -> SuperRexConfig.DESPAWN_AFTER_SPOTTED_TICKS.set(2400));
+            run.cleanups.add(() -> SuperRexConfig.DESPAWN_AFTER_SPOTTED_TICKS.set(1800));
             run.check(SuperRexConfig.SPOTTED_RANGE.get() > HUNT_PLAYER_AT.distanceTo(HUNT_REX_AT), "test setup: the rex must start within spottedRange");
 
             run.rex.discard();
