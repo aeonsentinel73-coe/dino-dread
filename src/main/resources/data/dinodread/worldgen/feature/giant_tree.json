@@ -1,10 +1,15 @@
 {
   "type": "minecraft:tree",
   "below_trunk_provider": "minecraft:soil_beneath_tree",
-  "decorators": [],
+  "decorators": [
+    {
+      "type": "minecraft:leave_vine",
+      "probability": 0.15
+    }
+  ],
   "foliage_placer": {
-    "type": "minecraft:blob_foliage_placer",
-    "height": 3,
+    "type": "minecraft:jungle_foliage_placer",
+    "height": 4,
     "offset": 0,
     "radius": 2
   },

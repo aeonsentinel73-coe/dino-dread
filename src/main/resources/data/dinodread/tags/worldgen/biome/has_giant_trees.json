@@ -8,6 +8,11 @@
     "minecraft:swamp",
     "minecraft:mangrove_swamp",
     "minecraft:cherry_grove",
-    "minecraft:meadow"
+    "minecraft:meadow",
+    "minecraft:plains",
+    "minecraft:sunflower_plains",
+    "minecraft:wooded_badlands",
+    "minecraft:grove",
+    "minecraft:windswept_forest"
   ]
 }

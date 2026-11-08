@@ -2,8 +2,8 @@
   "feature": "dinodread:giant_tree",
   "placement": [
     {
-      "type": "minecraft:rarity_filter",
-      "chance": 24
+      "type": "minecraft:count",
+      "count": 0.35
     },
     {
       "type": "minecraft:surface_water_depth_filter",
