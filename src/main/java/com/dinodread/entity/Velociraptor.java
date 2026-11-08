@@ -109,6 +109,19 @@ public class Velociraptor extends TRex {
             .add(Attributes.SCALE, RaptorConfig.SCALE.get());
     }
 
+    // The rex stuck hop (0.9, roughly 4 blocks) was sized for the 3x T-rex; a raptor clears ledges with a real raptor's
+    // leap instead, so it can still hop a one-block bank or fallen log without launching itself over the canopy.
+    @Override
+    public double stuckHopVelocity() {
+        return RaptorConfig.JUMP_STRENGTH.get();
+    }
+
+    @Override
+    public double stuckHopForwardVelocity() {
+        // Roughly its chase speed, so a hop carries it onward instead of stalling it under the prey.
+        return 0.45;
+    }
+
     @Override
     public double activity() {
         return Mth.lerp(DayNight.nightFactor(level(), position()), RaptorConfig.DAY_AGGRESSION.get(), 1.0);

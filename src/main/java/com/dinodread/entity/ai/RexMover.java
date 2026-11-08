@@ -57,7 +57,7 @@ public final class RexMover {
         }
 
         if (level == RexStuckDetector.Level.HOP && rex.onGround()) {
-            rex.setDeltaMovement(heading.x * RexConfig.STUCK_HOP_FORWARD_VELOCITY.get(), RexConfig.STUCK_HOP_VELOCITY.get(), heading.z * RexConfig.STUCK_HOP_FORWARD_VELOCITY.get());
+            rex.setDeltaMovement(heading.x * rex.stuckHopForwardVelocity(), rex.stuckHopVelocity(), heading.z * rex.stuckHopForwardVelocity());
         }
 
         Vec3 wanted = destination;

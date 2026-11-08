@@ -100,8 +100,10 @@ public final class RexConfig {
                 .defineInRange("maxHealth", 200.0, 1.0, 4096.0);
         ATTACK_DAMAGE = BUILDER
                 .gameRestart()
-                .comment("Damage of one bite in half-hearts (20 = a full unarmored player health bar).")
-                .defineInRange("attackDamage", 20.0, 0.0, 1024.0);
+                .comment("Raw damage of one bite in half-hearts, before armor. At 18: full iron (defense 15, toughness 0)",
+                        "takes 13.7 and survives one bite; full diamond (defense 20, toughness 2) takes 8.8 and survives",
+                        "two. The third bite kills either way.")
+                .defineInRange("attackDamage", 18.0, 0.0, 1024.0);
         MOVEMENT_SPEED = BUILDER
                 .gameRestart()
                 .comment("Base movement speed attribute. The behavior multipliers below scale this.")

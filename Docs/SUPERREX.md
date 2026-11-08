@@ -8,10 +8,10 @@ own numbers.
 
 | | T-rex (default) | Super rex (default) |
 |---|---|---|
-| Land speed (`movementSpeed`) | 0.3 | 0.36 |
+| Land speed (`movementSpeed`) | 0.3 | 0.33 |
 | Water speed (`swimSpeedMultiplier`) | 8.0 (beats a swimming player, loses to a boat) | 5.0 (loses to both) |
 | Size (`scale`) | 3.0 | 3.3 (~10% bigger) |
-| Health / bite | 200 / 20 | 220 / 30 |
+| Health / bite | 200 / 18 | 264 / 30 |
 | Sight / hearing | 40 / 52 blocks, 270° FOV | 64 / 64 blocks, 360° FOV |
 | Sneak multipliers (sight / hearing) | 0.5 / 0.35 | 0.7 / 0.5 |
 | Give up after (no contact) | 240 ticks | 1200 ticks |

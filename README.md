@@ -30,6 +30,11 @@ All gameplay tunables are config files under `run/config/` after first launch
 (`dinodread-startup.toml`, `dinodread-spawning.toml`, `dinodread-superrex.toml`,
 `dinodread-raptors.toml`).
 
+For testing: raptor flanking is pack behavior keyed to the shared pack tag the spawner
+assigns — raptors placed one at a time with spawn eggs are lone hunters and never flank.
+Use `/dinodread raptorpack` (op level 2) to force a tagged pack onto the ground 8–16
+blocks from you, day or night, creative included.
+
 ## Credits & provenance
 Third-party models, textures and sounds, with authors and licenses: [`CREDITS.md`](CREDITS.md).
 Design and milestone notes live in `Docs/`.

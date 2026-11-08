@@ -14,6 +14,7 @@ import com.dinodread.config.RaptorConfig;
 import com.dinodread.config.RexConfig;
 import com.dinodread.config.SpawnConfig;
 import com.dinodread.config.SuperRexConfig;
+import com.dinodread.command.DinoDreadCommands;
 import com.dinodread.entity.ai.TRexSenses;
 import com.dinodread.gametest.RexAudioGameTests;
 import com.dinodread.gametest.RexGameTests;
@@ -52,6 +53,7 @@ public class DinoDread {
         NeoForge.EVENT_BUS.addListener(RexSpawner::onLevelTick);
         NeoForge.EVENT_BUS.addListener(RaptorSpawner::onLevelTick);
         NeoForge.EVENT_BUS.addListener(RaptorSpawner::onPackDeath);
+        NeoForge.EVENT_BUS.addListener(DinoDreadCommands::register);
         HostileBlocker.fromConfig().register(NeoForge.EVENT_BUS);
         RexGameTests.register(modEventBus);
         RexObstacleGameTests.register(modEventBus);

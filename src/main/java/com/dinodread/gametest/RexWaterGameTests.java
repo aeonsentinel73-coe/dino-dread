@@ -224,7 +224,7 @@ public final class RexWaterGameTests {
     }
 
     /** Puts the arena back as {@code buildArena} makes it, so the next test that reuses this ground finds a stone floor and air, not a basin. */
-    private static void removeLake(ServerLevel level, BlockPos origin, int depth) {
+    static void removeLake(ServerLevel level, BlockPos origin, int depth) {
         BlockState stone = Blocks.STONE.defaultBlockState();
         BlockState air = Blocks.AIR.defaultBlockState();
         int wallX = RexGameTests.ARENA_HALF_WIDTH + 1;
@@ -242,7 +242,7 @@ public final class RexWaterGameTests {
      * A basin sunk into the arena floor between z=LAKE_FIRST_Z and z=LAKE_LAST_Z: stone bed and walls (the arena is narrower than the world, so the
      * sides are walled too), water up to one block below the bank top, so leaving the lake means climbing a block, as on a real shore.
      */
-    private static void buildLake(ServerLevel level, BlockPos origin, int depth) {
+    static void buildLake(ServerLevel level, BlockPos origin, int depth) {
         BlockState stone = Blocks.STONE.defaultBlockState();
         BlockState water = Blocks.WATER.defaultBlockState();
         BlockState air = Blocks.AIR.defaultBlockState();

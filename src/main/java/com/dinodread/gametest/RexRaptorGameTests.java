@@ -66,6 +66,13 @@ public final class RexRaptorGameTests {
     // variable (observed up to ~700 ticks); the test then needs scatterFleeTicks + 20 more to see it end.
     // The window is an upper bound only - a passing run exits the moment the scatter completes.
     private static final int SCATTER_WATCH_TICKS = 2400;
+    private static final int CHASE_WATCH_TICKS = 2400;
+    // Water exit: the rex lake (its z span and surface are fixed by RexWaterGameTests' builder), shallow variant.
+    private static final int WATER_LAKE_DEPTH = 3;
+    private static final double WATER_SURFACE_Y = -2 + 8.0 / 9.0;
+    private static final Vec3 WATER_PLAYER_AT = new Vec3(0.5, 0, 40.5);
+    private static final double BANK_MIN_Z = 36.0;
+    private static final int WATER_WATCH_TICKS = 1200;
 
     static {
         test("raptor_pack_spawns_together_under_one_tag", RexRaptorGameTests::packSpawnsTogetherUnderOneTag);
@@ -73,6 +80,8 @@ public final class RexRaptorGameTests {
         test("raptor_hunts_a_zombie_and_never_charges", RexRaptorGameTests::raptorHuntsZombieAndNeverCharges);
         test("raptor_pack_flanks_its_quarry", RexRaptorGameTests::raptorPackFlanksItsQuarry);
         test("raptor_scatters_without_despawning", RexRaptorGameTests::raptorScattersWithoutDespawning);
+        test("raptor_chase_outruns_a_walking_player", RexRaptorGameTests::raptorChaseOutrunsWalkingPlayer);
+        test("raptor_climbs_out_of_water", RexRaptorGameTests::raptorClimbsOutOfWater);
         test("trex_ignores_hostile_mobs", RexRaptorGameTests::trexIgnoresHostileMobs);
         test("raptor_defaults_are_small_slow_and_quiet", RexRaptorGameTests::defaultsAreSmallSlowAndQuiet);
     }
@@ -351,14 +360,91 @@ public final class RexRaptorGameTests {
         return raptor.isAggressive();
     }
 
+    /**
+     * The live-playtest report "they're getting stuck in water", for the small body. Same lake as the T-rex tests
+     * (bank top sits a block above the water; vanilla only lets a swimmer climb out onto a ledge of ~0.6), started
+     * against the far bank so it measures the exit, not a crossing. The raptor must leave the water and reach the
+     * bank on its own, while hunting the player on shore.
+     */
+    private static void raptorClimbsOutOfWater(GameTestHelper helper) {
+        Velociraptor[] lone = new Velociraptor[1];
+        scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, WATER_PLAYER_AT, false, WATER_WATCH_TICKS,
+            origin -> RexWaterGameTests.buildLake(helper.getLevel(), origin, WATER_LAKE_DEPTH),
+            run -> {
+                run.rex.discard();
+                run.cleanups.add(() -> RexWaterGameTests.removeLake(helper.getLevel(), run.origin, WATER_LAKE_DEPTH));
+                lone[0] = spawnRaptor(helper, FACING_SOUTH, new Vec3(0.5, WATER_SURFACE_Y - 0.3, 33.5));
+                run.cleanups.add(lone[0]::discard);
+            },
+            run -> {
+                Velociraptor raptor = lone[0];
+                double bankZ = raptor.getZ() - run.origin.getZ();
+                run.status = "raptor z=" + String.format("%.1f", bankZ) + " y=" + String.format("%.1f", raptor.getY() - run.origin.getY())
+                    + " inWater=" + raptor.isInWater() + " onGround=" + raptor.onGround();
+                if (bankZ >= BANK_MIN_Z && !raptor.isInWater() && raptor.onGround()) {
+                    run.pass();
+                }
+            });
+    }
+
+    /**
+     * Ground truth for the "a walking player outpaces them" report: measures the raptor's actual horizontal speed
+     * while it closes on a fresh target across flat arena floor, before bite standstills can dilute it. A walking
+     * player does 4.32 b/s, a sprinting player 5.61; the hunt must clear the walking line outright.
+     */
+    private static void raptorChaseOutrunsWalkingPlayer(GameTestHelper helper) {
+        final int MIN_SAMPLES = 30;
+        final int MEASURE_CAP = 120;
+        final double STOP_MEASURING_AT = 3.0;
+        Velociraptor[] lone = new Velociraptor[1];
+        Vec3[] last = new Vec3[1];
+        double[] traveled = new double[1];
+        int[] samples = new int[1];
+        boolean[] measuring = new boolean[1];
+        scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, FLANK_PLAYER_AT, false, CHASE_WATCH_TICKS, origin -> {}, run -> {
+            run.rex.discard();
+            // Far enough away that even a fast chase gives a long enough measurement corridor.
+            lone[0] = spawnRaptor(helper, FACING_SOUTH, new Vec3(0.5, 0, -6.5));
+            run.cleanups.add(lone[0]::discard);
+            last[0] = lone[0].position();
+        }, run -> {
+            Velociraptor raptor = lone[0];
+            double toPlayer = Math.hypot(raptor.getX() - run.player.getX(), raptor.getZ() - run.player.getZ());
+            if (!measuring[0]) {
+                if (raptor.getTarget() != null && toPlayer > 12.0) {
+                    measuring[0] = true; // fresh approach leg: no bite standstill in the samples
+                    last[0] = raptor.position();
+                }
+                run.status = "waiting to hunt target=" + (raptor.getTarget() != null) + " dist=" + String.format("%.1f", toPlayer);
+                return;
+            }
+            if (toPlayer <= STOP_MEASURING_AT || samples[0] >= MEASURE_CAP) {
+                run.check(samples[0] >= MIN_SAMPLES, "too few ground ticks to measure: " + samples[0] + " samples, dist=" + String.format("%.1f", toPlayer));
+                double blocksPerSecond = traveled[0] * 20.0 / samples[0];
+                com.dinodread.DinoDread.LOGGER.info("[gametest] raptor chase speed measured: {} b/s over {} ground ticks",
+                        String.format("%.2f", blocksPerSecond), samples[0]);
+                run.status = String.format("chase speed %.2f b/s over %d ticks", blocksPerSecond, samples[0]);
+                run.check(blocksPerSecond >= 5.0, run.status + " - a walking player does 4.32 b/s");
+                run.pass();
+                return;
+            }
+            if (raptor.onGround() && !raptor.isInWater() && !raptor.isScattering()) {
+                traveled[0] += Math.hypot(raptor.getX() - last[0].x, raptor.getZ() - last[0].z);
+                samples[0]++;
+            }
+            last[0] = raptor.position();
+            run.status = String.format("measuring %d/%d dist=%.1f", samples[0], MEASURE_CAP, toPlayer);
+        });
+    }
+
     // ---------------------------------------------------------------- config direction
 
     /** The shipped raptor defaults point the right way: smaller, terrible in water, quiet, packs of 3-4 that flee 30 s. */
     private static void defaultsAreSmallSlowAndQuiet(GameTestHelper helper) {
         if (RaptorConfig.SCALE.get() >= RexConfig.SCALE.get()) {
             helper.fail("raptors must be smaller than the T-rex");
-        } else if (RaptorConfig.SWIM_SPEED_MULTIPLIER.get() >= 1.0 || RaptorConfig.SWIM_SPEED_MULTIPLIER.get() >= RexConfig.SWIM_SPEED_MULTIPLIER.get()) {
-            helper.fail("raptors must be much slower swimmers than the T-rex");
+        } else if (RaptorConfig.SWIM_SPEED_MULTIPLIER.get() >= 4.0 || RaptorConfig.SWIM_SPEED_MULTIPLIER.get() >= RexConfig.SWIM_SPEED_MULTIPLIER.get()) {
+            helper.fail("raptors must stay slower swimmers than the T-rex (and a boat): they can reach the bank, not win a lake");
         } else if (RaptorConfig.SWIM_DEPTH.get() != 0.0) {
             helper.fail("raptors must not swim submerged like the T-rex");
         } else if (RaptorConfig.PACK_MIN_SIZE.get() != 3 || RaptorConfig.PACK_MAX_SIZE.get() != 4) {

@@ -101,6 +101,8 @@ public class TRex extends Monster implements GeoEntity {
     private int actionTicksLeft;
     private int lastHorizontalCollisionTick = Integer.MIN_VALUE / 2;
     private int lastInWaterTick = Integer.MIN_VALUE / 2;
+    // Water surface (absolute Y) at the feet, from the last tick this rex was in water: the bank-climb ceiling.
+    private double lastWaterSurfaceY;
 
     public TRex(EntityType<? extends TRex> type, Level level) {
         super(type, level);
@@ -341,6 +343,21 @@ public class TRex extends Monster implements GeoEntity {
         return RexConfig.WATER_EXIT_HEIGHT.get();
     }
 
+    /**
+     * Upward speed of the stuck hop (the mover's escape when the rex stops making progress). The RexConfig value,
+     * 0.9, clears roughly 4 blocks: tuned for the T-rex's size and felt wrong on a 0.6-scale raptor, which trips the
+     * stuck detector on ordinary terrain and turned into a grasshopper (live playtest: "jumping high enough to cover
+     * trees"). Small species override this with their own jump strength.
+     */
+    public double stuckHopVelocity() {
+        return RexConfig.STUCK_HOP_VELOCITY.get();
+    }
+
+    /** Forward speed of the stuck hop; see {@link #stuckHopVelocity()}. */
+    public double stuckHopForwardVelocity() {
+        return RexConfig.STUCK_HOP_FORWARD_VELOCITY.get();
+    }
+
     public double footstepStrideBlocks() {
         return RexConfig.FOOTSTEP_STRIDE_BLOCKS.get();
     }
@@ -444,15 +461,24 @@ public class TRex extends Monster implements GeoEntity {
         super.travel(input);
         if (isInWater()) {
             lastInWaterTick = tickCount;
+            // Water surface at the feet, tracked while swimming: the ceiling for the bank climb below.
+            lastWaterSurfaceY = getY() + getFluidHeight(FluidTags.WATER);
         }
         double depth = swimDepth();
         if (depth > 0.0 && isInWater() && !onGround() && getFluidHeight(FluidTags.WATER) < depth - SINK_SETTLE_BAND) {
             setDeltaMovement(getDeltaMovement().add(0.0, -SINK_NUDGE, 0.0));
         }
         double exitHeight = waterExitHeight();
-        if (exitHeight > 0.0 && horizontalCollision && !onGround() && tickCount - lastInWaterTick <= WATER_EXIT_GRACE_TICKS) {
+        if (exitHeight > 0.0 && horizontalCollision && tickCount - lastInWaterTick <= WATER_EXIT_GRACE_TICKS) {
             Vec3 movement = getDeltaMovement();
-            if (isFree(movement.x, exitHeight, movement.z)) {
+            // Shallow shoreline: it stands on the bottom (onGround), so the old !onGround gate never fired and
+            // banks taller than its step height were a wall. Wading counts too.
+            boolean wading = isInWater() && onGround() && getFluidHeight(FluidTags.WATER) >= 0.4;
+            // The climb stops at the bank line (water surface + exitHeight). Without this ceiling the push kept
+            // applying against any tall thing it touched while swimming: a raptor nosed against a riverside tree
+            // climbed the trunk until it cleared the canopy (observed in play).
+            boolean belowCeiling = getY() <= lastWaterSurfaceY + exitHeight - 0.05;
+            if ((!onGround() || wading) && belowCeiling && isFree(movement.x, exitHeight, movement.z)) {
                 setDeltaMovement(movement.x, WATER_EXIT_CLIMB_SPEED, movement.z);
             }
         }

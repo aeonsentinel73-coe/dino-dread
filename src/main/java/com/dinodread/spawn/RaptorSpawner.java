@@ -118,6 +118,40 @@ public final class RaptorSpawner {
     }
 
     /**
+     * Debug/force path for {@code /dinodread raptorpack}: places one tagged pack on solid ground 8 to 16 blocks from the
+     * player, bypassing the natural gates (night, caps, chance roll, spawn distance, creative) but not world sanity:
+     * the chunks must tick and each body must have a standable spot, or the pack fails as a whole. Flanking needs a
+     * shared pack tag, which spawn eggs never assign, so this is the only way to raise a pack that flanks.
+     */
+    public static int forceSpawnPack(ServerLevel level, ServerPlayer player, RaptorRules rules, RandomSource random) {
+        Velociraptor probe = ModEntities.VELOCIRAPTOR.get().create(level, EntitySpawnReason.NATURAL);
+        if (probe == null) {
+            return 0;
+        }
+        int packSize = packSize(rules, random);
+        for (int attempt = 0; attempt < 32; attempt++) {
+            double angle = random.nextDouble() * (Math.PI * 2.0);
+            double distance = 8.0 + random.nextDouble() * 8.0;
+            double x = player.getX() + Math.cos(angle) * distance;
+            double z = player.getZ() + Math.sin(angle) * distance;
+            int blockX = Mth.floor(x);
+            int blockZ = Mth.floor(z);
+            if (!level.isPositionEntityTicking(new BlockPos(blockX, player.getBlockY(), blockZ))) {
+                continue;
+            }
+            int surfaceY = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, blockX, blockZ);
+            if (!RexSpawner.canStandAt(level, probe, x, surfaceY, z)) {
+                continue;
+            }
+            int placed = placePack(level, x, surfaceY, z, packSize, rules, random);
+            if (placed > 0) {
+                return placed;
+            }
+        }
+        return 0;
+    }
+
+    /**
      * Spreads packSize bodies around the anchor and places them. A pack that cannot fit packMinSize bodies fails as a whole:
      * half a pack appearing in the world is not what the config promises.
      */

@@ -34,11 +34,14 @@ mover, voice) on its own numbers. Everything raptor-specific lives in `config/di
 
 | Key | Default | Notes |
 |---|---|---|
-| `maxHealth` | 40 | 20 hearts |
-| `attackDamage` | 6 | alone a nuisance, in a pack dangerous |
-| `movementSpeed` | 0.3 | equal to the T-rex's attribute; the raptor never charges, but it never stops |
+| `maxHealth` | 24 | 4 iron-sword swings |
+| `attackDamage` | 10 | raw, before armor: full iron takes 6.0 per bite, unarmored 10 |
+| `movementSpeed` | 0.45 | this version's ground speed is quadratic: about 43 x (0.45 x 0.8 hunt)^2 = 5.4 blocks/s — faster than walking (4.3), a hair under sprinting (5.6) |
 | `scale` | 0.6 | Peridot Scout is 2.9 blocks tall at scale 1, so this matches the 3.8-block hitbox (~1.7-2.3 tall) |
-| `swimSpeedMultiplier` | 0.5 | the "hates water" dial; raise it and lakes stop being safety |
+| `jumpStrength` | 0.3 | the raptor's stuck-hop height (the rex mover's 0.9, sized for its 3x body, made raptors grasshoppers in live play) |
+| `swimSpeedMultiplier` | 1.0 | slow in water but can reach the bank; a boat still wins |
+| `waterExitHeight` | 3.0 | highest bank it hauls itself onto from the water, like the T-rex |
+| `flankRadiusBlocks` / `flankSpeedBoost` | 6.0 / 1.25 | a flanker moves ~1.6x a sprinting player (speed is quadratic in the boost) |
 | `sightRange` / `hearingRadius` | 32 | half the T-rex's |
 | `huntHostileMobs` | true | off = players only |
 | `packMinSize` / `packMaxSize` | 3 / 4 | natural pack size |
@@ -55,12 +58,17 @@ independent.
 
 - `./gradlew runClient` in this folder
 - `/summon dinodread:velociraptor ~ ~ ~` (one raptor, no pack) or the Velociraptor Spawn Egg
+- `/dinodread raptorpack` (op level 2): forces a tagged pack 8-16 blocks away, any time of day, creative included.
+  Flanking is keyed to the shared pack tag, which spawn eggs never assign - egg raptors are lone hunters and never
+  flank, so this is the only way to see the behavior from a spawn-egg-only test.
 - Natural packs: night, overworld, one roll a minute per player, ~10% each
 - Kill one raptor of a natural pack: the rest run for 30 s and vanish
 
 ## Tests
 
-`./gradlew runGameTestServer` - five raptor tests:
+`./gradlew runGameTestServer` - nine raptor tests:
 `raptor_pack_spawns_together_under_one_tag`, `raptor_pack_flees_and_despawns_when_one_dies`,
-`raptor_hunts_a_zombie_and_never_charges`, `trex_ignores_hostile_mobs`,
+`raptor_hunts_a_zombie_and_never_charges`, `raptor_pack_flanks_its_quarry`,
+`raptor_scatters_without_despawning`, `raptor_chase_outruns_a_walking_player`,
+`raptor_climbs_out_of_water`, `trex_ignores_hostile_mobs`,
 `raptor_defaults_are_small_slow_and_quiet`.

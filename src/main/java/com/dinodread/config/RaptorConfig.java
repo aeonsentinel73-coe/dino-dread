@@ -79,16 +79,21 @@ public final class RaptorConfig {
         BUILDER.push("attributes");
         MAX_HEALTH = BUILDER
                 .gameRestart()
-                .comment("Velociraptor max health in half-hearts (a player has 20).")
-                .defineInRange("maxHealth", 40.0, 1.0, 4096.0);
+                .comment("Velociraptor max health in half-hearts (a player has 20). 24 = four iron-sword swings (7 damage each).")
+                .defineInRange("maxHealth", 24.0, 1.0, 4096.0);
         ATTACK_DAMAGE = BUILDER
                 .gameRestart()
-                .comment("Damage of one bite in half-hearts. A raptor is a nuisance alone and dangerous in a pack.")
-                .defineInRange("attackDamage", 6.0, 0.0, 1024.0);
+                .comment("Raw damage of one bite in half-hearts. This is what an unarmored player takes; armor cuts the rest.",
+                        "At 10 a player in full iron takes 6.0 per bite (iron defense 15, toughness 0: armor soaks",
+                        "clamp(15 - damage/2, 3, 20)/25 of it), a pack bite still stings through plate.")
+                .defineInRange("attackDamage", 10.0, 0.0, 1024.0);
         MOVEMENT_SPEED = BUILDER
                 .gameRestart()
-                .comment("Base movement speed attribute (the T-rex is 0.3). Fast, but a sprinting player still escapes on flat ground.")
-                .defineInRange("movementSpeed", 0.3, 0.05, 2.0);
+                .comment("Base movement speed attribute. This version's steering doubles as the forward input (Mob.setSpeed",
+                        "sets the walk input too), so ground speed is quadratic: blocks/s = about 43 x (attribute x hunt",
+                        "multiplier 0.8)^2. At 0.45 a raptor chases at about 5.4 blocks/s: faster than a walking player",
+                        "(4.3), a hair under a sprinting one (5.6).")
+                .defineInRange("movementSpeed", 0.45, 0.05, 2.0);
         KNOCKBACK_RESISTANCE = BUILDER
                 .gameRestart()
                 .comment("1.0 = cannot be knocked back. 0 = a raptor is light enough to shove around.")
@@ -124,13 +129,14 @@ public final class RaptorConfig {
                 .defineInRange("eyeHeight", 3.2, 0.1, 8.0);
         SWIM_SPEED_MULTIPLIER = BUILDER
                 .gameRestart()
-                .comment("How fast raptors move in water (NeoForge's swim speed attribute; the T-rex is 8). Raptors hate deep water:",
-                        "at 0.5 they crawl through it and any swimming player or boat easily outruns them.")
-                .defineInRange("swimSpeedMultiplier", 0.5, 0.1, 64.0);
+                .comment("How fast raptors move in water (NeoForge's swim speed attribute; the T-rex is 8). Raptors still",
+                        "hate deep water, but at 1.0 they can swim to the bank instead of drowning against it.")
+                .defineInRange("swimSpeedMultiplier", 1.0, 0.1, 64.0);
         WATER_EXIT_HEIGHT = BUILDER
                 .gameRestart()
-                .comment("Highest ledge, in blocks, a raptor hauls itself up onto when it swims into a bank.")
-                .defineInRange("waterExitHeight", 1.5, 0.0, 8.0);
+                .comment("Highest ledge, in blocks, a raptor hauls itself up onto when it swims into a bank.",
+                        "1.5 was too tight for ordinary two-block shorelines; 3 matches the T-rex.")
+                .defineInRange("waterExitHeight", 3.0, 0.0, 8.0);
         SWIM_DEPTH = BUILDER
                 .gameRestart()
                 .comment("Blocks of body to keep under the surface while swimming. 0 (the default) = vanilla floating: a raptor rides the surface",
@@ -228,9 +234,10 @@ public final class RaptorConfig {
                         + "(two in a pack of four, one on each side) circles while the rest chase straight on.")
                 .defineInRange("flankRadiusBlocks", 6.0, 2.5, 24.0);
         FLANK_SPEED_BOOST = BUILDER
-                .comment("Movement multiplier while flanking, on top of the hunt speed. Lost the moment the raptor "
-                        + "stops circling (quarry lost, water, flight).")
-                .defineInRange("flankSpeedBoost", 1.5, 1.0, 4.0);
+                .comment("Movement multiplier while flanking, on top of the hunt speed. Lost the moment the raptor ",
+                        "stops circling (quarry lost, water, flight). Ground speed is quadratic in this multiplier ",
+                        "(see movementSpeed), so 1.25 makes a flanker about 1.6x faster than a sprinting player: visible, not outrunnable.")
+                .defineInRange("flankSpeedBoost", 1.25, 1.0, 4.0);
         FLANK_ARC_DEGREES_PER_SECOND = BUILDER
                 .comment("How fast a flanker works around its circle, in degrees per second.")
                 .defineInRange("flankArcDegreesPerSecond", 60.0, 10.0, 360.0);

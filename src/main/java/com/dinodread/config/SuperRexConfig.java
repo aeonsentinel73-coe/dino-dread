@@ -46,8 +46,9 @@ public final class SuperRexConfig {
         BUILDER.push("attributes");
         MAX_HEALTH = BUILDER
                 .gameRestart()
-                .comment("Super rex max health in half-hearts.")
-                .defineInRange("maxHealth", 220.0, 1.0, 4096.0);
+                .comment("Super rex max health in half-hearts (the normal rex is 200; the super rex trades 20% more",
+                        "durability for keeping its lethal charge, so it is not simply a harder rex but a longer fight).")
+                .defineInRange("maxHealth", 264.0, 1.0, 4096.0);
         ATTACK_DAMAGE = BUILDER
                 .gameRestart()
                 .comment("Damage of one bite in half-hearts (20 = a full unarmored player health bar).")
