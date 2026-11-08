@@ -49,7 +49,7 @@ mover, voice) on its own numbers. Everything raptor-specific lives in `config/di
 | `jumpStrength` | 0.3 | the raptor's stuck-hop height (the rex mover's 0.9, sized for its 3x body, made raptors grasshoppers in live play) |
 | `swimSpeedMultiplier` | 1.0 | slow in water but can reach the bank; a boat still wins |
 | `waterExitHeight` | 3.0 | highest bank it hauls itself onto from the water, like the T-rex |
-| `flankRadiusBlocks` / `flankSpeedBoost` | 20 / 1.25 | a flanker moves ~1.4x a sprinting player while circling (speed is quadratic in the boost); the waypoint rides a body-reachable lead ahead on the circle, so it runs the arc instead of spinning after it |
+| `flankRadiusBlocks` / `flankSpeedBoost` | 40 / 1.77 | a flanker moves ~2.8x a sprinting player (~16 b/s) so the wider ring still sweeps at the same ~23 degrees/s: 180 degrees in ~6 s; the waypoint rides a body-reachable lead ahead on the circle, so it runs the arc instead of spinning after it |
 | `flankSweepDegrees` | 180 | end hook: how far around the quarry a flanker commits (progress counts the BODY's bearing). At the sweep it cuts off: a 5 s surge at flank speed onto where the quarry is GOING - a straight line gets met head-on and bitten. A stalled circle (quarry sprinting away) is abandoned after ~5 s and never surges; after the surge the ordinary chase is outrunnable (720 = laps until lost) |
 | `sightRange` / `hearingRadius` | 32 | half the T-rex's |
 | `huntHostileMobs` | true | off = players only |

@@ -65,7 +65,7 @@ public final class RexRaptorGameTests {
     // Upper bound only: a 20-block circle at body-capped arc speed plus the sweep of 180 degrees takes seconds,
     // and pack acquisition can burn most of a minute in a slow run.
     private static final int FLANK_WATCH_TICKS = 2400;
-    private static final int FLANK_GROUND_HALF = 24;
+    private static final int FLANK_GROUND_HALF = 48;
     // The scatter clock starts only once the raptor happens to spot the player and the hunt begins, which is
     // variable (observed up to ~700 ticks); the test then needs scatterFleeTicks + 20 more to see it end.
     // The window is an upper bound only - a passing run exits the moment the scatter completes.

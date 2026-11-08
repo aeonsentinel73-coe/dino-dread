@@ -237,7 +237,7 @@ public final class RaptorConfig {
                 .comment("Radius of the circle a flanking raptor runs around the quarry. One raptor in a pack of three "
                         + "(two in a pack of four, one on each side) circles while the rest chase straight on. Wide "
                         + "circles read as a real envelopment; the arc speed self-caps to what the body can run.")
-                .defineInRange("flankRadiusBlocks", 20.0, 2.5, 24.0);
+                .defineInRange("flankRadiusBlocks", 40.0, 2.5, 64.0);
         FLANK_SWEEP_DEGREES = BUILDER
                 .comment("How far around the quarry a flanker commits before the circle ends and it joins the "
                         + "head-on chase (the end hook). 720 = run laps until the quarry is lost: the pre-fix behavior, "
@@ -245,11 +245,13 @@ public final class RaptorConfig {
                 .defineInRange("flankSweepDegrees", 180.0, 30.0, 720.0);
         FLANK_SPEED_BOOST = BUILDER
                 .comment("Movement multiplier while flanking, on top of the hunt speed. Ground speed is quadratic in ",
-                        "this multiplier (see movementSpeed), so 1.25 makes a flanker about 1.4x faster than a sprinting player.",
+                        "this multiplier (see movementSpeed), so 1.77 makes a flanker about 16 blocks/s (~2.8x a sprinting",
+                        "player) - sized to hold the same ~23 deg/s sweep as the old 20-block/1.25 ring so a wider",
+                        "envelope costs the flanker no more wall-clock time per attempt.",
                         "The boost cannot outlast a sprint though: a flank that stops making progress around the quarry",
                         "(you are running away) is abandoned after ~5 s and everyone chases at normal chase speed, which",
                         "IS outrunnable. Lost the moment the raptor stops circling (quarry lost, water, flight).")
-                .defineInRange("flankSpeedBoost", 1.25, 1.0, 4.0);
+                .defineInRange("flankSpeedBoost", 1.77, 1.0, 4.0);
         FLANK_ARC_DEGREES_PER_SECOND = BUILDER
                 .comment("How far ahead on the circle the flanker's waypoint rides, in degrees: the point it runs to is",
                         "this far around its own bearing (capped by what its legs can actually reach, floored so it never",
