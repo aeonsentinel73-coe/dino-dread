@@ -92,10 +92,12 @@ public final class RaptorConfig {
                 .gameRestart()
                 .comment("Base movement speed attribute. This version's steering doubles as the forward input (Mob.setSpeed",
                         "sets the walk input too), so ground speed is quadratic: blocks/s = about 43 x (attribute x hunt",
-                        "multiplier 0.8)^2. At 0.443 a raptor chases at about 5.4 blocks/s: faster than a walking player",
-                        "(4.3), just under a sprinting one (5.6). A completed flank surges at flank speed for 5 s - that",
-                        "one IS faster than a sprint; only straight-line running from a plain chase is outrunnable.")
-                .defineInRange("movementSpeed", 0.443, 0.05, 2.0);
+                        "multiplier 0.8)^2. At 0.43 a raptor chases at about 5.1 blocks/s: faster than a walking player",
+                        "(4.3), under a sprinting one. 0.443 (5.4) tested in live play: the whole pack still kept up with",
+                        "a sprinting player - bite knockback, the cut-off surge and flank boost all widen the player's",
+                        "effective gap, so keep the base at the outrunnable 0.43 until a controlled test says otherwise.",
+                        "A completed flank surges at flank speed for 5 s - that one IS faster than a sprint.")
+                .defineInRange("movementSpeed", 0.43, 0.05, 2.0);
         KNOCKBACK_RESISTANCE = BUILDER
                 .gameRestart()
                 .comment("1.0 = cannot be knocked back. 0 = a raptor is light enough to shove around.")

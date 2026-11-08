@@ -44,7 +44,7 @@ mover, voice) on its own numbers. Everything raptor-specific lives in `config/di
 |---|---|---|
 | `maxHealth` | 24 | 4 iron-sword swings |
 | `attackDamage` | 10 | raw, before armor: full iron takes 6.0 per bite, unarmored 10 |
-| `movementSpeed` | 0.443 | this version's ground speed is quadratic: about 43 x (0.443 x 0.8 hunt)^2 = 5.4 blocks/s — faster than walking (4.3), just under sprinting (5.6) |
+| `movementSpeed` | 0.43 | this version's ground speed is quadratic: about 43 x (0.43 x 0.8 hunt)^2 = 5.1 blocks/s — faster than walking (4.3), under sprinting (5.6). 0.443 (5.4) tested live: the pack still kept up — every bite halves your speed and launches you back into the pack (vanilla damage knockback), so the base stays at the outrunnable 0.43 |
 | `scale` | 0.6 | Peridot Scout is 2.9 blocks tall at scale 1, so this matches the 3.8-block hitbox (~1.7-2.3 tall) |
 | `jumpStrength` | 0.3 | the raptor's stuck-hop height (the rex mover's 0.9, sized for its 3x body, made raptors grasshoppers in live play) |
 | `swimSpeedMultiplier` | 1.0 | slow in water but can reach the bank; a boat still wins |
