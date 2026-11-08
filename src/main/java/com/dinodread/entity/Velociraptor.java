@@ -499,7 +499,14 @@ public class Velociraptor extends TRex {
         // starts fresh: a player who outran a flank once must be flankable again on the next encounter.
         flankCompletedFor = null;
         // A pack-death flight already owns the running state; mid-swim goal churn (the float goal) is not losing quarry.
-        if (isFleeing() || isInWater()) {
+        if (isFleeing() || isInWater() || !(level() instanceof ServerLevel level)) {
+            return;
+        }
+        // The rout belongs to the pack, not to one raptor's bad seconds: while any pack-mate within earshot still
+        // holds quarry, a member that momentarily lost the trail just drops back to wander - the shared-perception
+        // pass (shareThePackHunt) puts it straight back on the hunt. Scattering alone is what the live playtest
+        // saw: a sprinting player watched the pack peel away one raptor at a time.
+        if (packHuntsAny(level)) {
             return;
         }
         int ticks = RaptorConfig.SCATTER_FLEE_TICKS.get();
@@ -584,14 +591,15 @@ public class Velociraptor extends TRex {
     }
 
     /**
-     * The pack hunts as one: a raptor that has neither seen nor heard the quarry follows the pack-mate that has.
-     * Live playtest: without this each raptor needed its own first contact (running past one at a time), the pack
-     * straggled, and a half-hunting pack is too small to flank. The hunt state machine then owns the shared
-     * quarry like any other: it persists until the standard sight/hearing give-up, and the pack re-shares it
-     * from whichever member still holds it.
+     * The pack hunts as one: a raptor that has neither seen nor heard the quarry follows the pack-mate that has,
+     * and while any pack-mate still perceives the shared quarry, nobody's give-up clock runs out alone. Live
+     * playtest round one: each raptor needed its own first contact. Round two: the pack peeled away one by one
+     * behind a sprinting player - the give-up clocks were individual, so stragglers lost contact (silence plus
+     * distance) and scattered on their own schedule while the boosted flanker kept the trail. The pack now gives
+     * up together, or not at all.
      */
     private void shareThePackHunt(ServerLevel level) {
-        if (tickCount % PACK_SHARE_INTERVAL_TICKS != 0 || getTarget() != null || isFleeing() || isScattering()) {
+        if (tickCount % PACK_SHARE_INTERVAL_TICKS != 0 || isFleeing()) {
             return;
         }
         String tag = packTag();
@@ -600,21 +608,46 @@ public class Velociraptor extends TRex {
         }
         // Within earshot (the raptors coordinate by calls, so the range is their hearing, scaled by activity).
         double radius = Math.max(RaptorConfig.HEARING_RADIUS.get(), 4.0) * Math.max(0.25, activity());
-        Velociraptor caller = null;
-        double closest = Double.MAX_VALUE;
+        LivingEntity myQuarry = getTarget();
+        Velociraptor freshest = null;
+        int freshestAge = Integer.MAX_VALUE;
+        int myQuarryPackAge = -1; // the freshest contact ANY pack-mate has on MY quarry
         for (Velociraptor other : level.getEntitiesOfClass(Velociraptor.class,
                 getBoundingBox().inflate(radius),
                 other -> other != this && other.isAlive() && tag.equals(other.packTag())
                         && other.getTarget() != null && other.getTarget().isAlive())) {
-            double d = other.distanceToSqr(this);
-            if (d < closest) {
-                closest = d;
-                caller = other;
+            int age = other.getSenses().contactAge();
+            if (myQuarry != null && other.getTarget() == myQuarry
+                    && (myQuarryPackAge < 0 || age < myQuarryPackAge)) {
+                myQuarryPackAge = age;
+            }
+            if (age < freshestAge) {
+                freshestAge = age;
+                freshest = other;
             }
         }
-        if (caller != null) {
-            getSenses().shareQuarry(caller.getTarget());
+        if (myQuarry != null) {
+            if (myQuarryPackAge >= 0) {
+                getSenses().shareContactAge(myQuarryPackAge);
+            }
+            return;
         }
+        if (freshest != null && !isScattering()) {
+            getSenses().shareQuarry(freshest.getTarget());
+        }
+    }
+
+    /** True while any tagged pack-mate within earshot still holds live quarry (used to hold the rout together). */
+    private boolean packHuntsAny(ServerLevel level) {
+        String tag = packTag();
+        if (tag == null) {
+            return false;
+        }
+        double radius = Math.max(RaptorConfig.HEARING_RADIUS.get(), 4.0) * Math.max(0.25, activity());
+        return !level.getEntitiesOfClass(Velociraptor.class,
+                getBoundingBox().inflate(radius),
+                other -> other != this && other.isAlive() && tag.equals(other.packTag())
+                        && other.getTarget() != null && other.getTarget().isAlive()).isEmpty();
     }
 
     private static final int PACK_SHARE_INTERVAL_TICKS = 10;

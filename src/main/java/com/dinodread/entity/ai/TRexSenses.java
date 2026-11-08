@@ -139,6 +139,18 @@ public class TRexSenses {
         ticksSinceContact = 0;
     }
 
+    /** How many ticks since this rex last saw or heard its quarry (Integer.MAX_VALUE once it has given up on it). */
+    public int contactAge() {
+        return ticksSinceContact;
+    }
+
+    /** Pack perception: if any pack-mate perceived the shared quarry more recently than this rex did, believe it. */
+    public void shareContactAge(int packAge) {
+        if (packAge < ticksSinceContact) {
+            ticksSinceContact = packAge;
+        }
+    }
+
     private void scanForTargets(ServerLevel level) {
         LivingEntity current = rex.getTarget();
         LivingEntity closest = null;

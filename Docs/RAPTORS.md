@@ -9,8 +9,10 @@ mover, voice) on its own numbers. Everything raptor-specific lives in `config/di
   Each pack shares a scoreboard tag (`dinodread_pack_<uuid>`); a pack that cannot fit `packMinSize` bodies fails as a whole.
 - **Hunts players and hostile mobs** (zombies, skeletons, ...). Named, leashed and tamed mobs are never targeted.
 - **The pack hunts as one**: a raptor that has neither seen nor heard the quarry follows the pack-mate that has
-  (a call within earshot, `hearingRadius`, re-checked every half second). Without it each raptor needed its own
-  first contact, packs straggled, and half-hunting packs were too small to ever flank.
+  (a call within earshot, `hearingRadius`, re-checked every half second), and while any member still perceives
+  the quarry nobody's give-up clock runs out alone - the pack gives up together or not at all. Without this each
+  raptor needed its own first contact, packs straggled, and a sprinting player watched them peel away one by
+  one; half-hunting packs were also too small to ever flank.
 - **Pack death breaks the pack**: when any member of a tagged pack dies, every survivor anywhere in the dimension
   with the same tag starts fleeing from the nearest player for `fleeTicks` (default 30 s) and despawns when the
   flee ends. Spawn-egg / `/summon` raptors flee (loosely, with nearby untagged ones) but never despawn.
@@ -70,10 +72,10 @@ independent.
 
 ## Tests
 
-`./gradlew runGameTestServer` - ten raptor tests:
+`./gradlew runGameTestServer` - eleven raptor tests:
 `raptor_pack_spawns_together_under_one_tag`, `raptor_pack_flees_and_despawns_when_one_dies`,
 `raptor_hunts_a_zombie_and_never_charges`, `raptor_pack_flanks_its_quarry`,
-`raptor_pack_shares_the_hunt`,
+`raptor_pack_shares_the_hunt`, `raptor_pack_holds_the_hunt_together`,
 `raptor_scatters_without_despawning`, `raptor_chase_outruns_a_walking_player`,
 `raptor_climbs_out_of_water`, `trex_ignores_hostile_mobs`,
 `raptor_defaults_are_small_slow_and_quiet`.

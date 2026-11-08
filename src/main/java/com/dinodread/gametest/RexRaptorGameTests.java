@@ -84,6 +84,7 @@ public final class RexRaptorGameTests {
         test("raptor_hunts_a_zombie_and_never_charges", RexRaptorGameTests::raptorHuntsZombieAndNeverCharges);
         test("raptor_pack_flanks_its_quarry", RexRaptorGameTests::raptorPackFlanksItsQuarry);
         test("raptor_pack_shares_the_hunt", RexRaptorGameTests::raptorPackSharesTheHunt);
+        test("raptor_pack_holds_the_hunt_together", RexRaptorGameTests::raptorPackHoldsTheHuntTogether);
         test("raptor_scatters_without_despawning", RexRaptorGameTests::raptorScattersWithoutDespawning);
         test("raptor_chase_outruns_a_walking_player", RexRaptorGameTests::raptorChaseOutrunsWalkingPlayer);
         test("raptor_climbs_out_of_water", RexRaptorGameTests::raptorClimbsOutOfWater);
@@ -409,6 +410,68 @@ public final class RexRaptorGameTests {
     }
 
     private static final int SHARE_WATCH_TICKS = 1200;
+
+    /**
+     * The pack holds the hunt together: a raptor that can no longer perceive the quarry stays on it while a
+     * pack-mate can. Live playtest: a sprinting player watched the pack peel away one raptor at a time - the
+     * give-up clocks were individual, so every straggler that fell out of sight and hearing scattered on its
+     * own schedule. Here the sight range is cut to 16 and two of three tagged raptors sit 20+ blocks from the
+     * (motionless, silent) player: they can NEVER perceive it, and before the fix they abandoned at the 12 s
+     * give-up tick. They must still be hunting well past it.
+     */
+    private static void raptorPackHoldsTheHuntTogether(GameTestHelper helper) {
+        Velociraptor[] trio = new Velociraptor[3];
+        Runnable[] undoGround = new Runnable[1];
+        int sightWere = RaptorConfig.SIGHT_RANGE.get().intValue();
+        double flankRadiusWere = RaptorConfig.FLANK_RADIUS_BLOCKS.get();
+        scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, FLANK_PLAYER_AT, false, 700, origin -> {
+            // The blind pair need floor out to the arena corners (widenGround covers x +-24).
+            undoGround[0] = widenGround(helper.getLevel(), origin);
+        }, run -> {
+            run.cleanups.add(undoGround[0]::run);
+            RaptorConfig.SIGHT_RANGE.set(16.0);
+            // Flanker slots follow UUID order, so the caller might be the one that circles: keep the ring inside
+            // the reduced sight, or a circling caller would go blind and the test would prove the wrong thing.
+            RaptorConfig.FLANK_RADIUS_BLOCKS.set(8.0);
+            run.cleanups.add(() -> RaptorConfig.FLANK_RADIUS_BLOCKS.set(flankRadiusWere));
+            run.cleanups.add(() -> RaptorConfig.SIGHT_RANGE.set((double) sightWere));
+            run.rex.discard();
+            String packTag = Velociraptor.PACK_TAG_PREFIX + "gametest";
+            // The caller is 6 blocks from the player inside the 16-block sight; the pair are 20-29: blind, and
+            // the motionless silent player gives them nothing to hear either.
+            trio[0] = spawnRaptor(helper, 0.0F, new Vec3(0.5, 0, 2.5));
+            trio[1] = spawnRaptor(helper, 180.0F, new Vec3(-20.5, 0, -12.5));
+            trio[2] = spawnRaptor(helper, 180.0F, new Vec3(-14.5, 0, -12.5));
+            for (Velociraptor raptor : trio) {
+                raptor.addTag(packTag);
+                run.cleanups.add(raptor::discard);
+            }
+        }, run -> {
+            run.player.setHealth(run.player.getMaxHealth());
+            int hunting = 0;
+            boolean scattered = false;
+            StringBuilder diag = new StringBuilder();
+            for (int i = 0; i < trio.length; i++) {
+                if (trio[i] == null) {
+                    continue;
+                }
+                if (trio[i].getTarget() == run.player) {
+                    hunting++;
+                }
+                scattered |= trio[i].isScattering();
+                diag.append(" r").append(i).append(trio[i].getTarget() == null ? ":-" : ":+")
+                        .append(String.format("%.0f", trio[i].distanceTo(run.player)));
+            }
+            run.status = "hunting=" + hunting + "/3 scattered=" + scattered + diag;
+            // Past the give-up horizon (240 from the last shared contact) the blind pair must still be holding.
+            if (run.age() > 300 && (hunting < trio.length || scattered)) {
+                run.fail("the pack must hold the hunt while ANY member perceives the quarry: " + run.status);
+            }
+            if (run.age() >= 500 && hunting == trio.length && !scattered) {
+                run.pass();
+            }
+        });
+    }
 
     /**
      * Extends the arena floor out to {@code FLANK_GROUND_HALF} blocks wide so a flank circle fits, forces those
