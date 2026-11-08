@@ -325,6 +325,8 @@ public class Velociraptor extends TRex {
     private @Nullable UUID flankEvaluatedFor;
     /** Quarry whose circle this raptor has completed: a finished flanker joins the straight chase and stays there. */
     private @Nullable UUID flankCompletedFor;
+    /** Until this tick, a finished/abandoned circle against the same quarry does not reopen (anti-flicker loop). */
+    private long flankReopenTick;
     /**
      * Bearing the current circle started from; NaN when no circle is in progress. Sweep progress is measured as
      * this raptor's bearing around the quarry from that start, so it survives sight flicker (a blink does NOT
@@ -374,8 +376,8 @@ public class Velociraptor extends TRex {
                 flankStartBearing = Double.NaN; // new quarry: a fresh circle (a blink keeps the running one)
             }
         }
-        if (target.getUUID().equals(flankCompletedFor)) {
-            flankSlot = -1; // this raptor has already run its circle for this quarry
+        if (target.getUUID().equals(flankCompletedFor) && tickCount < flankReopenTick) {
+            flankSlot = -1; // this raptor has already run its circle for this quarry (reopen delay below)
         }
         if (flankSlot < 0) {
             flankingNow = false;
@@ -426,6 +428,7 @@ public class Velociraptor extends TRex {
                     String.format(java.util.Locale.ROOT, "%.1f", distance),
                     getName().getString());
             flankCompletedFor = target.getUUID();
+            flankReopenTick = tickCount + FLANK_REOPEN_TICKS;
             flankStartBearing = Double.NaN;
             flankingNow = false;
             flankSlot = -1;
@@ -447,6 +450,7 @@ public class Velociraptor extends TRex {
                     String.format(java.util.Locale.ROOT, "%.2f", getSpeed()),
                     getName().getString());
             flankCompletedFor = target.getUUID();
+            flankReopenTick = tickCount + FLANK_REOPEN_TICKS;
             flankStartBearing = Double.NaN;
             flankingNow = false;
             flankSlot = -1;
@@ -469,6 +473,8 @@ public class Velociraptor extends TRex {
 
     /** Ticks of negligible bearing progress before a flanker quits its circle and chases straight (5 seconds). */
     private static final int FLANK_STALL_TICKS = 100;
+    /** A flanked quarry stays "already circled" this long before the same raptor may try it again (15 s). */
+    private static final int FLANK_REOPEN_TICKS = 300;
     /** Length of the post-flank cut-off surge (5 seconds of committed closing at flank speed). */
     private static final int INTERCEPT_TICKS = 100;
 
@@ -541,9 +547,11 @@ public class Velociraptor extends TRex {
 
     @Override
     public void onHuntAbandoned() {
-        // A completed (or abandoned) circle belongs to the hunt that ran it. When that hunt ends, the next one
-        // starts fresh: a player who outran a flank once must be flankable again on the next encounter.
-        flankCompletedFor = null;
+        // A completed (or abandoned) circle REOPENS after FLANK_REOPEN_TICKS, it does not clear on hunt churn.
+        // At flank speed a raptor overshoots, loses the player behind it for a second, the hunt flickers off and
+        // right back on - clearing the record there let it re-flank the same quarry in a loop: circle, lunge,
+        // circle, lunge, with the boost effectively permanent (live playtest). The delay absorbs the flicker; a
+        // real second encounter is flankable again fifteen seconds later.
         interceptUntilTick = 0;
         // A pack-death flight already owns the running state; mid-swim goal churn (the float goal) is not losing quarry.
         if (isFleeing() || isInWater() || !(level() instanceof ServerLevel level)) {

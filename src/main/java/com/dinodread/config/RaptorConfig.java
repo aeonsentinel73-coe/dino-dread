@@ -100,8 +100,11 @@ public final class RaptorConfig {
                 .defineInRange("movementSpeed", 0.43, 0.05, 2.0);
         KNOCKBACK_RESISTANCE = BUILDER
                 .gameRestart()
-                .comment("1.0 = cannot be knocked back. 0 = a raptor is light enough to shove around.")
-                .defineInRange("knockbackResistance", 0.0, 0.0, 1.0);
+                .comment("Fraction of knockback a raptor ignores. 0.8 lives: every hit (even a fist) applies vanilla",
+                        "damage knockback, and a bare-hand spam kept shoving hunters out of their own bite range -",
+                        "one player with no weapon could leash a whole raptor forever (live playtest). Punching now",
+                        "staggers a raptor a little; it does not stop one. 1.0 would make them freight trains.")
+                .defineInRange("knockbackResistance", 0.8, 0.0, 1.0);
         FOLLOW_RANGE = BUILDER
                 .gameRestart()
                 .comment("Follow range attribute in blocks (limits how far pathfinding searches).")
