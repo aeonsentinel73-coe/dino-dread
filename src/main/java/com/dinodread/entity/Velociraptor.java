@@ -330,8 +330,12 @@ public class Velociraptor extends TRex {
      * restart the circle - it resumes) and completion fires on what the player has seen, not waypoint bookkeeping.
      */
     private double flankStartBearing = Double.NaN;
-    /** Bearing the waypoint rides at this tick (own bearing plus the arc step); the sweep counts this, not the lagging body. */
-    private double flankWaypointBearing;
+    /** The body's bearing last tick; its clamped advance is the REAL circle progress (a waypoint's is not). */
+    private double flankLastBodyBearing = Double.NaN;
+    /** Real body sweep this circle, radians. */
+    private double flankSweep;
+    /** Ticks without meaningful sweep: the quarry is outrunning the circle, so give the circle up (escape valve). */
+    private int flankStallTicks;
     /** Set by huntDestination() each tick the goal asks for a destination (before huntSpeedBoost() reads it). */
     private boolean flankingNow;
 
@@ -366,44 +370,61 @@ public class Velociraptor extends TRex {
             flankingNow = true; // on top of it: the bite logic owns this tick
             return chase;
         }
-        // Step the bearing a little further around the chosen side, and pull it to the flank radius: the point rides
-        // around the quarry as that point moves, which is the circling.
         double side = flankSlot == 0 ? 1.0 : -1.0;
         double radius = Math.max(2.5, RaptorConfig.FLANK_RADIUS_BLOCKS.get());
-        double step = Math.toRadians(RaptorConfig.FLANK_ARC_DEGREES_PER_SECOND.get()) / 20.0;
-        // Cap the demanded arc by what the body can do: this version's ground speed is quadratic, so the waypoint
-        // may not ask for more tangential blocks/tick than the flanker's own speed (2.1 x speed^2 by the measured
-        // law). Uncapped, a wide circle is unreachable and the flanker chases its waypoint around the quarry
-        // forever doing laps, exactly as seen in the live playtest.
-        double tangentialCap = 2.1 * getSpeed() * getSpeed() / radius;
-        step = Math.min(step, Math.max(tangentialCap, Math.toRadians(10.0) / 20.0));
-        // The waypoint rides a fixed arc ahead on the circle and only ever advances by the (body-capped) step -
-        // never taken from the raptor's own bearing, or a raptor that lands on the radius line at exactly the
-        // radius finds its destination on its own head, stops, and is left behind as the quarry rotates away.
-        // Progress counts the waypoint's sweep (the lap the player sees); the end hook sends it head-on.
+        // Ground blocks/tick this raptor can actually produce right now (measured quadratic speed law:
+        // b/s ~= 43 x speed^2). Every demand on the circle - lead distance, progress credit - is capped by it,
+        // or the waypoint outruns the body: live playtest saw spin-in-place, falling behind, laps never ended.
+        double blocksPerTick = 2.1 * getSpeed() * getSpeed();
+        double tickArc = blocksPerTick / radius; // radians of circle the body can run in one tick
         double bearing = Math.atan2(dz, dx);
         double sweepLimit = Math.toRadians(RaptorConfig.FLANK_SWEEP_DEGREES.get());
-        double wrap = Math.PI * 2.0 - sweepLimit; // room for overshoot before the lap counter would flip
         if (Double.isNaN(flankStartBearing)) {
             flankStartBearing = bearing;
-            flankWaypointBearing = bearing;
+            flankLastBodyBearing = bearing;
+            flankSweep = 0.0;
+            flankStallTicks = 0;
         }
-        flankWaypointBearing += side * step;
-        // Signed progress, NOT normalized: the waypoint bearing only ever moves by the step, so the difference
-        // from the start accumulates monotonically. (Wrapping it into +-180 folds forward progress past 180 into
-        // a fake retreat and the circle can never end - the exact stuck-lap bug the playtest and gametest caught.)
-        double sweep = (flankWaypointBearing - flankStartBearing) * side;
-        // Past the sweep angle going forward, or (for sweeps below a full circle) having been pushed back through
-        // the start line from behind. A sweep of 360+ can never satisfy either and simply runs laps.
-        if (sweep >= sweepLimit || (wrap > 0.0 && sweep <= -wrap)) {
+        // Progress is the BODY's travel around the quarry, never the waypoint's: a waypoint advancing on its own
+        // books circles the body never ran, and the flank "finished" before it got near the front (playtest).
+        // Forward-only, jitter clamped, teleports credited nothing beyond real running.
+        double delta = Math.atan2(Math.sin(bearing - flankLastBodyBearing), Math.cos(bearing - flankLastBodyBearing)) * side;
+        flankLastBodyBearing = bearing;
+        if (delta > 0.0) {
+            flankSweep += Math.min(delta, tickArc * 2.0);
+            flankStallTicks = delta >= tickArc * 0.4 ? 0 : flankStallTicks + 1;
+        } else {
+            flankStallTicks++;
+        }
+        // Running onto (or back onto) the circle is not a stall - the bearing sits still while the body heads for
+        // the ring. Only a raptor that IS on the circle and still cannot sweep is being outrun.
+        if (Math.abs(distance - radius) >= radius * 0.5) {
+            flankStallTicks = 0;
+        }
+        if (flankSweep >= sweepLimit) {
             flankCompletedFor = target.getUUID();
             flankStartBearing = Double.NaN;
             flankingNow = false;
             flankSlot = -1;
             return chase;
         }
-        double cos = Mth.cos((float) (flankWaypointBearing - bearing));
-        double sin = Mth.sin((float) (flankWaypointBearing - bearing));
+        // Escape valve (live playtest): a quarry sprinting straight away barely changes bearing, so a flanker
+        // running at ~1.4x sprint would hold its boost forever and no player could ever outrun the circle.
+        // After a few seconds of no sweep, abandon it: the pack chases straight at chase speed, which IS outrunnable.
+        if (flankStallTicks > FLANK_STALL_TICKS) {
+            flankCompletedFor = target.getUUID();
+            flankStartBearing = Double.NaN;
+            flankingNow = false;
+            flankSlot = -1;
+            return chase;
+        }
+        // The waypoint is pinned to the BODY: a body-sized lead around the circle (never further), with a floor
+        // so it does not sit on the raptor's own nose and stop it dead. The raptor always runs a little around
+        // its own bearing - that is the circle - and can always reach the point it is running to.
+        double desiredLead = Math.toRadians(RaptorConfig.FLANK_ARC_DEGREES_PER_SECOND.get());
+        double lookahead = Mth.clamp(desiredLead, Math.toRadians(15.0), Math.max(tickArc * 30.0, Math.toRadians(15.0)));
+        double cos = Mth.cos((float) (side * lookahead));
+        double sin = Mth.sin((float) (side * lookahead));
         double ux = dx / distance;
         double uz = dz / distance;
         double px = (ux * cos - uz * sin) * radius;
@@ -411,6 +432,9 @@ public class Velociraptor extends TRex {
         flankingNow = true;
         return new Vec3(target.getX() + px, target.getY(), target.getZ() + pz);
     }
+
+    /** Ticks of negligible bearing progress before a flanker quits its circle and chases straight (5 seconds). */
+    private static final int FLANK_STALL_TICKS = 100;
 
     @Override
     public double huntSpeedBoost() {
@@ -432,9 +456,8 @@ public class Velociraptor extends TRex {
     public String flankDebug() {
         LivingEntity t = getTarget();
         double d = t == null ? -1 : Math.hypot(getX() - t.getX(), getZ() - t.getZ());
-        return String.format(java.util.Locale.ROOT, "slot=%d dist=%.1f circling=%b done=%b startBrg=%.0f wpBrg=%.0f",
-                flankSlot, d, flankingNow, flankCompletedFor != null, Math.toDegrees(flankStartBearing),
-                Math.toDegrees(flankWaypointBearing));
+        return String.format(java.util.Locale.ROOT, "slot=%d dist=%.1f circling=%b done=%b sweep=%.0f stall=%d",
+                flankSlot, d, flankingNow, flankCompletedFor != null, Math.toDegrees(flankSweep), flankStallTicks);
     }
 
     /** Sticky version for tests: a circle has been completed at some point (survives the quarry dying). */
@@ -472,6 +495,9 @@ public class Velociraptor extends TRex {
 
     @Override
     public void onHuntAbandoned() {
+        // A completed (or abandoned) circle belongs to the hunt that ran it. When that hunt ends, the next one
+        // starts fresh: a player who outran a flank once must be flankable again on the next encounter.
+        flankCompletedFor = null;
         // A pack-death flight already owns the running state; mid-swim goal churn (the float goal) is not losing quarry.
         if (isFleeing() || isInWater()) {
             return;

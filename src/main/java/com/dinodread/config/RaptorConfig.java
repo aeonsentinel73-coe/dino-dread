@@ -241,12 +241,16 @@ public final class RaptorConfig {
                         + "which just looked like laps.")
                 .defineInRange("flankSweepDegrees", 180.0, 30.0, 720.0);
         FLANK_SPEED_BOOST = BUILDER
-                .comment("Movement multiplier while flanking, on top of the hunt speed. Lost the moment the raptor ",
-                        "stops circling (quarry lost, water, flight). Ground speed is quadratic in this multiplier ",
-                        "(see movementSpeed), so 1.25 makes a flanker about 1.6x faster than a sprinting player: visible, not outrunnable.")
+                .comment("Movement multiplier while flanking, on top of the hunt speed. Ground speed is quadratic in ",
+                        "this multiplier (see movementSpeed), so 1.25 makes a flanker about 1.4x faster than a sprinting player.",
+                        "The boost cannot outlast a sprint though: a flank that stops making progress around the quarry",
+                        "(you are running away) is abandoned after ~5 s and everyone chases at normal chase speed, which",
+                        "IS outrunnable. Lost the moment the raptor stops circling (quarry lost, water, flight).")
                 .defineInRange("flankSpeedBoost", 1.25, 1.0, 4.0);
         FLANK_ARC_DEGREES_PER_SECOND = BUILDER
-                .comment("How fast a flanker works around its circle, in degrees per second.")
+                .comment("How far ahead on the circle the flanker's waypoint rides, in degrees: the point it runs to is",
+                        "this far around its own bearing (capped by what its legs can actually reach, floored so it never",
+                        "sits on the raptor's nose and stalls it). Higher turns tighter-chasing; lower wider, lazier arcs.")
                 .defineInRange("flankArcDegreesPerSecond", 60.0, 10.0, 360.0);
         BUILDER.pop();
 

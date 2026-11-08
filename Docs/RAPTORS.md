@@ -44,8 +44,8 @@ mover, voice) on its own numbers. Everything raptor-specific lives in `config/di
 | `jumpStrength` | 0.3 | the raptor's stuck-hop height (the rex mover's 0.9, sized for its 3x body, made raptors grasshoppers in live play) |
 | `swimSpeedMultiplier` | 1.0 | slow in water but can reach the bank; a boat still wins |
 | `waterExitHeight` | 3.0 | highest bank it hauls itself onto from the water, like the T-rex |
-| `flankRadiusBlocks` / `flankSpeedBoost` | 20 / 1.25 | a flanker moves ~1.5x a sprinting player (speed is quadratic in the boost); the arc speed self-caps to what the body can run, so wide circles don't become unreachable laps |
-| `flankSweepDegrees` | 180 | end hook: how far around the quarry a flanker commits before it quits the circle and joins the head-on chase (720 = laps until lost) |
+| `flankRadiusBlocks` / `flankSpeedBoost` | 20 / 1.25 | a flanker moves ~1.4x a sprinting player while circling (speed is quadratic in the boost); the waypoint rides a body-reachable lead ahead on the circle, so it runs the arc instead of spinning after it |
+| `flankSweepDegrees` | 180 | end hook: how far around the quarry a flanker commits before it quits the circle and joins the head-on chase (720 = laps until lost). Progress counts the BODY's bearing - a stalled circle (quarry sprinting away) is abandoned after ~5 s so a sprint can always outrun the pack |
 | `sightRange` / `hearingRadius` | 32 | half the T-rex's |
 | `huntHostileMobs` | true | off = players only |
 | `packMinSize` / `packMaxSize` | 3 / 4 | natural pack size |
