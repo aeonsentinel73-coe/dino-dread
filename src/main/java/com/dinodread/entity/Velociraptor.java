@@ -21,6 +21,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
@@ -30,6 +31,12 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.world.phys.Vec3;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.UUID;
 import net.neoforged.neoforge.common.NeoForgeMod;
 import net.neoforged.neoforge.registries.DeferredHolder;
 
@@ -96,6 +103,8 @@ public class Velociraptor extends TRex {
             .add(Attributes.ATTACK_DAMAGE, RaptorConfig.ATTACK_DAMAGE.get())
             .add(Attributes.FOLLOW_RANGE, RaptorConfig.FOLLOW_RANGE.get())
             .add(Attributes.STEP_HEIGHT, RaptorConfig.STEP_HEIGHT.get())
+            // A small body should not clear a full player-jump: vanilla's strength is tuned for a 1.8-block frame.
+            .add(Attributes.JUMP_STRENGTH, RaptorConfig.JUMP_STRENGTH.get())
             .add(NeoForgeMod.SWIM_SPEED, RaptorConfig.SWIM_SPEED_MULTIPLIER.get())
             .add(Attributes.SCALE, RaptorConfig.SCALE.get());
     }
@@ -287,11 +296,133 @@ public class Velociraptor extends TRex {
         };
     }
 
-    // A raptor never charges, so "sprinting" means it has spotted quarry (or is fleeing the pack's loss).
+    // A raptor never charges, so "sprinting" means it has spotted quarry (or is fleeing the pack's loss, or scattering
+    // after losing a hunt).
     @Override
     public boolean sprintingVisual() {
         HuntState state = getHuntState();
-        return state == HuntState.STALK || state == HuntState.CHARGE || isFleeing();
+        return state == HuntState.STALK || state == HuntState.CHARGE || isFleeing() || isScattering();
+    }
+
+    // ---- Flanking: one raptor of a pack of three (two of four) runs a circle around the quarry. ----
+
+    /** Which flanker this raptor is for the current quarry: -2 unevaluated, -1 straight chaser, 0 = left circle, 1 = right. */
+    private int flankSlot = -2;
+    private @Nullable UUID flankEvaluatedFor;
+    /** Set by huntDestination() each tick the goal asks for a destination (before huntSpeedBoost() reads it). */
+    private boolean flankingNow;
+
+    @Override
+    public Vec3 huntDestination(Vec3 chase, boolean visible) {
+        LivingEntity target = getTarget();
+        if (!visible || target == null || isInWater() || isFleeing() || isScattering()) {
+            flankingNow = false;
+            flankSlot = -2;
+            return chase;
+        }
+        if (flankSlot == -2 || !target.getUUID().equals(flankEvaluatedFor)) {
+            flankEvaluatedFor = target.getUUID();
+            flankSlot = evaluateFlankSlot();
+        }
+        if (flankSlot < 0) {
+            flankingNow = false;
+            return chase;
+        }
+        // Where this raptor sits on the circle around the quarry, in world XZ.
+        double dx = getX() - target.getX();
+        double dz = getZ() - target.getZ();
+        double distance = Math.hypot(dx, dz);
+        if (distance < 1.0E-3) {
+            flankingNow = true; // on top of it: the bite logic owns this tick
+            return chase;
+        }
+        // Step the bearing a little further around the chosen side, and pull it to the flank radius: the point rides
+        // around the quarry as that point moves, which is the circling.
+        double side = flankSlot == 0 ? 1.0 : -1.0;
+        double step = Math.toRadians(RaptorConfig.FLANK_ARC_DEGREES_PER_SECOND.get()) / 20.0;
+        double cos = Mth.cos((float) (side * step));
+        double sin = Mth.sin((float) (side * step));
+        double ux = dx / distance;
+        double uz = dz / distance;
+        double radius = Math.max(2.5, RaptorConfig.FLANK_RADIUS_BLOCKS.get());
+        double px = (ux * cos - uz * sin) * radius;
+        double pz = (ux * sin + uz * cos) * radius;
+        flankingNow = true;
+        return new Vec3(target.getX() + px, target.getY(), target.getZ() + pz);
+    }
+
+    @Override
+    public double huntSpeedBoost() {
+        return flankingNow ? RaptorConfig.FLANK_SPEED_BOOST.get() : 1.0;
+    }
+
+    /** True while this raptor is running its circle: read by tests and debugging. */
+    public boolean flankingThisTick() {
+        return flankingNow;
+    }
+
+    /**
+     * Who flanks, decided fresh per quarry: pack members within earshot sorted by id - the first (and in a pack of
+     * four, the second) flanks, the rest chase straight. Stateless, so it survives deaths and stragglers.
+     */
+    private int evaluateFlankSlot() {
+        String tag = packTag();
+        if (tag == null) {
+            return -1; // a spawn-egg raptor on its own does not have flanks to run
+        }
+        List<Velociraptor> pack = new ArrayList<>(level().getEntitiesOfClass(Velociraptor.class,
+                getBoundingBox().inflate(FLANK_PACK_RADIUS),
+                other -> other != this && other.isAlive() && tag.equals(other.packTag())));
+        pack.add(this);
+        int flankers = pack.size() >= 4 ? 2 : pack.size() == 3 ? 1 : 0;
+        if (flankers == 0) {
+            return -1;
+        }
+        pack.sort(Comparator.comparing(Velociraptor::getUUID));
+        return pack.indexOf(this) < flankers ? pack.indexOf(this) : -1;
+    }
+
+    private static final double FLANK_PACK_RADIUS = 48.0;
+
+    // ---- Scatter: losing the quarry sends a raptor running for a while, without the pack-death despawn. ----
+
+    // Same absolute-game-time clock as the pack-death flee (a not-ticking entity still ends on schedule via the sweep).
+    private long scatterUntilGameTime;
+
+    @Override
+    public void onHuntAbandoned() {
+        // A pack-death flight already owns the running state; mid-swim goal churn (the float goal) is not losing quarry.
+        if (isFleeing() || isInWater()) {
+            return;
+        }
+        int ticks = RaptorConfig.SCATTER_FLEE_TICKS.get();
+        if (ticks > 0) {
+            scatterUntilGameTime = Math.max(scatterUntilGameTime, level().getGameTime() + ticks);
+        }
+    }
+
+    public boolean isScattering() {
+        return scatterUntilGameTime > 0 && level().getGameTime() <= scatterUntilGameTime;
+    }
+
+    private boolean scatterExpired() {
+        return scatterUntilGameTime > 0 && level().getGameTime() > scatterUntilGameTime;
+    }
+
+    /** Ends a due scatter; called alongside endFleeIfDue(). Scattering never despawns anything. */
+    public void endScatterIfDue() {
+        if (!level().isClientSide() && scatterExpired()) {
+            scatterUntilGameTime = 0;
+        }
+    }
+
+    /** True when a scatter clock ran out on an entity that stopped ticking; the sweep clears it, despawning nothing. */
+    public boolean scatterPendingEnd() {
+        return scatterExpired();
+    }
+
+    public void clearScatter() {
+        scatterUntilGameTime = 0;
     }
 
     // Two attack animations, alternated so a pack biting together does not look like one clamped loop.
@@ -364,6 +495,8 @@ public class Velociraptor extends TRex {
         int ticks = RaptorConfig.FLEE_TICKS.get();
         if (ticks > 0 && !level().isClientSide()) {
             fleeUntilGameTime = Math.max(fleeUntilGameTime, level().getGameTime() + ticks);
+            // A pack death outranks "we lost the prey": these survivors run the death flight, then despawn.
+            scatterUntilGameTime = 0;
         }
     }
 
@@ -395,11 +528,15 @@ public class Velociraptor extends TRex {
         if (fleeUntilGameTime > 0) {
             output.putLong("FleeUntilGameTime", fleeUntilGameTime);
         }
+        if (scatterUntilGameTime > 0) {
+            output.putLong("ScatterUntilGameTime", scatterUntilGameTime);
+        }
     }
 
     @Override
     public void readAdditionalSaveData(ValueInput input) {
         super.readAdditionalSaveData(input);
         fleeUntilGameTime = input.getLongOr("FleeUntilGameTime", 0L);
+        scatterUntilGameTime = input.getLongOr("ScatterUntilGameTime", 0L);
     }
 }

@@ -52,6 +52,11 @@ public final class RaptorConfig {
     public static final ModConfigSpec.IntValue PACK_SPREAD_BLOCKS;
     public static final ModConfigSpec.IntValue FLEE_TICKS;
     public static final ModConfigSpec.DoubleValue FLEE_SPEED_MULTIPLIER;
+    public static final ModConfigSpec.DoubleValue JUMP_STRENGTH;
+    public static final ModConfigSpec.IntValue SCATTER_FLEE_TICKS;
+    public static final ModConfigSpec.DoubleValue FLANK_RADIUS_BLOCKS;
+    public static final ModConfigSpec.DoubleValue FLANK_SPEED_BOOST;
+    public static final ModConfigSpec.DoubleValue FLANK_ARC_DEGREES_PER_SECOND;
 
     public static final ModConfigSpec.BooleanValue SPAWN_ENABLED;
     public static final ModConfigSpec.BooleanValue NIGHT_ONLY;
@@ -100,6 +105,11 @@ public final class RaptorConfig {
                 .gameRestart()
                 .comment("Scale attribute: multiplies the base hitbox and the model. The Peridot Scout model is 2.9 blocks tall at scale 1, so 0.6 matches the hitbox.")
                 .defineInRange("scale", 0.6, 0.0625, 16.0);
+        JUMP_STRENGTH = BUILDER
+                .gameRestart()
+                .comment("Vertical jump impulse attribute. Vanilla's 0.42 suits a 1.8-block frame; at the raptor's "
+                        + "scale a full player-height jump looks like a flea. 0.3 is roughly a half-block hop.")
+                .defineInRange("jumpStrength", 0.3, 0.0, 1.0);
         HITBOX_WIDTH = BUILDER
                 .gameRestart()
                 .comment("Width of the hitbox, in blocks before the scale (2.0 at scale 0.6 is 1.2 blocks wide).")
@@ -207,8 +217,23 @@ public final class RaptorConfig {
                         "(600 = 30 seconds). A spawn-egg pack flees but is not despawned. 0 = the survivors do not flee.")
                 .defineInRange("fleeTicks", 600, 0, 24000);
         FLEE_SPEED_MULTIPLIER = BUILDER
-                .comment("Speed multiplier while fleeing.")
+                .comment("Movement multiplier while fleeing.")
                 .defineInRange("fleeSpeedMultiplier", 1.3, 0.1, 4.0);
+        SCATTER_FLEE_TICKS = BUILDER
+                .comment("How long a raptor runs away after it loses its quarry (unreachable path, out of the senses). "
+                        + "Unlike a pack death this never ends in a despawn: it is breathing room for the player. 0 disables.")
+                .defineInRange("scatterFleeTicks", 300, 0, 24000);
+        FLANK_RADIUS_BLOCKS = BUILDER
+                .comment("Radius of the circle a flanking raptor runs around the quarry. One raptor in a pack of three "
+                        + "(two in a pack of four, one on each side) circles while the rest chase straight on.")
+                .defineInRange("flankRadiusBlocks", 6.0, 2.5, 24.0);
+        FLANK_SPEED_BOOST = BUILDER
+                .comment("Movement multiplier while flanking, on top of the hunt speed. Lost the moment the raptor "
+                        + "stops circling (quarry lost, water, flight).")
+                .defineInRange("flankSpeedBoost", 1.5, 1.0, 4.0);
+        FLANK_ARC_DEGREES_PER_SECOND = BUILDER
+                .comment("How fast a flanker works around its circle, in degrees per second.")
+                .defineInRange("flankArcDegreesPerSecond", 60.0, 10.0, 360.0);
         BUILDER.pop();
 
         BUILDER.push("spawning");

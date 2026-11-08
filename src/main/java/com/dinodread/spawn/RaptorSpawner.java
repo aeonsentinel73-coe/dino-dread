@@ -205,6 +205,10 @@ public final class RaptorSpawner {
             // A pack whose flight clock ran out always despawns, even if this raptor itself never ticked again
             // (it can wander into a chunk that is not entity-ticking, where a self-ticking countdown would stall).
             boolean flightOver = raptor.fleeExpired();
+            if (raptor.scatterPendingEnd()) {
+                // A scatter run that ran out while the raptor was unloaded: end it quietly, never a despawn.
+                raptor.clearScatter();
+            }
             boolean tooFar = rules.despawnWhenFar()
                     && level.getNearestPlayer(raptor.getX(), raptor.getY(), raptor.getZ(), rules.despawnDistance(), false) == null;
             if (flightOver || tooFar) {

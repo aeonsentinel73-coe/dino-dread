@@ -280,6 +280,27 @@ public class TRex extends Monster implements GeoEntity {
         return false;
     }
 
+    /**
+     * Where the hunt goal drives to, once per tick: chase the quarry itself by default; a flanking raptor aims at its
+     * point on a circle around it instead. {@code visible} is whether the quarry is currently in sight.
+     */
+    public Vec3 huntDestination(Vec3 chase, boolean visible) {
+        return chase;
+    }
+
+    /** Multiplied into the hunt goal's movement speed; flanking raptors use it to outpace the quarry's turns. */
+    public double huntSpeedBoost() {
+        return 1.0;
+    }
+
+    /**
+     * Called when a hunt the rex actually wanted ends without a kill: the mover gave up on an unreachable path, the
+     * target escaped the senses, or another goal took over while living. Death never fires it. Raptors scatter away
+     * for a while; the T-rex just goes back to wandering.
+     */
+    public void onHuntAbandoned() {
+    }
+
     /** Which blocks the hunt mover may break on the way to a target (raptors only push through foliage). */
     public RexBlockBreaker.Policy huntBreakPolicy() {
         return RexBlockBreaker.Policy.ANY;

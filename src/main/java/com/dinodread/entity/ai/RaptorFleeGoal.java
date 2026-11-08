@@ -18,9 +18,9 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * The flight that follows a pack member's death: run away from the nearest player (or, failing a player, the nearest
- * hostile mob) through the shared {@link RexMover}, and let {@link Velociraptor#tickFleeing()} end it — natural pack
- * members despawn when their flee runs out.
+ * The raptor running state, shared by two flights: the one after a pack member's death (run from the nearest player,
+ * natural members despawn when the clock runs out) and the scatter after losing quarry (same running, never a
+ * despawn). Both run through the shared {@link RexMover}; {@link Velociraptor} owns the clocks.
  */
 public class RaptorFleeGoal extends Goal {
     /** How far each leg of the flight aims. The direction is re-picked whenever the raptor arrives or gets stuck. */
@@ -44,7 +44,7 @@ public class RaptorFleeGoal extends Goal {
 
     @Override
     public boolean canUse() {
-        return raptor.isFleeing();
+        return raptor.isFleeing() || raptor.isScattering();
     }
 
     @Override
@@ -60,7 +60,8 @@ public class RaptorFleeGoal extends Goal {
     @Override
     public void tick() {
         raptor.endFleeIfDue();
-        if (!raptor.isFleeing()) {
+        raptor.endScatterIfDue();
+        if (!raptor.isFleeing() && !raptor.isScattering()) {
             return;
         }
 
