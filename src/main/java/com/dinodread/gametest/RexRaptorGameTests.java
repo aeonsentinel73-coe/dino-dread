@@ -93,6 +93,7 @@ public final class RexRaptorGameTests {
         test("raptor_pack_shares_the_hunt", RexRaptorGameTests::raptorPackSharesTheHunt);
         test("raptor_pack_holds_the_hunt_together", RexRaptorGameTests::raptorPackHoldsTheHuntTogether);
         test("raptor_pack_holds_hunt_across_a_stretched_pack", RexRaptorGameTests::raptorPackHoldsHuntAcrossStretchedPack);
+        test("raptor_survival_timer_ends_a_staring_hunt", RexRaptorGameTests::raptorSurvivalTimerEndsAStaringHunt);
         test("raptor_scatters_without_despawning", RexRaptorGameTests::raptorScattersWithoutDespawning);
         test("raptor_chase_outruns_a_walking_player", RexRaptorGameTests::raptorChaseOutrunsWalkingPlayer);
         test("raptor_intercept_cutoff_catches_a_runner", RexRaptorGameTests::raptorInterceptCutoffCatchesARunner);
@@ -814,6 +815,77 @@ public final class RexRaptorGameTests {
             }
             if (run.age() >= 500 && hunting == trio.length) {
                 run.pass();
+            }
+        });
+    }
+
+    /**
+     * The survival timer (60 s by default; pinned to 10 s here via the entity-scoped override): a hunt against
+     * ONE quarry ends even while that quarry stands in plain sight, because on rough terrain "can see you" and
+     * "can reach you" are not the same thing and the silence-based give-up clock never fires on a staring
+     * match. The capped raptor then ignores that quarry for a 30 s blackout, so standing exposed in the open
+     * stops being a permanent death sentence; when the blackout ends it may pick the hunt back up (or has
+     * wandered off, which is also survival).
+     */
+    private static void raptorSurvivalTimerEndsAStaringHunt(GameTestHelper helper) {
+        Velociraptor[] lone = new Velociraptor[1];
+        long[] huntStart = {-1};
+        boolean[] teleported = {false};
+        StringBuilder trace = new StringBuilder("trace:");
+        scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, FLANK_PLAYER_AT, false, 1150, origin -> {
+        }, run -> {
+            run.rex.discard();
+            lone[0] = spawnRaptor(helper, 180.0F, new Vec3(0.5, 0, 5.5));
+            lone[0].debugOverride(null, null, null, 200); // 10 s cap; blackout stays the real 600 t
+            run.cleanups.add(lone[0]::discard);
+        }, run -> {
+            run.player.setHealth(run.player.getMaxHealth());
+            Velociraptor raptor = lone[0];
+            if (raptor == null) {
+                return;
+            }
+            boolean hunting = raptor.getTarget() == run.player;
+            if (hunting && huntStart[0] < 0) {
+                huntStart[0] = run.age(); // every window below is relative to when THIS arena's hunt began
+            }
+            long since = huntStart[0] < 0 ? -1 : run.age() - huntStart[0];
+            run.status = "hunting=" + hunting + " start=" + huntStart[0] + " d="
+                    + String.format("%.0f", raptor.distanceTo(run.player))
+                    + " scatter=" + raptor.isScattering() + trace;
+            if (run.age() % 50 == 0) {
+                trace.append(' ').append(run.age()).append(":")
+                        .append(hunting ? 'H' : '-').append(raptor.isScattering() ? 'S' : '-')
+                        .append(String.format("%.0f", raptor.distanceTo(run.player)));
+            }
+            if (huntStart[0] < 0) {
+                return;
+            }
+            // The cap fires ~200 t after the hunt begins; the 600 t blackout then forbids re-acquisition
+            // until ~600 t after the cap. (Bite knockback can flicker the target for a tick or two at
+            // melee, so the "must be quit" window starts a full 50 t past the cap.)
+            if (since > 250 && since < 290 && hunting) {
+                run.fail("the survival timer must end a hunt even with perfect line of sight: " + run.status);
+            }
+            if (since >= 300 && since < 700 && hunting) {
+                run.fail("a survival-capped raptor must IGNORE the capped quarry for the whole blackout: " + run.status);
+            }
+            // When the blackout ends, stand the hunter back in front of the player: a scattered raptor can
+            // freeze against an arena wall and never FOV-sweep the player again, which would make the
+            // re-hunt depend on wander luck. Then it MUST take the hunt back up.
+            if (since >= 820 && !hunting && !teleported[0]) {
+                raptor.setPos(run.player.getX(), run.player.getY(), run.player.getZ() + 6.0);
+                double dx = run.player.getX() - raptor.getX();
+                double dz = run.player.getZ() - raptor.getZ();
+                float yaw = (float) (Math.toDegrees(Math.atan2(dz, dx)) - 90.0);
+                raptor.setYRot(yaw);
+                raptor.setYHeadRot(yaw);
+                teleported[0] = true;
+            }
+            if (since >= 820 && hunting) {
+                run.pass(); // reopened on its own, or after being stood back in front of the player
+            }
+            if (teleported[0] && since >= 950) {
+                run.fail("a survival-capped raptor must take the hunt back up when the blackout ends: " + run.status);
             }
         });
     }

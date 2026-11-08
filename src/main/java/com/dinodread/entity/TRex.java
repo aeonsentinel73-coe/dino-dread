@@ -273,6 +273,15 @@ public class TRex extends Monster implements GeoEntity {
         return RexConfig.GIVE_UP_TICKS.get();
     }
 
+    /**
+     * Ceiling on ONE hunt against one quarry, counted while the quarry may still be perfectly visible
+     * (0 = no ceiling). The T-rex has none - it is the relentless tracker; raptors cap the hunt so a terrain
+     * stalemate ends. See {@link com.dinodread.entity.Velociraptor}.
+     */
+    public int huntPersistenceTicks() {
+        return 0;
+    }
+
     public double investigateReachFromEdge() {
         return RexConfig.INVESTIGATE_REACH_FROM_EDGE.get();
     }

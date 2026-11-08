@@ -18,6 +18,11 @@ mover, voice) on its own numbers. Everything raptor-specific lives in `config/di
 - **Pack death breaks the pack**: when any member of a tagged pack dies, every survivor anywhere in the dimension
   with the same tag starts fleeing from the nearest player for `fleeTicks` (default 30 s) and despawns when the
   flee ends. Spawn-egg / `/summon` raptors flee (loosely, with nearby untagged ones) but never despawn.
+- **The survival timer**: one hunt against one quarry never lasts more than `huntPersistenceTicks`
+  (default 60 s) - even while the quarry stands in plain sight. On rough terrain "can see you" is not
+  "can reach you", and the silence-based give-up clock never fires on a staring match; the cap forces the
+  pack to quit the stalemate, and a capped raptor then ignores that quarry for 30 s before it may re-hunt.
+  The T-rex has no cap - it is the relentless tracker.
 - **No charge.** The hunt goal's CHARGE state is gated off for raptors (`canCharge()`); they walk their target down.
 - **The cut-off.** A raptor that finishes its flank circle surges at flank speed onto where you are GOING, not
   where you are: hold a straight line and it meets you ahead of your own nose and bites - knocking you back

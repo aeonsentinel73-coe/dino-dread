@@ -163,6 +163,11 @@ public class Velociraptor extends TRex {
     }
 
     @Override
+    public int huntPersistenceTicks() {
+        return huntPersistenceOverride != null ? huntPersistenceOverride : RaptorConfig.HUNT_PERSISTENCE_TICKS.get();
+    }
+
+    @Override
     public double biteReach() {
         return RaptorConfig.BITE_REACH.get();
     }
@@ -544,9 +549,16 @@ public class Velociraptor extends TRex {
     private @Nullable Double flankRadiusOverride;
     private @Nullable Double sightRangeOverride;
     private @Nullable Integer fleeTicksOverride;
+    private @Nullable Integer huntPersistenceOverride;
 
     /** Test hook: pin one raptor's flank ring radius / sight range / pack-death flee length. Null = leave. */
     public void debugOverride(@Nullable Double flankRadiusBlocks, @Nullable Double sightRange, @Nullable Integer fleeTicks) {
+        debugOverride(flankRadiusBlocks, sightRange, fleeTicks, null);
+    }
+
+    /** Test hook, 4-dial form: also pins the survival cap (max hunt length against one quarry). Null = leave. */
+    public void debugOverride(@Nullable Double flankRadiusBlocks, @Nullable Double sightRange,
+            @Nullable Integer fleeTicks, @Nullable Integer huntPersistenceTicks) {
         if (flankRadiusBlocks != null) {
             flankRadiusOverride = flankRadiusBlocks;
         }
@@ -555,6 +567,9 @@ public class Velociraptor extends TRex {
         }
         if (fleeTicks != null) {
             fleeTicksOverride = fleeTicks;
+        }
+        if (huntPersistenceTicks != null) {
+            huntPersistenceOverride = huntPersistenceTicks;
         }
     }
 
@@ -844,7 +859,7 @@ public class Velociraptor extends TRex {
             }
             return;
         }
-        if (freshest != null && !isScattering()) {
+        if (freshest != null && !isScattering() && !getSenses().survivalCapped(freshest.getTarget())) {
             getSenses().shareQuarry(freshest.getTarget());
         }
     }

@@ -39,6 +39,16 @@ public class TRexSenses {
     private int ticksSinceContact;
     private boolean targetVisible;
 
+    // Survival cap (raptors): how long the CURRENT quarry has been hunted, and the quarry the rex must leave
+    // alone after hitting the cap - so a player pinned by line of sight on rough terrain (the raptors can see
+    // but cannot reach) is not hunted forever: they give up within a minute and stay off for the blackout.
+    private @Nullable LivingEntity survivalAgeTarget;
+    private int survivalAgeTicks;
+    private @Nullable LivingEntity survivalCappedQuarry;
+    private long survivalCapUntilGameTime;
+    /** How long a survival-capped rex ignores the quarry that beat the clock (30 s; covers the 15 s scatter). */
+    public static final int SURVIVAL_CAP_BLACKOUT_TICKS = 600;
+
     public TRexSenses(TRex rex) {
         this.rex = rex;
     }
@@ -96,6 +106,29 @@ public class TRexSenses {
         if (hasQuarry() && ticksSinceContact > rex.giveUpTicks() * rex.activity()) {
             forget();
         }
+
+        // The survival cap counts HUNT TIME, not silence: it fires while the quarry is still plainly visible,
+        // because the terrain stalemate (they see you, cannot reach you) never trips the give-up clock.
+        LivingEntity held = rex.getTarget();
+        if (held != survivalAgeTarget) {
+            survivalAgeTarget = held;
+            survivalAgeTicks = 0;
+        }
+        if (held != null) {
+            survivalAgeTicks++;
+            int persistence = rex.huntPersistenceTicks();
+            if (persistence > 0 && survivalAgeTicks > persistence) {
+                forget();
+                survivalCappedQuarry = held;
+                survivalCapUntilGameTime = level.getGameTime() + SURVIVAL_CAP_BLACKOUT_TICKS;
+            }
+        }
+    }
+
+    /** True while this rex must leave this quarry alone (it beat the survival clock; 0 s for rexes, uncapped). */
+    public boolean survivalCapped(LivingEntity quarry) {
+        return quarry != null && quarry == survivalCappedQuarry
+                && rex.level().getGameTime() < survivalCapUntilGameTime;
     }
 
     /** A player made a noise at {@code noisePos}: investigate it if it is within (sneak-adjusted) earshot. */
@@ -158,7 +191,7 @@ public class TRexSenses {
         boolean currentSeen = false;
 
         for (ServerPlayer player : level.players()) {
-            if (!canSee(player, player == current)) {
+            if (survivalCapped(player) || !canSee(player, player == current)) {
                 continue;
             }
             currentSeen |= player == current;
@@ -172,7 +205,7 @@ public class TRexSenses {
         if (rex.huntsHostileMobs()) {
             double range = rex.sightRange() * rex.activity();
             for (Monster mob : level.getEntitiesOfClass(Monster.class, rex.getBoundingBox().inflate(range), mob -> isHuntableMob(mob))) {
-                if (!canSee(mob, mob == current)) {
+                if (survivalCapped(mob) || !canSee(mob, mob == current)) {
                     continue;
                 }
                 currentSeen |= mob == current;

@@ -34,6 +34,7 @@ public final class RaptorConfig {
     public static final ModConfigSpec.BooleanValue HUNT_HOSTILE_MOBS;
 
     public static final ModConfigSpec.IntValue GIVE_UP_TICKS;
+    public static final ModConfigSpec.IntValue HUNT_PERSISTENCE_TICKS;
     public static final ModConfigSpec.DoubleValue BITE_REACH;
     public static final ModConfigSpec.DoubleValue BITE_REACH_BELOW;
     public static final ModConfigSpec.IntValue BITE_WINDUP_TICKS;
@@ -180,6 +181,12 @@ public final class RaptorConfig {
         GIVE_UP_TICKS = BUILDER
                 .comment("Ticks without seeing or hearing a target before a raptor gives up and rejoins the pack's wandering.")
                 .defineInRange("giveUpTicks", 240, 20, 12000);
+        HUNT_PERSISTENCE_TICKS = BUILDER
+                .comment("The survival timer: one hunt against one quarry never lasts longer than this, even while",
+                        "the quarry stays in plain sight. On rough terrain a pack that can see but never reach you",
+                        "gives up after this long and stays off you for another 30 s (1200 = 60 seconds; 0 = no cap).",
+                        "The T-rex is never capped - it is the relentless tracker.")
+                .defineInRange("huntPersistenceTicks", 1200, 0, 24000);
         BITE_REACH = BUILDER
                 .comment("Bite reach in blocks, measured from the edge of the (scaled) hitbox.")
                 .defineInRange("biteReach", 1.2, 0.5, 16.0);
