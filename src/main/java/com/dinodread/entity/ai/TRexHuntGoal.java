@@ -32,6 +32,8 @@ public class TRexHuntGoal extends Goal {
     private int chargeCooldownTicks;
     private int biteWindupTicks = NOT_BITING;
     private int biteCooldownTicks;
+    /** The quarry as of the last tick: lets stop() tell a kill (it died) from an escape (it got away alive). */
+    private @Nullable LivingEntity lastTarget;
 
     public TRexHuntGoal(TRex rex) {
         this.rex = rex;
@@ -60,21 +62,30 @@ public class TRexHuntGoal extends Goal {
         stalkSeenTicks = 0;
         chargeTicks = 0;
         biteWindupTicks = NOT_BITING;
+        lastTarget = null;
         rex.getVoice().roar();
     }
 
     @Override
     public void stop() {
+        // A hunt that ended with the quarry dead (or dying) is a win, not an abandonment; neither is a rex that died
+        // mid-hunt. Raptors scatter only when living quarry slipped away (unreachable path, out of the senses).
+        boolean abandoned = rex.isAlive() && (lastTarget == null || lastTarget.isAlive());
+        lastTarget = null;
         mover.reset();
         rex.getNavigation().stop();
         rex.setAggressive(false);
         rex.setHuntState(HuntState.WANDER);
+        if (abandoned) {
+            rex.onHuntAbandoned();
+        }
     }
 
     @Override
     public void tick() {
         TRexSenses senses = rex.getSenses();
         LivingEntity target = rex.getTarget();
+        lastTarget = target;
         boolean visible = target != null && senses.isTargetVisible();
         Vec3 destination = visible ? target.position() : senses.getLastKnownPos();
         if (destination == null && target != null) {
@@ -112,7 +123,11 @@ public class TRexHuntGoal extends Goal {
         }
 
         double speed = state == HuntState.CHARGE ? RexConfig.CHARGE_SPEED_MULTIPLIER.get() : RexConfig.STALK_SPEED_MULTIPLIER.get();
-        if (mover.driveTo(destination, speed, inBiteRange, RexBlockBreaker.Policy.ANY) == RexStuckDetector.Level.GIVE_UP) {
+        // Flankers run a circle around the quarry instead of straight at it (identity for the T-rex and non-flankers),
+        // with a speed boost so they can actually get around it; both lapse the moment the hunt does.
+        destination = rex.huntDestination(destination, visible);
+        speed *= rex.huntSpeedBoost();
+        if (mover.driveTo(destination, speed, inBiteRange, rex.huntBreakPolicy()) == RexStuckDetector.Level.GIVE_UP) {
             rex.getSenses().forget();
             rex.getNavigation().stop();
         }
@@ -131,7 +146,7 @@ public class TRexHuntGoal extends Goal {
             if (--chargeTicks == 0) {
                 chargeCooldownTicks = rex.chargeCooldownTicks();
             }
-        } else {
+        } else if (rex.canCharge()) {
             stalkSeenTicks++;
             double activity = rex.activity();
             boolean close = rex.distanceTo(target) <= rex.chargeDistance() * activity;

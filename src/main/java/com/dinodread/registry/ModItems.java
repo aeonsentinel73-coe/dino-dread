@@ -16,6 +16,8 @@ public final class ModItems {
 
     public static final DeferredItem<SpawnEggItem> SUPER_REX_SPAWN_EGG = ITEMS.registerItem(
         "super_rex_spawn_egg", SpawnEggItem::new, props -> props.spawnEgg(ModEntities.SUPER_REX.get()));
+    public static final DeferredItem<SpawnEggItem> VELOCIRAPTOR_SPAWN_EGG = ITEMS.registerItem(
+        "velociraptor_spawn_egg", SpawnEggItem::new, props -> props.spawnEgg(ModEntities.VELOCIRAPTOR.get()));
 
     private ModItems() {}
 
@@ -24,6 +26,7 @@ public final class ModItems {
         if (event.getTabKey() == CreativeModeTabs.SPAWN_EGGS) {
             event.accept(TREX_SPAWN_EGG);
             event.accept(SUPER_REX_SPAWN_EGG);
+            event.accept(VELOCIRAPTOR_SPAWN_EGG);
         }
     }
 }

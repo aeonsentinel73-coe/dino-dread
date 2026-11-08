@@ -14,5 +14,24 @@
   "entity.trex.bite": {
     "subtitle": "subtitles.dinodread.entity.trex.bite",
     "sounds": ["dinodread:entity/trex/bite1", "dinodread:entity/trex/bite2", "dinodread:entity/trex/bite3", "dinodread:entity/trex/bite4"]
+  },
+  "entity.velociraptor.roar": {
+    "subtitle": "subtitles.dinodread.entity.velociraptor.roar",
+    "sounds": [
+      { "name": "dinodread:entity/raptor/cry1" },
+      { "name": "dinodread:entity/raptor/cry2" }
+    ]
+  },
+  "entity.velociraptor.run": {
+    "subtitle": "subtitles.dinodread.entity.velociraptor.run",
+    "sounds": [
+      { "name": "dinodread:entity/raptor/run" }
+    ]
+  },
+  "entity.velociraptor.bite": {
+    "subtitle": "subtitles.dinodread.entity.velociraptor.bite",
+    "sounds": [
+      { "name": "dinodread:entity/raptor/cry2", "pitch": 1.5 }
+    ]
   }
 }

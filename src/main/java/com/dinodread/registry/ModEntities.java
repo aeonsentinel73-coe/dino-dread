@@ -1,9 +1,11 @@
 package com.dinodread.registry;
 
 import com.dinodread.DinoDread;
+import com.dinodread.config.RaptorConfig;
 import com.dinodread.config.RexConfig;
 import com.dinodread.entity.SuperRex;
 import com.dinodread.entity.TRex;
+import com.dinodread.entity.Velociraptor;
 
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
@@ -31,11 +33,19 @@ public final class ModEntities {
             .eyeHeight(RexConfig.EYE_HEIGHT.get().floatValue())
             .clientTrackingRange(TREX_TRACKING_RANGE));
 
+    // Same story: base hitbox from RaptorConfig, real size from the SCALE attribute (0.6 by default).
+    public static final DeferredHolder<EntityType<?>, EntityType<Velociraptor>> VELOCIRAPTOR = ENTITY_TYPES.registerEntityType(
+        "velociraptor", Velociraptor::new, MobCategory.MONSTER,
+        builder -> builder.sized(RaptorConfig.HITBOX_WIDTH.get().floatValue(), RaptorConfig.HITBOX_HEIGHT.get().floatValue())
+            .eyeHeight(RaptorConfig.EYE_HEIGHT.get().floatValue())
+            .clientTrackingRange(TREX_TRACKING_RANGE));
+
     private ModEntities() {}
 
     // Mod-bus listener; wired up in DinoDread.
     public static void registerAttributes(EntityAttributeCreationEvent event) {
         event.put(TREX.get(), TRex.createAttributes().build());
         event.put(SUPER_REX.get(), SuperRex.createAttributes().build());
+        event.put(VELOCIRAPTOR.get(), Velociraptor.createAttributes().build());
     }
 }
