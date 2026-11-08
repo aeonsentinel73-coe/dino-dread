@@ -130,7 +130,7 @@ public class Velociraptor extends TRex {
 
     @Override
     public double sightRange() {
-        return RaptorConfig.SIGHT_RANGE.get();
+        return sightRangeOverride != null ? sightRangeOverride : RaptorConfig.SIGHT_RANGE.get();
     }
 
     @Override
@@ -351,7 +351,11 @@ public class Velociraptor extends TRex {
         if (!visible || target == null || isInWater() || isFleeing() || isScattering()) {
             flankingNow = false;
             interceptingNow = false;
-            flankSlot = -2;
+            // flankSlot deliberately SURVIVES the blink: resetting it here made one lost frame of sight
+            // re-run role assignment, and a pack stretched by a retreating quarry counted fewer packmates
+            // inside the role radius - the flankers silently lost the circle mid-run (live playtest: circle,
+            // break out, no ABANDONED log, flankers losing ground while the straight chase caught up).
+            // Roles now change only with the quarry: a new target UUID re-evaluates below.
             return chase; // note: sweep progress deliberately survives a blink
         }
         // The post-flank cut-off: run to where the quarry is going, not where it is (see the flank completion).
@@ -392,7 +396,7 @@ public class Velociraptor extends TRex {
             return chase;
         }
         double side = flankSlot == 0 ? 1.0 : -1.0;
-        double radius = Math.max(2.5, RaptorConfig.FLANK_RADIUS_BLOCKS.get());
+        double radius = Math.max(2.5, flankRadiusOverride != null ? flankRadiusOverride : RaptorConfig.FLANK_RADIUS_BLOCKS.get());
         // Ground blocks/tick this raptor can actually produce right now (measured quadratic speed law:
         // b/s ~= 43 x speed^2). Every demand on the circle - lead distance, progress credit - is capped by it,
         // or the waypoint outruns the body: live playtest saw spin-in-place, falling behind, laps never ended.
@@ -468,7 +472,32 @@ public class Velociraptor extends TRex {
         double px = (ux * cos - uz * sin) * radius;
         double pz = (ux * sin + uz * cos) * radius;
         flankingNow = true;
-        return new Vec3(target.getX() + px, target.getY(), target.getZ() + pz);
+        Vec3 dest = new Vec3(target.getX() + px, target.getY(), target.getZ() + pz);
+        flankLastDestTick = tickCount;
+        return dest;
+    }
+
+    private int flankLastDestTick;
+
+    // Game-test overrides (null = use config). Game tests share one JVM and run arenas CONCURRENTLY: mutating
+    // the static config knobs bled into every other running test - a hold-the-hunt test silently shrank the
+    // sight of live flankers to 16 and their ring to 8, and the flank tests "reproduced" a nonexistent entity
+    // bug (stalled sweep mid-circle). Entity-scoped debug values make each test an island again.
+    private @Nullable Double flankRadiusOverride;
+    private @Nullable Double sightRangeOverride;
+    private @Nullable Integer fleeTicksOverride;
+
+    /** Test hook: pin one raptor's flank ring radius / sight range / pack-death flee length. Null = leave. */
+    public void debugOverride(@Nullable Double flankRadiusBlocks, @Nullable Double sightRange, @Nullable Integer fleeTicks) {
+        if (flankRadiusBlocks != null) {
+            flankRadiusOverride = flankRadiusBlocks;
+        }
+        if (sightRange != null) {
+            sightRangeOverride = sightRange;
+        }
+        if (fleeTicks != null) {
+            fleeTicksOverride = fleeTicks;
+        }
     }
 
     /** Ticks of negligible bearing progress before a flanker quits its circle and chases straight (5 seconds). */
@@ -508,8 +537,14 @@ public class Velociraptor extends TRex {
     public String flankDebug() {
         LivingEntity t = getTarget();
         double d = t == null ? -1 : Math.hypot(getX() - t.getX(), getZ() - t.getZ());
-        return String.format(java.util.Locale.ROOT, "slot=%d dist=%.1f circling=%b done=%b sweep=%.0f stall=%d",
-                flankSlot, d, flankingNow, flankCompletedFor != null, Math.toDegrees(flankSweep), flankStallTicks);
+        return String.format(java.util.Locale.ROOT, "slot=%d dist=%.1f circling=%b done=%b sweep=%.0f stall=%d state=%s destAge=%d visible=%b contact=%d",
+                flankSlot, d, flankingNow, flankCompletedFor != null, Math.toDegrees(flankSweep), flankStallTicks,
+                getHuntState(), tickCount - flankLastDestTick, getSenses().isTargetVisible(), getSenses().contactAge());
+    }
+
+    /** Current circle progress in degrees, for tests and diagnostics. */
+    public double flankSweepDegrees() {
+        return Math.toDegrees(flankSweep);
     }
 
     /** Sticky version for tests: a circle has been completed at some point (survives the quarry dying). */
@@ -538,7 +573,9 @@ public class Velociraptor extends TRex {
         return pack.indexOf(this) < flankers ? pack.indexOf(this) : -1;
     }
 
-    private static final double FLANK_PACK_RADIUS = 48.0;
+    private static final double FLANK_PACK_RADIUS = 72.0; // must cover a formation stretched by a retreat:
+    // roles counted from one raptor's box, so a tighter radius dropped far packmates from the count and
+    // silently un-flanked them mid-hunt (live playtest, backing away from a four-pack)
 
     // ---- Scatter: losing the quarry sends a raptor running for a while, without the pack-death despawn. ----
 
@@ -724,7 +761,7 @@ public class Velociraptor extends TRex {
 
     /** Start (or extend) the post-pack-death flight. Safe to call on every survivor at once. */
     public void startFleeing() {
-        int ticks = RaptorConfig.FLEE_TICKS.get();
+        int ticks = fleeTicksOverride != null ? fleeTicksOverride : RaptorConfig.FLEE_TICKS.get();
         if (ticks > 0 && !level().isClientSide()) {
             fleeUntilGameTime = Math.max(fleeUntilGameTime, level().getGameTime() + ticks);
             // A pack death outranks "we lost the prey": these survivors run the death flight, then despawn.

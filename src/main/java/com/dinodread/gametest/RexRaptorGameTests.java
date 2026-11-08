@@ -65,6 +65,11 @@ public final class RexRaptorGameTests {
     // Upper bound only: a 20-block circle at body-capped arc speed plus the sweep of 180 degrees takes seconds,
     // and pack acquisition can burn most of a minute in a slow run.
     private static final int FLANK_WATCH_TICKS = 2400;
+    // Retreat test: the walk-back caps at 32 blocks (~490 ticks); after that the pack just needs to close and
+    // finish the circles. Acquisition is variable (observed up to ~700 ticks) and a flanker can spend time
+    // re-climbing onto the ring after a knockback (observed one at 174 deg of 180 while hugging the quarry at
+    // 14 blocks) - so the window mirrors the plain flank test's generosity.
+    private static final int RETREAT_WATCH_TICKS = 2600;
     private static final int FLANK_GROUND_HALF = 48;
     // The scatter clock starts only once the raptor happens to spot the player and the hunt begins, which is
     // variable (observed up to ~700 ticks); the test then needs scatterFleeTicks + 20 more to see it end.
@@ -83,6 +88,7 @@ public final class RexRaptorGameTests {
         test("raptor_pack_flees_and_despawns_when_one_dies", RexRaptorGameTests::packFleesAndDespawnsWhenOneDies);
         test("raptor_hunts_a_zombie_and_never_charges", RexRaptorGameTests::raptorHuntsZombieAndNeverCharges);
         test("raptor_pack_flanks_its_quarry", RexRaptorGameTests::raptorPackFlanksItsQuarry);
+        test("raptor_flank_survives_slow_retreat", RexRaptorGameTests::raptorFlankSurvivesSlowRetreat);
         test("raptor_pack_shares_the_hunt", RexRaptorGameTests::raptorPackSharesTheHunt);
         test("raptor_pack_holds_the_hunt_together", RexRaptorGameTests::raptorPackHoldsTheHuntTogether);
         test("raptor_scatters_without_despawning", RexRaptorGameTests::raptorScattersWithoutDespawning);
@@ -194,9 +200,11 @@ public final class RexRaptorGameTests {
             bystander[0] = helper.spawnEntity(ModEntities.VELOCIRAPTOR.get(), new Vec3(0.5, 0, 50.5)).requirePersistence(true).spawn();
             run.cleanups.add(bystander[0]::discard);
 
-            int fleeTicksWere = RaptorConfig.FLEE_TICKS.get();
-            RaptorConfig.FLEE_TICKS.set(FLEE_TEST_TICKS);
-            run.cleanups.add(() -> RaptorConfig.FLEE_TICKS.set(fleeTicksWere));
+            // Per-entity, NOT the static knob: arenas run concurrently and a global FLEE_TICKS edit would
+            // silently change every other fleeing test's clock mid-run.
+            for (Velociraptor member : pack) {
+                member.debugOverride(null, null, FLEE_TEST_TICKS);
+            }
 
             Velociraptor victim = pack.get(0);
             victim.hurt(level.damageSources().generic(), 1000.0F);
@@ -280,6 +288,8 @@ public final class RexRaptorGameTests {
     private static void raptorPackFlanksItsQuarry(GameTestHelper helper) {
         java.util.Set<java.util.UUID> packIds = new java.util.HashSet<>();
         java.util.Set<java.util.UUID> everFlanked = new java.util.HashSet<>();
+        java.util.Map<java.util.UUID, Double> sweepSeen = new java.util.HashMap<>();
+        java.util.Map<java.util.UUID, Integer> lastMoving = new java.util.HashMap<>();
         Runnable[] undoGround = new Runnable[1];
         scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, FLANK_PLAYER_AT, false, FLANK_WATCH_TICKS, origin -> {
             // The flank circle (radius from config, 20 by default) does not fit the standard arena: lay stone out
@@ -305,6 +315,11 @@ public final class RexRaptorGameTests {
             // The straight chasers would kill a plain fixture in two or three bites, long before the flankers
             // finish a 20-block circle (~250 ticks). Bites must land but never kill: the quarry lives to be circled.
             run.player.setHealth(run.player.getMaxHealth());
+            // And the quarry must STAY put: every bite applies vanilla damage knockback (halved velocity +
+            // 0.4 impulse + upward pop), and a healed fixture bitten forever eventually hops off the floor -
+            // then the raptors legitimately cannot see it and INVESTIGATE forever (test flake, not entity bug).
+            run.player.setPos(FLANK_PLAYER_AT.x + run.origin.getX(), FLANK_PLAYER_AT.y + run.origin.getY(),
+                    FLANK_PLAYER_AT.z + run.origin.getZ());
             // Neighbouring arenas can hold their own raptors: watch only this test's pack.
             List<? extends Velociraptor> pack = helper.getLevel().getEntities(EntityTypeTest.forClass(Velociraptor.class),
                     raptor -> raptor.isAlive() && packIds.contains(raptor.getUUID()));
@@ -321,40 +336,130 @@ public final class RexRaptorGameTests {
             }
             run.status = "pack=" + pack.size() + " hunting=" + hunting + " flanking=" + circling
                     + " flankedEver=" + everFlanked.size();
-            if (everFlanked.size() < expectedFlankers(pack.size())) {
-                // Target acquisition is variable (observed up to ~700 ticks), so only call it broken late.
-                if (run.age() > 1600) {
-                    run.fail("a pack of " + pack.size() + " hunting together should keep " + expectedFlankers(pack.size())
-                            + " raptor(s) on the flanks, saw " + everFlanked.size() + " (" + run.status + ")");
-                }
+            flankProgressVerdict(run, everFlanked, sweepSeen, lastMoving, pack,
+                    expectedFlankers(pack.size()), FLANK_WATCH_TICKS,
+                    "a pack of " + pack.size() + " hunting together: ");
+        });
+    }
+
+    /**
+     * Shared flank verdict: everyone who EVER flanked must COMPLETE their circle, and a circle only counts as
+     * broken when it stops PROGRESSING (sweep gains < 30 deg over 600 ticks) or the window runs out. Timing is
+     * variable (night acquisition up to ~700 ticks; a flanker knocked deep inside the ring by its own bite
+     * spends real seconds re-climbing to r40 before its next degrees of sweep) - a plain elapsed-time fail
+     * blamed the end hook for what was only a slow run.
+     */
+    private static void flankProgressVerdict(Run run, java.util.Set<java.util.UUID> everFlanked,
+            java.util.Map<java.util.UUID, Double> sweepSeen, java.util.Map<java.util.UUID, Integer> lastMoving,
+            List<? extends Velociraptor> pack, int expected, int windowEnd, String failPrefix) {
+        int tick = (int) run.age();
+        for (Velociraptor raptor : pack) {
+            java.util.UUID id = raptor.getUUID();
+            if (!everFlanked.contains(id)) {
+                continue;
+            }
+            if (raptor.hasCompletedFlank()) {
+                sweepSeen.remove(id);
+                lastMoving.remove(id);
+                continue;
+            }
+            double sweep = raptor.flankSweepDegrees();
+            Integer moved = lastMoving.get(id);
+            if (moved == null || sweep - sweepSeen.getOrDefault(id, 0.0) >= 30.0) {
+                lastMoving.put(id, tick);
+                sweepSeen.put(id, sweep);
+            } else if (tick - moved > 600) {
+                run.fail(failPrefix + "flank stalled at " + String.format("%.0f", sweep)
+                        + " deg with no progress for 600 ticks [" + raptor.flankDebug() + "]"
+                        + " origin=(" + run.origin.getX() + "," + run.origin.getY() + "," + run.origin.getZ() + ")"
+                        + " quarry=(" + String.format(java.util.Locale.ROOT, "%.1f,%.1f,%.1f",
+                                run.player.getX(), run.player.getY(), run.player.getZ())
+                        + ") raptor=(" + String.format(java.util.Locale.ROOT, "%.1f,%.1f,%.1f",
+                                raptor.getX(), raptor.getY(), raptor.getZ()) + ")"
+                        + " raptorBlockBelow=" + run.helper.getLevel().getBlockState(
+                                raptor.blockPosition().below()) + " " + run.status);
                 return;
             }
-            // End hook: everyone who ran a circle must come off it and rejoin the head-on chase, not run laps.
-            // Sticky flag on purpose: after finishing, the flankers bite, the fixture can die, and targets clear -
-            // the proof is the completed circle, not a currently-held target.
-            boolean allDone = true;
+        }
+        boolean allFlanked = everFlanked.size() >= expected;
+        boolean allDone = true;
+        for (Velociraptor raptor : pack) {
+            if (everFlanked.contains(raptor.getUUID()) && !raptor.hasCompletedFlank()) {
+                allDone = false;
+            }
+        }
+        if (allFlanked && allDone) {
+            run.pass();
+        } else if (tick > windowEnd - 200) {
+            StringBuilder diag = new StringBuilder();
             for (Velociraptor raptor : pack) {
-                if (everFlanked.contains(raptor.getUUID()) && !raptor.hasCompletedFlank()) {
-                    allDone = false;
+                if (everFlanked.contains(raptor.getUUID())) {
+                    diag.append(" [").append(raptor.flankDebug()).append(']');
                 }
             }
-            if (allDone) {
-                run.pass();
-            } else if (run.age() > FLANK_WATCH_TICKS - 400) {
-                StringBuilder diag = new StringBuilder();
-                for (Velociraptor raptor : pack) {
-                    if (everFlanked.contains(raptor.getUUID())) {
-                        diag.append(" [").append(raptor.flankDebug()).append(']');
-                    }
-                }
-                run.fail("flanker(s) never ended their circle (end hook broken, running laps): " + run.status + diag);
-            }
-        });
+            run.fail(failPrefix + "flankers never finished their circles: " + run.status + diag);
+        }
     }
 
     /** One flanker in a pack of three, two in a pack of four (mirrors the entity's slot assignment). */
     private static int expectedFlankers(int packSize) {
         return packSize >= 4 ? 2 : packSize == 3 ? 1 : 0;
+    }
+
+    /**
+     * A quarry that BACKS AWAY at walking pace must not break the flank circles: retreating from a straight
+     * chase is exactly the move flanking exists to punish. Live playtest at radius 40: the flankers started
+     * their circles, then immediately broke out of them while the quarry walked backwards, lost the ~40 blocks
+     * of ring they were standing on, and fell behind even the walkers. The stall valve must watch the QUARRY
+     * FLEEING, not a momentarily flat bearing.
+     */
+    private static void raptorFlankSurvivesSlowRetreat(GameTestHelper helper) {
+        java.util.Set<java.util.UUID> packIds = new java.util.HashSet<>();
+        java.util.Set<java.util.UUID> everFlanked = new java.util.HashSet<>();
+        java.util.Map<java.util.UUID, Double> sweepSeen = new java.util.HashMap<>();
+        java.util.Map<java.util.UUID, Integer> lastMoving = new java.util.HashMap<>();
+        Runnable[] undoGround = new Runnable[1];
+        Vec3[] start = new Vec3[1];
+        scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, FLANK_PLAYER_AT, false, RETREAT_WATCH_TICKS, origin -> {
+            undoGround[0] = widenGround(helper.getLevel(), origin);
+        }, run -> {
+            run.rex.discard();
+            run.cleanups.add(() -> undoGround[0].run());
+            ServerLevel level = helper.getLevel();
+            java.util.Set<java.util.UUID> before = new java.util.HashSet<>();
+            for (Velociraptor existing : level.getEntities(EntityTypeTest.forClass(Velociraptor.class), raptor -> true)) {
+                before.add(existing.getUUID());
+            }
+            int spawned = withMobSpawning(helper, () -> RaptorSpawner.trySpawnPack(level, run.player, closeRing(), level.getRandom()));
+            run.check(spawned >= 3, "test setup: the pack did not spawn (got " + spawned + ")");
+            for (Velociraptor raptor : level.getEntities(EntityTypeTest.forClass(Velociraptor.class), raptor -> true)) {
+                if (!before.contains(raptor.getUUID())) {
+                    packIds.add(raptor.getUUID());
+                    run.cleanups.add(raptor::discard);
+                }
+            }
+        }, run -> {
+            run.player.setHealth(run.player.getMaxHealth());
+            if (start[0] == null) {
+                start[0] = run.player.position();
+            }
+            // Real back-walk pace: 0.065 blocks/tick ~ 1.3 blocks/s, straight line, capped so the test stays
+            // inside the widened ground (the flank circle must hold while backing up, wherever it is).
+            run.player.setPos(start[0].x, start[0].y, start[0].z - Math.min(32.0, 0.065 * run.age()));
+            List<? extends Velociraptor> pack = helper.getLevel().getEntities(EntityTypeTest.forClass(Velociraptor.class),
+                    raptor -> raptor.isAlive() && packIds.contains(raptor.getUUID()));
+            int circling = 0;
+            for (Velociraptor raptor : pack) {
+                if (raptor.flankingThisTick()) {
+                    everFlanked.add(raptor.getUUID());
+                    circling++;
+                }
+            }
+            run.status = "pack=" + pack.size() + " flanking=" + circling + " flankedEver=" + everFlanked.size()
+                    + " backed=" + String.format("%.0f", Math.min(32.0, 0.065 * run.age()));
+            flankProgressVerdict(run, everFlanked, sweepSeen, lastMoving, pack,
+                    expectedFlankers(pack.size()), RETREAT_WATCH_TICKS, "walking backwards broke the flank: ");
+        });
     }
 
     /**
@@ -482,19 +587,11 @@ public final class RexRaptorGameTests {
     private static void raptorPackHoldsTheHuntTogether(GameTestHelper helper) {
         Velociraptor[] trio = new Velociraptor[3];
         Runnable[] undoGround = new Runnable[1];
-        int sightWere = RaptorConfig.SIGHT_RANGE.get().intValue();
-        double flankRadiusWere = RaptorConfig.FLANK_RADIUS_BLOCKS.get();
         scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, FLANK_PLAYER_AT, false, 700, origin -> {
             // The blind pair need floor out to the arena corners (widenGround covers x +-24).
             undoGround[0] = widenGround(helper.getLevel(), origin);
         }, run -> {
             run.cleanups.add(undoGround[0]::run);
-            RaptorConfig.SIGHT_RANGE.set(16.0);
-            // Flanker slots follow UUID order, so the caller might be the one that circles: keep the ring inside
-            // the reduced sight, or a circling caller would go blind and the test would prove the wrong thing.
-            RaptorConfig.FLANK_RADIUS_BLOCKS.set(8.0);
-            run.cleanups.add(() -> RaptorConfig.FLANK_RADIUS_BLOCKS.set(flankRadiusWere));
-            run.cleanups.add(() -> RaptorConfig.SIGHT_RANGE.set((double) sightWere));
             run.rex.discard();
             String packTag = Velociraptor.PACK_TAG_PREFIX + "gametest";
             // The caller is 6 blocks from the player inside the 16-block sight; the pair are 20-29: blind, and
@@ -503,6 +600,10 @@ public final class RexRaptorGameTests {
             trio[1] = spawnRaptor(helper, 180.0F, new Vec3(-20.5, 0, -12.5));
             trio[2] = spawnRaptor(helper, 180.0F, new Vec3(-14.5, 0, -12.5));
             for (Velociraptor raptor : trio) {
+                // Sight 16 (the caller sees the player, the pair don't) and flank ring 8 (keep the ring inside
+                // that sight so a circling caller stays visible) - per-entity so other arenas' flankers, which
+                // run CONCURRENTLY in the same JVM, keep their real 32-block sight and 40-block ring.
+                raptor.debugOverride(8.0, 16.0, null);
                 raptor.addTag(packTag);
                 run.cleanups.add(raptor::discard);
             }
@@ -540,8 +641,10 @@ public final class RexRaptorGameTests {
     private static Runnable widenGround(ServerLevel level, BlockPos origin) {
         net.minecraft.world.level.block.state.BlockState stone = net.minecraft.world.level.block.Blocks.STONE.defaultBlockState();
         net.minecraft.world.level.block.state.BlockState air = net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
-        int back = -RexGameTests.ARENA_BACK - 2;
-        int front = (int) FLANK_PLAYER_AT.z + 24;
+        int back = (int) FLANK_PLAYER_AT.z - 40 - 32 - 8; // ring (40) + retreat walk-back (32) + margin behind
+        int front = (int) FLANK_PLAYER_AT.z + FLANK_GROUND_HALF + 8; // ...and ahead
+        // (These used to be sized for the old radius-20 ring: flankers running the FRONT of the radius-40 ring
+        // ran off the floor's edge, pinned there with a frozen bearing - the "stalled sweep" test flake.)
         for (int chunkX = net.minecraft.core.SectionPos.blockToSectionCoord(origin.getX() - FLANK_GROUND_HALF);
                 chunkX <= net.minecraft.core.SectionPos.blockToSectionCoord(origin.getX() + FLANK_GROUND_HALF); chunkX++) {
             for (int chunkZ = net.minecraft.core.SectionPos.blockToSectionCoord(origin.getZ() + back);
@@ -551,17 +654,31 @@ public final class RexRaptorGameTests {
         }
         for (int x = -FLANK_GROUND_HALF; x <= FLANK_GROUND_HALF; x++) {
             for (int z = back; z <= front; z++) {
-                if (Math.abs(x) <= RexGameTests.ARENA_HALF_WIDTH) {
-                    continue; // the arena already has this floor
+                // Clear anything at walkable height inside the widened rectangle. The flank ring is radius 40
+                // but the rex arena's perimeter walls stand ~24 out and 3 tall, and a flanker on the far side
+                // legitimately loses line of sight through the wall, goes INVESTIGATE, and stalls (verified:
+                // canSee=false at 23 blocks with the pack holding contact). A test quarry shouldn't live in a
+                // fortress — the ring's band gets cleared to air at body height.
+                for (int dy = 0; dy <= 2; dy++) {
+                    var above = level.getBlockState(origin.offset(x, dy, z));
+                    if (!above.isAir()) {
+                        level.setBlock(origin.offset(x, dy, z), air, net.minecraft.world.level.block.Block.UPDATE_CLIENTS);
+                    }
                 }
+                if (Math.abs(x) <= RexGameTests.ARENA_HALF_WIDTH && z >= -RexGameTests.ARENA_BACK && z <= RexGameTests.ARENA_FRONT) {
+                    continue; // the arena template already floors this cell
+                }
+                // (The old test skipped by |x| ALONE: the template floor stops at z=-12, and the radius-40
+                // ring reaches z=-31.5 - a hole behind the quarry that rear flankers fell through. Down there
+                // the floor blocks line of sight, so the stall signature read "visible=false INVESTIGATE".)
                 level.setBlock(origin.offset(x, -1, z), stone, net.minecraft.world.level.block.Block.UPDATE_CLIENTS);
             }
         }
         return () -> {
             for (int x = -FLANK_GROUND_HALF; x <= FLANK_GROUND_HALF; x++) {
                 for (int z = back; z <= front; z++) {
-                    if (Math.abs(x) <= RexGameTests.ARENA_HALF_WIDTH) {
-                        continue;
+                    if (Math.abs(x) <= RexGameTests.ARENA_HALF_WIDTH && z >= -RexGameTests.ARENA_BACK && z <= RexGameTests.ARENA_FRONT) {
+                        continue; // template floor: not ours to remove
                     }
                     level.setBlock(origin.offset(x, -1, z), air, net.minecraft.world.level.block.Block.UPDATE_CLIENTS);
                 }
