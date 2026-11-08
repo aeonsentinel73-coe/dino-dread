@@ -2,6 +2,7 @@ package com.dinodread.entity;
 
 import org.jspecify.annotations.Nullable;
 
+import com.dinodread.DinoDread;
 import com.dinodread.config.RaptorConfig;
 import com.dinodread.entity.ai.HuntState;
 import com.dinodread.entity.ai.RaptorFleeGoal;
@@ -420,6 +421,10 @@ public class Velociraptor extends TRex {
             flankStallTicks = 0;
         }
         if (flankSweep >= sweepLimit) {
+            DinoDread.LOGGER.info("[flankdiag] flank COMPLETED sweep={}deg dist={} raptor={}",
+                    String.format(java.util.Locale.ROOT, "%.0f", Math.toDegrees(flankSweep)),
+                    String.format(java.util.Locale.ROOT, "%.1f", distance),
+                    getName().getString());
             flankCompletedFor = target.getUUID();
             flankStartBearing = Double.NaN;
             flankingNow = false;
@@ -436,6 +441,11 @@ public class Velociraptor extends TRex {
         // running at ~1.4x sprint would hold its boost forever and no player could ever outrun the circle.
         // After a few seconds of no sweep, abandon it: the pack chases straight at chase speed, which IS outrunnable.
         if (flankStallTicks > FLANK_STALL_TICKS) {
+            DinoDread.LOGGER.info("[flankdiag] flank ABANDONED (stall) sweep={}deg stallTicks={} dist={} speed={} raptor={}",
+                    String.format(java.util.Locale.ROOT, "%.0f", Math.toDegrees(flankSweep)), flankStallTicks,
+                    String.format(java.util.Locale.ROOT, "%.1f", distance),
+                    String.format(java.util.Locale.ROOT, "%.2f", getSpeed()),
+                    getName().getString());
             flankCompletedFor = target.getUUID();
             flankStartBearing = Double.NaN;
             flankingNow = false;
