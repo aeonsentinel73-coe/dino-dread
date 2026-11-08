@@ -55,6 +55,7 @@ public final class RaptorConfig {
     public static final ModConfigSpec.DoubleValue JUMP_STRENGTH;
     public static final ModConfigSpec.IntValue SCATTER_FLEE_TICKS;
     public static final ModConfigSpec.DoubleValue FLANK_RADIUS_BLOCKS;
+    public static final ModConfigSpec.DoubleValue FLANK_SWEEP_DEGREES;
     public static final ModConfigSpec.DoubleValue FLANK_SPEED_BOOST;
     public static final ModConfigSpec.DoubleValue FLANK_ARC_DEGREES_PER_SECOND;
 
@@ -91,9 +92,9 @@ public final class RaptorConfig {
                 .gameRestart()
                 .comment("Base movement speed attribute. This version's steering doubles as the forward input (Mob.setSpeed",
                         "sets the walk input too), so ground speed is quadratic: blocks/s = about 43 x (attribute x hunt",
-                        "multiplier 0.8)^2. At 0.45 a raptor chases at about 5.4 blocks/s: faster than a walking player",
-                        "(4.3), a hair under a sprinting one (5.6).")
-                .defineInRange("movementSpeed", 0.45, 0.05, 2.0);
+                        "multiplier 0.8)^2. At 0.43 a raptor chases at about 5.1 blocks/s: faster than a walking player",
+                        "(4.3), just under a sprinting one (5.6).")
+                .defineInRange("movementSpeed", 0.43, 0.05, 2.0);
         KNOCKBACK_RESISTANCE = BUILDER
                 .gameRestart()
                 .comment("1.0 = cannot be knocked back. 0 = a raptor is light enough to shove around.")
@@ -231,8 +232,14 @@ public final class RaptorConfig {
                 .defineInRange("scatterFleeTicks", 300, 0, 24000);
         FLANK_RADIUS_BLOCKS = BUILDER
                 .comment("Radius of the circle a flanking raptor runs around the quarry. One raptor in a pack of three "
-                        + "(two in a pack of four, one on each side) circles while the rest chase straight on.")
-                .defineInRange("flankRadiusBlocks", 6.0, 2.5, 24.0);
+                        + "(two in a pack of four, one on each side) circles while the rest chase straight on. Wide "
+                        + "circles read as a real envelopment; the arc speed self-caps to what the body can run.")
+                .defineInRange("flankRadiusBlocks", 20.0, 2.5, 24.0);
+        FLANK_SWEEP_DEGREES = BUILDER
+                .comment("How far around the quarry a flanker commits before the circle ends and it joins the "
+                        + "head-on chase (the end hook). 720 = run laps until the quarry is lost: the pre-fix behavior, "
+                        + "which just looked like laps.")
+                .defineInRange("flankSweepDegrees", 180.0, 30.0, 720.0);
         FLANK_SPEED_BOOST = BUILDER
                 .comment("Movement multiplier while flanking, on top of the hunt speed. Lost the moment the raptor ",
                         "stops circling (quarry lost, water, flight). Ground speed is quadratic in this multiplier ",

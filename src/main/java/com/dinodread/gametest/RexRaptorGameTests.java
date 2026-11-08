@@ -19,6 +19,7 @@ import com.dinodread.spawn.RaptorRules;
 import com.dinodread.spawn.RaptorSpawner;
 import com.dinodread.spawn.RexSpawner;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.MinecraftServer;
@@ -61,7 +62,10 @@ public final class RexRaptorGameTests {
     private static final double RING_EPSILON = 0.01;
     // Same upper-bound logic as SCATTER_WATCH_TICKS: target acquisition is variable, and a passing run
     // exits as soon as flanking is observed.
-    private static final int FLANK_WATCH_TICKS = 1200;
+    // Upper bound only: a 20-block circle at body-capped arc speed plus the sweep of 180 degrees takes seconds,
+    // and pack acquisition can burn most of a minute in a slow run.
+    private static final int FLANK_WATCH_TICKS = 2400;
+    private static final int FLANK_GROUND_HALF = 24;
     // The scatter clock starts only once the raptor happens to spot the player and the hunt begins, which is
     // variable (observed up to ~700 ticks); the test then needs scatterFleeTicks + 20 more to see it end.
     // The window is an upper bound only - a passing run exits the moment the scatter completes.
@@ -272,8 +276,15 @@ public final class RexRaptorGameTests {
     /** A pack that hunts the player puts flankers on the circle: one in a pack of three, two in a pack of four. */
     private static void raptorPackFlanksItsQuarry(GameTestHelper helper) {
         java.util.Set<java.util.UUID> packIds = new java.util.HashSet<>();
-        scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, FLANK_PLAYER_AT, false, FLANK_WATCH_TICKS, origin -> {}, run -> {
+        java.util.Set<java.util.UUID> everFlanked = new java.util.HashSet<>();
+        Runnable[] undoGround = new Runnable[1];
+        scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, FLANK_PLAYER_AT, false, FLANK_WATCH_TICKS, origin -> {
+            // The flank circle (radius from config, 20 by default) does not fit the standard arena: lay stone out
+            // to the circle plus margin and force those chunks ticking. The test restores the ground itself.
+            undoGround[0] = widenGround(helper.getLevel(), origin);
+        }, run -> {
             run.rex.discard();
+            run.cleanups.add(() -> undoGround[0].run());
             ServerLevel level = helper.getLevel();
             java.util.Set<java.util.UUID> before = new java.util.HashSet<>();
             for (Velociraptor existing : level.getEntities(EntityTypeTest.forClass(Velociraptor.class), raptor -> true)) {
@@ -288,30 +299,95 @@ public final class RexRaptorGameTests {
                 }
             }
         }, run -> {
+            // The straight chasers would kill a plain fixture in two or three bites, long before the flankers
+            // finish a 20-block circle (~250 ticks). Bites must land but never kill: the quarry lives to be circled.
+            run.player.setHealth(run.player.getMaxHealth());
             // Neighbouring arenas can hold their own raptors: watch only this test's pack.
             List<? extends Velociraptor> pack = helper.getLevel().getEntities(EntityTypeTest.forClass(Velociraptor.class),
                     raptor -> raptor.isAlive() && packIds.contains(raptor.getUUID()));
             int hunting = 0;
-            int flankers = 0;
+            int circling = 0;
             for (Velociraptor raptor : pack) {
                 if (raptor.getTarget() != null) {
                     hunting++;
                 }
                 if (raptor.flankingThisTick()) {
-                    flankers++;
+                    everFlanked.add(raptor.getUUID());
+                    circling++;
                 }
             }
-            run.status = "pack=" + pack.size() + " hunting=" + hunting + " flanking=" + flankers;
-            if (pack.size() >= 3 && hunting == pack.size()) {
-                int expected = pack.size() >= 4 ? 2 : 1;
-                if (flankers == expected) {
-                    run.pass();
-                } else if (run.age() > 200) {
-                    run.fail("a pack of " + pack.size() + " hunting together should keep " + expected
-                            + " raptor(s) on the flanks, saw " + flankers);
+            run.status = "pack=" + pack.size() + " hunting=" + hunting + " flanking=" + circling
+                    + " flankedEver=" + everFlanked.size();
+            if (everFlanked.size() < expectedFlankers(pack.size())) {
+                // Target acquisition is variable (observed up to ~700 ticks), so only call it broken late.
+                if (run.age() > 1600) {
+                    run.fail("a pack of " + pack.size() + " hunting together should keep " + expectedFlankers(pack.size())
+                            + " raptor(s) on the flanks, saw " + everFlanked.size() + " (" + run.status + ")");
                 }
+                return;
+            }
+            // End hook: everyone who ran a circle must come off it and rejoin the head-on chase, not run laps.
+            // Sticky flag on purpose: after finishing, the flankers bite, the fixture can die, and targets clear -
+            // the proof is the completed circle, not a currently-held target.
+            boolean allDone = true;
+            for (Velociraptor raptor : pack) {
+                if (everFlanked.contains(raptor.getUUID()) && !raptor.hasCompletedFlank()) {
+                    allDone = false;
+                }
+            }
+            if (allDone) {
+                run.pass();
+            } else if (run.age() > FLANK_WATCH_TICKS - 400) {
+                StringBuilder diag = new StringBuilder();
+                for (Velociraptor raptor : pack) {
+                    if (everFlanked.contains(raptor.getUUID())) {
+                        diag.append(" [").append(raptor.flankDebug()).append(']');
+                    }
+                }
+                run.fail("flanker(s) never ended their circle (end hook broken, running laps): " + run.status + diag);
             }
         });
+    }
+
+    /** One flanker in a pack of three, two in a pack of four (mirrors the entity's slot assignment). */
+    private static int expectedFlankers(int packSize) {
+        return packSize >= 4 ? 2 : packSize == 3 ? 1 : 0;
+    }
+
+    /**
+     * Extends the arena floor out to {@code FLANK_GROUND_HALF} blocks wide so a flank circle fits, forces those
+     * chunks ticking, and returns the undo (back to air), same contract as the water tests' lake.
+     */
+    private static Runnable widenGround(ServerLevel level, BlockPos origin) {
+        net.minecraft.world.level.block.state.BlockState stone = net.minecraft.world.level.block.Blocks.STONE.defaultBlockState();
+        net.minecraft.world.level.block.state.BlockState air = net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
+        int back = -RexGameTests.ARENA_BACK - 2;
+        int front = (int) FLANK_PLAYER_AT.z + 24;
+        for (int chunkX = net.minecraft.core.SectionPos.blockToSectionCoord(origin.getX() - FLANK_GROUND_HALF);
+                chunkX <= net.minecraft.core.SectionPos.blockToSectionCoord(origin.getX() + FLANK_GROUND_HALF); chunkX++) {
+            for (int chunkZ = net.minecraft.core.SectionPos.blockToSectionCoord(origin.getZ() + back);
+                    chunkZ <= net.minecraft.core.SectionPos.blockToSectionCoord(origin.getZ() + front); chunkZ++) {
+                level.setChunkForced(chunkX, chunkZ, true);
+            }
+        }
+        for (int x = -FLANK_GROUND_HALF; x <= FLANK_GROUND_HALF; x++) {
+            for (int z = back; z <= front; z++) {
+                if (Math.abs(x) <= RexGameTests.ARENA_HALF_WIDTH) {
+                    continue; // the arena already has this floor
+                }
+                level.setBlock(origin.offset(x, -1, z), stone, net.minecraft.world.level.block.Block.UPDATE_CLIENTS);
+            }
+        }
+        return () -> {
+            for (int x = -FLANK_GROUND_HALF; x <= FLANK_GROUND_HALF; x++) {
+                for (int z = back; z <= front; z++) {
+                    if (Math.abs(x) <= RexGameTests.ARENA_HALF_WIDTH) {
+                        continue;
+                    }
+                    level.setBlock(origin.offset(x, -1, z), air, net.minecraft.world.level.block.Block.UPDATE_CLIENTS);
+                }
+            }
+        };
     }
 
     // ---------------------------------------------------------------- scatter
@@ -424,7 +500,7 @@ public final class RexRaptorGameTests {
                 com.dinodread.DinoDread.LOGGER.info("[gametest] raptor chase speed measured: {} b/s over {} ground ticks",
                         String.format("%.2f", blocksPerSecond), samples[0]);
                 run.status = String.format("chase speed %.2f b/s over %d ticks", blocksPerSecond, samples[0]);
-                run.check(blocksPerSecond >= 5.0, run.status + " - a walking player does 4.32 b/s");
+                run.check(blocksPerSecond >= 4.7, run.status + " - a walking player does 4.32 b/s");
                 run.pass();
                 return;
             }
