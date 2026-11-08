@@ -8,7 +8,7 @@ Data-driven only (no Java worldgen code). All under `src/main/resources/data/`.
   → 16–30 blocks tall, proper `jungle_foliage_placer` canopy (blob foliage leaves the 2×2
   trunk top exposed; NOTE: 26.3's foliage-placer registry has NO `mega_jungle_foliage_placer` —
   that class is unregistered, and naming it in the JSON is a hard registry-load crash)
-  and a light leave-vine dressing. Placed at `count 0.35` — a giant roughly
+  and a light leave-vine dressing. Placed with `rarity_filter chance 3` — a giant roughly
   every third chunk in every tree biome; the original 1-in-24 rarity was so sparse it read as
   "never worked" (confirmed by live playtest in a standard world).
 - **`dinodread:giant_tree_jungle`** — the same feature at `count 1` (dense), via
@@ -24,6 +24,11 @@ Data-driven only (no Java worldgen code). All under `src/main/resources/data/`.
   (vanilla default is 4–12). Decorators (cocoa, vines) preserved.
 
 ## Gotchas found while building this
+- **26.3 `"minecraft:count"` takes an IntProvider, not a double**: a fractional count like `0.35`
+  silently truncates to 0 attempts — valid JSON, no load error, the feature NEVER runs (walked a
+  fresh world with 14 forest + 10 plains chunks and zero `jungle_log`; the gametest missed it
+  because direct `place()` bypasses the placement chain). Sub-chunk density = `rarity_filter`.
+  Game test `giant_tree_attached_to_tree_biomes` now guards both the chain and the modifier.
 - The biome modifier key is `step` (singular), value `vegetal_decoration`; `steps` fails to parse.
 - `TreeFeature` refuses to place unless the trunk column **and its ±1 neighbours** up to
   `treeHeight - limit` are free — a `rarity_filter`-wrapped `PlacedFeature.place` failing

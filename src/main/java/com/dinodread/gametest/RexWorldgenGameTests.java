@@ -34,6 +34,7 @@ public final class RexWorldgenGameTests {
     static {
         test("giant_tree_feature_places_a_giant_trunk", RexWorldgenGameTests::giantTreePlacesAGiantTrunk);
         test("jungle_tree_override_is_taller_than_vanilla", RexWorldgenGameTests::jungleTreeIsTaller);
+        test("giant_tree_attached_to_tree_biomes", RexWorldgenGameTests::giantTreeAttachedToTreeBiomes);
     }
 
     private RexWorldgenGameTests() {}
@@ -66,6 +67,51 @@ public final class RexWorldgenGameTests {
     /** The mod ships a taller jungle tree: the straight trunk must reach at least 8 logs (vanilla's was 4 at minimum). */
     private static void jungleTreeIsTaller(GameTestHelper helper) {
         placeAndCountLogs(helper, "minecraft:jungle_tree", 8, 8);
+    }
+
+    /**
+     * End-to-end attachment check, which the direct-placement tests cannot cover (placing a feature
+     * programmatically bypasses both the biome modifiers and the placement chain): (1) the biome modifier
+     * must really list the giants in the vegetal decoration of a forest and a jungle, and (2) no CountPlacement
+     * in the chain may sample 0 - in 26.3 "minecraft:count" takes an IntProvider, and a fractional JSON count
+     * (0.35) silently truncates to zero attempts: valid JSON, no error, a feature that never runs
+     * (confirmed: a whole walked world with zero jungle_log across 14 forest + 10 plains chunks).
+     */
+    private static void giantTreeAttachedToTreeBiomes(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        var access = level.registryAccess();
+        var placedReg = access.lookupOrThrow(Registries.PLACED_FEATURE);
+        var biomeReg = access.lookupOrThrow(Registries.BIOME);
+        Identifier baseId = Identifier.parse("dinodread:giant_tree");
+        Identifier jungleId = Identifier.parse("dinodread:giant_tree_jungle");
+
+        PlacedFeature baseFeature = placedReg
+                .getOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, baseId)).value();
+        for (var modifier : baseFeature.placement()) {
+            if (modifier instanceof net.minecraft.world.level.levelgen.placement.CountPlacement counter
+                    && counter.count(RandomSource.create(1L), BlockPos.ZERO) <= 0) {
+                helper.fail("giant_tree placement contains a CountPlacement that samples 0 - it would never run");
+                return;
+            }
+        }
+
+        // 26.3: Biome.getGenerationSettings().features() is a list of HolderSets across steps; presence of the
+        // id anywhere in it proves the biome modifier attached the placed feature to that biome.
+        java.util.function.Predicate<Identifier> attachedTo = biomeId -> biomeReg
+                .getOrThrow(ResourceKey.create(Registries.BIOME, biomeId)).value()
+                .getGenerationSettings().features().stream().flatMap(set -> set.stream())
+                .anyMatch(holder -> holder.unwrapKey().map(k -> k.identifier().equals(baseId)).orElse(false));
+        boolean onForest = attachedTo.test(Identifier.parse("minecraft:forest"));
+        boolean onJungle = biomeReg.getOrThrow(ResourceKey.create(Registries.BIOME, Identifier.parse("minecraft:jungle")))
+                .value().getGenerationSettings().features().stream().flatMap(set -> set.stream())
+                .anyMatch(holder -> holder.unwrapKey().map(k -> k.identifier().equals(jungleId)
+                        || k.identifier().equals(baseId)).orElse(false));
+        if (!onForest || !onJungle) {
+            helper.fail("biome modifiers did not attach the giants: forest_has_base=" + onForest
+                    + " jungle_has_dense=" + onJungle);
+            return;
+        }
+        helper.succeed();
     }
 
     private static void placeAndCountLogs(GameTestHelper helper, String featureId, int trunkDepth, int requiredLogs) {
