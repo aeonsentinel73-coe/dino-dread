@@ -59,8 +59,13 @@ public final class RexRaptorGameTests {
     private static final int IGNORE_WATCH_TICKS = 100;
     private static final double PACK_SPREAD = 6.0;
     private static final double RING_EPSILON = 0.01;
-    private static final int FLANK_WATCH_TICKS = 600;
-    private static final int SCATTER_WATCH_TICKS = 900;
+    // Same upper-bound logic as SCATTER_WATCH_TICKS: target acquisition is variable, and a passing run
+    // exits as soon as flanking is observed.
+    private static final int FLANK_WATCH_TICKS = 1200;
+    // The scatter clock starts only once the raptor happens to spot the player and the hunt begins, which is
+    // variable (observed up to ~700 ticks); the test then needs scatterFleeTicks + 20 more to see it end.
+    // The window is an upper bound only - a passing run exits the moment the scatter completes.
+    private static final int SCATTER_WATCH_TICKS = 2400;
 
     static {
         test("raptor_pack_spawns_together_under_one_tag", RexRaptorGameTests::packSpawnsTogetherUnderOneTag);
