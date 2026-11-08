@@ -134,7 +134,7 @@ public final class RexSpawnGameTests {
 
     /** Rules that let a spawn through in the test arena; each test switches off or changes the one rule it is about. */
     private static SpawnRules baseline() {
-        return new SpawnRules(true, true, 0.5, 0, 1, 1.0, List.of("minecraft:overworld"), List.of(), RING_MIN, RING_MAX, RING_ATTEMPTS, 1, 160.0, 1, true, 128.0, 0, false);
+        return new SpawnRules(true, true, 0.5, 0, 1, 1.0, 0.0, List.of("minecraft:overworld"), List.of(), RING_MIN, RING_MAX, RING_ATTEMPTS, 1, 160.0, 1, true, 128.0, 0, false);
     }
 
     /**

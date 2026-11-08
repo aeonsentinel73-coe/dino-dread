@@ -17,6 +17,7 @@ public final class SpawnConfig {
     public static final ModConfigSpec.IntValue FIRST_SPAWN_DELAY_DAYS;
     public static final ModConfigSpec.IntValue ATTEMPT_INTERVAL_TICKS;
     public static final ModConfigSpec.DoubleValue SPAWN_CHANCE;
+    public static final ModConfigSpec.DoubleValue SUPER_REX_CHANCE;
     public static final ModConfigSpec.ConfigValue<List<? extends String>> ALLOWED_DIMENSIONS;
     public static final ModConfigSpec.ConfigValue<List<? extends String>> ALLOWED_BIOMES;
 
@@ -59,6 +60,9 @@ public final class SpawnConfig {
         SPAWN_CHANCE = BUILDER
                 .comment("Chance that one roll spawns a T-rex, if everything else allows it. This is the main rarity knob: with the defaults a player at night waits about 10 minutes on average. 0 = never, 1 = every roll.")
                 .defineInRange("spawnChance", 0.05, 0.0, 1.0);
+        SUPER_REX_CHANCE = BUILDER
+                .comment("Chance that a natural spawn is a super rex instead of a T-rex (0.05 = one in 20). The super rex is faster on land, slower in water, slightly bigger, and hunts players until it despawns 2 minutes after being seen. Spawn eggs and /summon always give exactly what you ask for.")
+                .defineInRange("superRexChance", 0.05, 0.0, 1.0);
         ALLOWED_DIMENSIONS = BUILDER
                 .comment("Dimensions where natural spawns happen, as dimension ids.")
                 .defineListAllowEmpty("allowedDimensions", List.of("minecraft:overworld"), () -> "minecraft:overworld", element -> element instanceof String);

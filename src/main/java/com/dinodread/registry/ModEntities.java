@@ -2,6 +2,7 @@ package com.dinodread.registry;
 
 import com.dinodread.DinoDread;
 import com.dinodread.config.RexConfig;
+import com.dinodread.entity.SuperRex;
 import com.dinodread.entity.TRex;
 
 import net.minecraft.world.entity.EntityType;
@@ -23,10 +24,18 @@ public final class ModEntities {
             .eyeHeight(RexConfig.EYE_HEIGHT.get().floatValue())
             .clientTrackingRange(TREX_TRACKING_RANGE));
 
+    // Same base hitbox as the T-rex; the super rex's size comes from its own (larger) SCALE attribute.
+    public static final DeferredHolder<EntityType<?>, EntityType<SuperRex>> SUPER_REX = ENTITY_TYPES.registerEntityType(
+        "super_rex", SuperRex::new, MobCategory.MONSTER,
+        builder -> builder.sized(RexConfig.HITBOX_WIDTH.get().floatValue(), RexConfig.HITBOX_HEIGHT.get().floatValue())
+            .eyeHeight(RexConfig.EYE_HEIGHT.get().floatValue())
+            .clientTrackingRange(TREX_TRACKING_RANGE));
+
     private ModEntities() {}
 
     // Mod-bus listener; wired up in DinoDread.
     public static void registerAttributes(EntityAttributeCreationEvent event) {
         event.put(TREX.get(), TRex.createAttributes().build());
+        event.put(SUPER_REX.get(), SuperRex.createAttributes().build());
     }
 }

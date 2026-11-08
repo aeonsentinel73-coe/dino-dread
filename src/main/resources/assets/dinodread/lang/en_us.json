@@ -1,6 +1,8 @@
 {
   "entity.dinodread.trex": "Tyrannosaurus Rex",
   "item.dinodread.trex_spawn_egg": "Tyrannosaurus Rex Spawn Egg",
+  "entity.dinodread.super_rex": "Super Rex",
+  "item.dinodread.super_rex_spawn_egg": "Super Rex Spawn Egg",
 
   "subtitles.dinodread.entity.trex.roar": "Tyrannosaurus Rex roars",
   "subtitles.dinodread.entity.trex.roar_distant": "Distant roar",
@@ -114,6 +116,8 @@
 
   "dinodread.configuration.section.dinodread.spawning.toml": "Dino Dread Spawning",
   "dinodread.configuration.section.dinodread.spawning.toml.title": "Dino Dread Spawning",
+  "dinodread.configuration.section.dinodread.superrex.toml": "Dino Dread Super Rex",
+  "dinodread.configuration.section.dinodread.superrex.toml.title": "Dino Dread Super Rex",
   "dinodread.configuration.spawning": "Natural Spawning",
   "dinodread.configuration.spawnEnabled": "Natural Spawning Enabled",
   "dinodread.configuration.nightOnly": "Night Only",
@@ -121,6 +125,7 @@
   "dinodread.configuration.firstSpawnDelayDays": "First Spawn Delay (days)",
   "dinodread.configuration.attemptIntervalTicks": "Spawn Roll Interval (ticks)",
   "dinodread.configuration.spawnChance": "Spawn Chance per Roll",
+  "dinodread.configuration.superRexChance": "Super Rex Chance per Spawn",
   "dinodread.configuration.allowedDimensions": "Allowed Dimensions",
   "dinodread.configuration.allowedBiomes": "Allowed Biomes",
   "dinodread.configuration.placement": "Placement",
@@ -136,6 +141,8 @@
   "dinodread.configuration.despawnWhenFar": "Despawn When Far From Players",
   "dinodread.configuration.despawnDistance": "Despawn Distance",
   "dinodread.configuration.maxLifetimeTicks": "Longest Stay (ticks)",
+  "dinodread.configuration.despawnAfterSpottedTicks": "Super Rex: Leave After Seen (ticks)",
+  "dinodread.configuration.spottedRange": "Super Rex: Seen Distance",
   "dinodread.configuration.vanillaHostiles": "Other Hostile Mobs",
   "dinodread.configuration.disableVanillaHostiles": "Disable Other Hostile Mobs",
   "dinodread.configuration.vanillaHostileExceptions": "Hostile Mob Exceptions",

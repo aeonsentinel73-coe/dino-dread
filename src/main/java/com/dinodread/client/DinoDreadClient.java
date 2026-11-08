@@ -1,6 +1,7 @@
 package com.dinodread.client;
 
 import com.dinodread.DinoDread;
+import com.dinodread.client.renderer.SuperRexRenderer;
 import com.dinodread.client.renderer.TRexRenderer;
 import com.dinodread.registry.ModEntities;
 
@@ -25,5 +26,6 @@ public class DinoDreadClient {
 
     private static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntities.TREX.get(), TRexRenderer::new);
+        event.registerEntityRenderer(ModEntities.SUPER_REX.get(), SuperRexRenderer::new);
     }
 }
