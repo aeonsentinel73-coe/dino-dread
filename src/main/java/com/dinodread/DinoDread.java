@@ -19,6 +19,7 @@ import com.dinodread.gametest.RexObstacleGameTests;
 import com.dinodread.gametest.RexSpawnGameTests;
 import com.dinodread.gametest.RexTerrainGameTests;
 import com.dinodread.gametest.RexWaterGameTests;
+import com.dinodread.gametest.RexWorldgenGameTests;
 import com.dinodread.registry.ModEntities;
 import com.dinodread.registry.ModItems;
 import com.dinodread.registry.ModSounds;
@@ -49,6 +50,7 @@ public class DinoDread {
         RexTerrainGameTests.register(modEventBus);
         RexSpawnGameTests.register(modEventBus);
         RexWaterGameTests.register(modEventBus);
+        RexWorldgenGameTests.register(modEventBus);
         LOGGER.info("Dino Dread loading");
     }
 }

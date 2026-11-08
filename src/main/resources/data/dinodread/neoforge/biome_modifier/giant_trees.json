@@ -1,0 +1,6 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#dinodread:has_giant_trees",
+  "features": ["dinodread:giant_tree"],
+  "step": "vegetal_decoration"
+}
