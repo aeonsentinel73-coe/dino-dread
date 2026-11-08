@@ -58,6 +58,9 @@ public final class RaptorConfig {
     public static final ModConfigSpec.DoubleValue FLANK_SWEEP_DEGREES;
     public static final ModConfigSpec.DoubleValue FLANK_SPEED_BOOST;
     public static final ModConfigSpec.DoubleValue FLANK_ARC_DEGREES_PER_SECOND;
+    public static final ModConfigSpec.DoubleValue INTERCEPT_SPEED_BOOST;
+    public static final ModConfigSpec.IntValue INTERCEPT_TICKS;
+    public static final ModConfigSpec.DoubleValue INTERCEPT_TURN_DEGREES;
 
     public static final ModConfigSpec.BooleanValue SPAWN_ENABLED;
     public static final ModConfigSpec.BooleanValue NIGHT_ONLY;
@@ -260,6 +263,24 @@ public final class RaptorConfig {
                         "this far around its own bearing (capped by what its legs can actually reach, floored so it never",
                         "sits on the raptor's nose and stalls it). Higher turns tighter-chasing; lower wider, lazier arcs.")
                 .defineInRange("flankArcDegreesPerSecond", 60.0, 10.0, 360.0);
+        INTERCEPT_SPEED_BOOST = BUILDER
+                .comment("Movement multiplier for the post-flank cut-off surge, separate from flankSpeedBoost: the circle",
+                        "stays fast (the sweep must hold its rate) but the surge is tuned to be survivable, not lethal.",
+                        "1.25 puts it ~1.5x a sprint (~8 b/s on the calibrated quadratic law): enough to close on a",
+                        "quarry that keeps running the SAME line (the player's own speed walks them into the meeting",
+                        "point), slow enough that a quarry who reads the surge and turns does not need to outspeed it.")
+                .defineInRange("interceptSpeedBoost", 1.25, 1.0, 4.0);
+        INTERCEPT_TICKS = BUILDER
+                .comment("Length of the post-flank cut-off surge in ticks. A committed few seconds of fast closing after",
+                        "a raptor earns its circle, then it is back to ordinary (outrunnable) chase speed.")
+                .defineInRange("interceptTicks", 60, 10, 400);
+        INTERCEPT_TURN_DEGREES = BUILDER
+                .comment("The dodge: if within the first 0.5 s of the surge the quarry's traveled direction has swung",
+                        "this many degrees from the line it was on when the flank ended, the raptor gives up the cut-off",
+                        "and drops to ordinary chase speed. Run straight and it meets you; change your line and you beat",
+                        "it. 0 disables the dodge (always committed). A quarry standing still at the flank's end cannot",
+                        "dodge by turning - it had no line of travel to change.")
+                .defineInRange("interceptTurnDegrees", 60.0, 0.0, 180.0);
         BUILDER.pop();
 
         BUILDER.push("spawning");

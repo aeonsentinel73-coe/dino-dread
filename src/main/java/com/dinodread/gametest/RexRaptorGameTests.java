@@ -94,6 +94,7 @@ public final class RexRaptorGameTests {
         test("raptor_scatters_without_despawning", RexRaptorGameTests::raptorScattersWithoutDespawning);
         test("raptor_chase_outruns_a_walking_player", RexRaptorGameTests::raptorChaseOutrunsWalkingPlayer);
         test("raptor_intercept_cutoff_catches_a_runner", RexRaptorGameTests::raptorInterceptCutoffCatchesARunner);
+        test("raptor_intercept_turn_breaks_the_cutoff", RexRaptorGameTests::raptorInterceptTurnBreaksTheCutoff);
         test("raptor_climbs_out_of_water", RexRaptorGameTests::raptorClimbsOutOfWater);
         test("trex_ignores_hostile_mobs", RexRaptorGameTests::trexIgnoresHostileMobs);
         test("raptor_defaults_are_small_slow_and_quiet", RexRaptorGameTests::defaultsAreSmallSlowAndQuiet);
@@ -554,6 +555,8 @@ public final class RexRaptorGameTests {
             }
             if (run.age() >= 30) {
                 // The runner flees straight down the corridor at ~5.4 b/s once the hunt is established.
+                // Teleport-driven (mock players zero setDeltaMovement via friction: no client input).
+                run.player.setPos(run.player.getX(), run.player.getY(), run.player.getZ() + 0.27);
                 run.player.setDeltaMovement(0.0, run.player.getDeltaMovement().y, 0.27);
             }
             if (run.age() >= 40 && !surgeArmed[0] && striker[0].getTarget() == run.player) {
@@ -568,9 +571,66 @@ public final class RexRaptorGameTests {
                     + " at60=" + String.format("%.1f", distanceAtStart[0])
                     + " surging=" + striker[0].interceptingThisTick() + " bitten=" + everBitten[0]
                     + " armed=" + surgeArmed[0];
+            if (run.age() == 60) {
+                // Holding the line PAST the dodge window commits the surge: same straight line from the arm means
+                // the turn check never fires and the striker is still surging half a second+ later.
+                run.check(surgeArmed[0] && striker[0].interceptingThisTick(),
+                        "a straight-running quarry lost the surge it should have committed: " + run.status);
+            }
             if (run.age() >= 160) {
                 run.check(surgeArmed[0], "test setup: the striker never took the runner as quarry: " + run.status);
                 run.check(everBitten[0], "the cut-off surge never bit the straight-line runner: " + run.status);
+                run.pass();
+            }
+        });
+    }
+
+    /**
+     * The surge's dodge: the first half-second after the cut-off arms belongs to the quarry. Here the runner
+     * swings 90 degrees off its line the tick after arming - the accumulated traveled direction passes the
+     * 60-degree limit inside the window, the striker gives up the cut-off, and is no longer surging long
+     * before the surge's own expiry (so "not surging" can only mean CANCELLED, not elapsed). The straight
+     * sister test above proves the other half of the rule: hold the line and it stays committed.
+     */
+    private static void raptorInterceptTurnBreaksTheCutoff(GameTestHelper helper) {
+        Velociraptor[] striker = new Velociraptor[1];
+        Runnable[] undoGround = new Runnable[1];
+        int[] armedAt = new int[]{-1};
+        scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, FLANK_PLAYER_AT, false, 200, origin -> {
+            undoGround[0] = widenGround(helper.getLevel(), origin);
+        }, run -> {
+            run.rex.discard();
+            run.cleanups.add(() -> undoGround[0].run());
+            striker[0] = spawnRaptor(helper, 0.0F, new Vec3(12.5, 0, 8.5));
+            run.cleanups.add(striker[0]::discard);
+        }, run -> {
+            run.player.setHealth(run.player.getMaxHealth());
+            // A mock ServerPlayer has no client input, so travel() zeroes its velocity every tick -
+            // setDeltaMovement alone moves NOTHING (the retreat test walks with setPos for the same reason).
+            // Walk by teleport, and mirror the walk into deltaMovement: that is what a real player's velocity
+            // looks like, and it is exactly what the surge's arm snapshot and prediction read.
+            var vel = run.player.getDeltaMovement();
+            if (run.age() >= 30 && armedAt[0] < 0) {
+                // Straight line down the corridor first, so the arm snapshots a real +z travel direction.
+                run.player.setPos(run.player.getX(), run.player.getY(), run.player.getZ() + 0.27);
+                run.player.setDeltaMovement(0.0, vel.y, 0.27);
+                if (striker[0].getTarget() == run.player) {
+                    striker[0].debugIntercept(160);
+                    armedAt[0] = (int) run.age();
+                }
+            } else if (armedAt[0] >= 0) {
+                // The turn: 90 degrees off the +z line the arm saw, held from the tick after arming.
+                run.player.setPos(run.player.getX() + 0.27, run.player.getY(), run.player.getZ());
+                run.player.setDeltaMovement(0.27, vel.y, 0.0);
+            }
+            run.status = "armedAt=" + armedAt[0] + " surging=" + striker[0].interceptingThisTick()
+                    + " gap=" + String.format("%.1f", striker[0].distanceTo(run.player));
+            if (run.age() >= 90) {
+                run.check(armedAt[0] >= 0, "test setup: the striker never took the runner as quarry: " + run.status);
+                // Target must STILL be the runner: "not surging" has to mean CANCELLED, never a lost target
+                // quietly clearing the flag.
+                run.check(striker[0].getTarget() == run.player && !striker[0].interceptingThisTick(),
+                        "the 90-degree turn inside the dodge window did not break the cut-off: " + run.status);
                 run.pass();
             }
         });

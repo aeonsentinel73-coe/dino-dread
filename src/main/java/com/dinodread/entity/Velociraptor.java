@@ -341,6 +341,12 @@ public class Velociraptor extends TRex {
     private int flankStallTicks;
     /** Set when a flank sweep completes: the cut-off surge runs to where the quarry is GOING (see huntDestination). */
     private int interceptUntilTick;
+    /** Surge bookkeeping for the turn dodge: arm tick, quarry position then, and its unit travel direction then. */
+    private int interceptStartTick = -1;
+    private double interceptQuarryStartX;
+    private double interceptQuarryStartZ;
+    private double interceptDirX;
+    private double interceptDirZ;
     /** Set by huntDestination() each tick the goal asks for a destination (before huntSpeedBoost() reads it). */
     private boolean flankingNow;
     private boolean interceptingNow;
@@ -360,12 +366,36 @@ public class Velociraptor extends TRex {
         }
         // The post-flank cut-off: run to where the quarry is going, not where it is (see the flank completion).
         if (tickCount < interceptUntilTick) {
+            // The dodge (live playtest: the surge felt too cruel): the first half-second belongs to the quarry.
+            // Compare the direction it has ACTUALLY traveled since the arm against the line it was on then -
+            // accumulated displacement, not instantaneous velocity, so sprint footstep jitter cannot fake a turn.
+            // Swing interceptTurnDegrees off the old line inside the window and the cut-off is given up: the
+            // raptor drops to ordinary chase speed and a straight runner simply outruns the whole thing.
+            if (interceptStartTick >= 0 && tickCount <= interceptStartTick + INTERCEPT_TURN_WINDOW_TICKS) {
+                double limit = RaptorConfig.INTERCEPT_TURN_DEGREES.get();
+                double movedX = target.getX() - interceptQuarryStartX;
+                double movedZ = target.getZ() - interceptQuarryStartZ;
+                double moved = Math.hypot(movedX, movedZ);
+                if (limit > 0.0 && moved > 0.4) { // ~2 b/s: below that there is no traveled line to compare
+                    double dot = (movedX * interceptDirX + movedZ * interceptDirZ) / moved;
+                    double turn = Math.toDegrees(Math.acos(Mth.clamp(dot, -1.0, 1.0)));
+                    if (turn >= limit) {
+                        DinoDread.LOGGER.info("[flankdiag] INTERCEPT CANCELLED (turn={}deg after={}t) raptor={}",
+                                String.format(java.util.Locale.ROOT, "%.0f", turn), tickCount - interceptStartTick,
+                                getName().getString());
+                        interceptingNow = false;
+                        interceptUntilTick = 0;
+                        interceptStartTick = -1;
+                        return chase;
+                    }
+                }
+            }
             flankingNow = false;
             interceptingNow = true;
             double ddx = getX() - target.getX();
             double ddz = getZ() - target.getZ();
             double gap = Math.hypot(ddx, ddz);
-            double surgeBlocksPerTick = Math.max(0.02, 2.1 * getSpeed() * getSpeed() * RaptorConfig.FLANK_SPEED_BOOST.get());
+            double surgeBlocksPerTick = Math.max(0.02, 2.1 * getSpeed() * getSpeed() * RaptorConfig.INTERCEPT_SPEED_BOOST.get());
             double leadTicks = Mth.clamp(gap / surgeBlocksPerTick, 4.0, 40.0); // flight time of the lunge
             return new Vec3(target.getX() + target.getDeltaMovement().x * leadTicks,
                     target.getY(),
@@ -437,11 +467,12 @@ public class Velociraptor extends TRex {
             flankingNow = false;
             flankSlot = -1;
             // The cut-off surge (live playtest design): a flanker that WORKED its way around commits to closing
-            // the last stretch at flank speed onto where the quarry is GOING, not where it is. Run straight and
-            // it meets you ahead of your own nose and bites - knocking you back into the pack behind it. Change
-            // course and the prediction walks away from you; the surge is a committed five seconds, then it is
-            // back to ordinary chase speed, which a sprint outruns. An abandoned (stalled) flank never surges.
-            interceptUntilTick = tickCount + INTERCEPT_TICKS;
+            // the last stretch onto where the quarry is GOING, not where it is. Run straight and it meets you
+            // ahead of your own nose and bites - knocking you back into the pack behind it. Dodge it by SWINGING
+            // your line of travel ~60 degrees within half a second of the circle ending (see huntDestination):
+            // the surge is only committed once you have held the same line for that long. An abandoned
+            // (stalled) flank never surges.
+            beginIntercept(target);
             return chase;
         }
         // Escape valve (live playtest): a quarry sprinting straight away barely changes bearing, so a flanker
@@ -504,12 +535,31 @@ public class Velociraptor extends TRex {
     private static final int FLANK_STALL_TICKS = 100;
     /** A flanked quarry stays "already circled" this long before the same raptor may try it again (15 s). */
     private static final int FLANK_REOPEN_TICKS = 300;
-    /** Length of the post-flank cut-off surge (5 seconds of committed closing at flank speed). */
-    private static final int INTERCEPT_TICKS = 100;
+    /** Half a second: how long the surge stays dodgeable by a 60-degree swing of the quarry's line (see config). */
+    private static final int INTERCEPT_TURN_WINDOW_TICKS = 10;
+
+    /** Arm the post-flank cut-off surge and snapshot the quarry's line of travel for the turn dodge. */
+    private void beginIntercept(LivingEntity quarry) {
+        interceptUntilTick = tickCount + RaptorConfig.INTERCEPT_TICKS.get();
+        double vx = quarry.getDeltaMovement().x;
+        double vz = quarry.getDeltaMovement().z;
+        double v = Math.hypot(vx, vz);
+        if (v > 0.01) { // ~0.2 b/t: an actual line of travel; a standing quarry has no line to change, no dodge
+            interceptStartTick = tickCount;
+            interceptQuarryStartX = quarry.getX();
+            interceptQuarryStartZ = quarry.getZ();
+            interceptDirX = vx / v;
+            interceptDirZ = vz / v;
+        } else {
+            interceptStartTick = -1;
+        }
+    }
 
     @Override
     public double huntSpeedBoost() {
-        return flankingNow || interceptingNow ? RaptorConfig.FLANK_SPEED_BOOST.get() : 1.0;
+        return flankingNow ? RaptorConfig.FLANK_SPEED_BOOST.get()
+                : interceptingNow ? RaptorConfig.INTERCEPT_SPEED_BOOST.get()
+                : 1.0;
     }
 
     /** True while this raptor is running its circle: read by tests and debugging. */
@@ -524,7 +574,14 @@ public class Velociraptor extends TRex {
 
     /** Game-test hook: start the cut-off surge directly (flank completion is stochastic; this is not). */
     public void debugIntercept(int ticks) {
-        interceptUntilTick = tickCount + ticks;
+        LivingEntity quarry = getTarget();
+        if (quarry == null) {
+            interceptUntilTick = tickCount + ticks;
+            interceptStartTick = -1;
+            return;
+        }
+        beginIntercept(quarry);
+        interceptUntilTick = tickCount + ticks; // the test owns the length, not the config
     }
 
     /** True once this raptor has completed its circle against the current quarry and rejoined the straight chase. */
