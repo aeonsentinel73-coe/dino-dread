@@ -18,9 +18,13 @@ import com.geckolib.animation.AnimationController;
 import com.geckolib.animation.RawAnimation;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.protocol.game.ClientboundStopSoundPacket;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
@@ -659,6 +663,40 @@ public class Velociraptor extends TRex {
     // roles counted from one raptor's box, so a tighter radius dropped far packmates from the count and
     // silently un-flanked them mid-hunt (live playtest, backing away from a four-pack)
 
+    /**
+     * One radius for the whole pack: quarry sharing, contact-age sharing, and flank-role counting all use it.
+     * It used to be earshot (32 blocks at full activity) for the sharing - inconsistent with the roles, and
+     * worse, SMALLER than the 40-block flank ring, so a flanker working its circle could drift out of the
+     * whisper network, lose the shared contact age, and start its own 12 s give-up clock: "one or two of the
+     * pack would lose me a little bit after the start" (live playtest). Cohesion is formation geometry, so it
+     * does not scale with activity either - a stretched daytime pack still shares one hunt.
+     */
+    private static double packCoordinationRadius() {
+        return FLANK_PACK_RADIUS;
+    }
+
+    @Override
+    public void die(DamageSource source) {
+        super.die(source);
+        if (!level().isClientSide()) {
+            // The run scrape is one 4.3 s sample re-scheduled every 4.25 s, and a broadcast sound cannot be
+            // recalled - raptors dying mid-sample left claw noise hanging over the bodies for a second or two
+            // (all three lost in a lava pool at once, live playtest). Tell everyone who could hear it to stop
+            // that sound now; a packmate still chasing re-schedules the scrape within the period, so the worst
+            // cost of the stop is one quiet beat of the chase.
+            var runSound = stepSound().getId();
+            if (runSound != null) {
+                // Per-player stop packet: ServerLevel.stopSound is gone in 26.3, and the sound plays under
+                // HOSTILE - Monster.getSoundSource() - since the old MOBS category split into HOSTILE/NEUTRAL;
+                // stopping the wrong category would be a silent no-op.
+                for (ServerPlayer listener : level().getEntitiesOfClass(ServerPlayer.class,
+                        getBoundingBox().inflate(32.0))) {
+                    listener.connection.send(new ClientboundStopSoundPacket(runSound, SoundSource.HOSTILE));
+                }
+            }
+        }
+    }
+
     // ---- Scatter: losing the quarry sends a raptor running for a while, without the pack-death despawn. ----
 
     // Same absolute-game-time clock as the pack-death flee (a not-ticking entity still ends on schedule via the sweep).
@@ -780,8 +818,8 @@ public class Velociraptor extends TRex {
         if (tag == null) {
             return; // a spawn-egg raptor is its own pack of one: nobody to hear
         }
-        // Within earshot (the raptors coordinate by calls, so the range is their hearing, scaled by activity).
-        double radius = Math.max(RaptorConfig.HEARING_RADIUS.get(), 4.0) * Math.max(0.25, activity());
+        // Inside the pack cohesion radius (calls carry the hunt across the whole formation, not just earshot).
+        double radius = packCoordinationRadius();
         LivingEntity myQuarry = getTarget();
         Velociraptor freshest = null;
         int freshestAge = Integer.MAX_VALUE;
@@ -817,7 +855,7 @@ public class Velociraptor extends TRex {
         if (tag == null) {
             return false;
         }
-        double radius = Math.max(RaptorConfig.HEARING_RADIUS.get(), 4.0) * Math.max(0.25, activity());
+        double radius = packCoordinationRadius();
         return !level.getEntitiesOfClass(Velociraptor.class,
                 getBoundingBox().inflate(radius),
                 other -> other != this && other.isAlive() && tag.equals(other.packTag())

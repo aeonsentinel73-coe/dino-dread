@@ -9,7 +9,9 @@ mover, voice) on its own numbers. Everything raptor-specific lives in `config/di
   Each pack shares a scoreboard tag (`dinodread_pack_<uuid>`); a pack that cannot fit `packMinSize` bodies fails as a whole.
 - **Hunts players and hostile mobs** (zombies, skeletons, ...). Named, leashed and tamed mobs are never targeted.
 - **The pack hunts as one**: a raptor that has neither seen nor heard the quarry follows the pack-mate that has
-  (a call within earshot, `hearingRadius`, re-checked every half second), and while any member still perceives
+  (a call inside the 72-block pack cohesion radius - the same radius that counts flank roles, NOT the 32-block
+  earshot, so a flanker working the radius-40 ring never falls off the network; re-checked every half second),
+  and while any member still perceives
   the quarry nobody's give-up clock runs out alone - the pack gives up together or not at all. Without this each
   raptor needed its own first contact, packs straggled, and a sprinting player watched them peel away one by
   one; half-hunting packs were also too small to ever flank.
@@ -36,6 +38,9 @@ mover, voice) on its own numbers. Everything raptor-specific lives in `config/di
 - Sounds (`sounds/entity/raptor/`, sources in `art/sounds/`): the two hunting cries play when a raptor starts hunting
   (`entity.velociraptor.roar`), and the running-gait loop plays while it sprints (`entity.velociraptor.run`, restarted
   ~4.25 s apart, silent in water and at a walk). No distant call. Still a placeholder: the bite (`cry2` at pitch 1.5).
+  A raptor that dies mid-sample sends nearby players a stop-sound for its run scrape - the sample is 4.3 s long and
+  a broadcast sound cannot be recalled, so dead raptors used to leave claw noise hanging over them for a second
+  or two (lava-pool playtest).
   The spawn-egg icon is the rex egg's shape in brown.
 
 ## Tuning (config/dinodread-raptors.toml)

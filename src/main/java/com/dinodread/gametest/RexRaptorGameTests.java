@@ -92,6 +92,7 @@ public final class RexRaptorGameTests {
         test("raptor_flank_gives_up_when_pinned_terrain_beats_it", RexRaptorGameTests::raptorFlankGivesUpWhenPinnedTerrainBeatsIt);
         test("raptor_pack_shares_the_hunt", RexRaptorGameTests::raptorPackSharesTheHunt);
         test("raptor_pack_holds_the_hunt_together", RexRaptorGameTests::raptorPackHoldsTheHuntTogether);
+        test("raptor_pack_holds_hunt_across_a_stretched_pack", RexRaptorGameTests::raptorPackHoldsHuntAcrossStretchedPack);
         test("raptor_scatters_without_despawning", RexRaptorGameTests::raptorScattersWithoutDespawning);
         test("raptor_chase_outruns_a_walking_player", RexRaptorGameTests::raptorChaseOutrunsWalkingPlayer);
         test("raptor_intercept_cutoff_catches_a_runner", RexRaptorGameTests::raptorInterceptCutoffCatchesARunner);
@@ -761,6 +762,57 @@ public final class RexRaptorGameTests {
                 run.fail("the pack must hold the hunt while ANY member perceives the quarry: " + run.status);
             }
             if (run.age() >= 500 && hunting == trio.length && !scattered) {
+                run.pass();
+            }
+        });
+    }
+
+    /**
+     * The stragglers of a stretched pack: the same fixture as the holds-the-hunt test, but the blind pair sit
+     * 36-39 blocks from the caller - OUTSIDE the old 32-block earshot that used to gate the whisper network,
+     * inside the 72-block cohesion radius. A formation stretched by hills or a retreat, which is exactly how a
+     * live pack runs: "one or two of the pack would lose me a little bit after the start" (live playtest).
+     * They must be conscripted by the pack anyway and hold the hunt past the 12 s give-up clock. Pre-hardening
+     * this failed: the pair never heard the hunt at all, wandered blind, and the caller held the player alone.
+     */
+    private static void raptorPackHoldsHuntAcrossStretchedPack(GameTestHelper helper) {
+        Velociraptor[] trio = new Velociraptor[3];
+        Runnable[] undoGround = new Runnable[1];
+        scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, FLANK_PLAYER_AT, false, 700, origin -> {
+            undoGround[0] = widenGround(helper.getLevel(), origin);
+        }, run -> {
+            run.cleanups.add(undoGround[0]::run);
+            run.rex.discard();
+            String packTag = Velociraptor.PACK_TAG_PREFIX + "gametest_stretched";
+            // The caller is 6 blocks from the player inside the 16-block sight; the pair are 33-44 from the
+            // player (blind) and 36-39 from every packmate who holds the quarry (past the old earshot).
+            trio[0] = spawnRaptor(helper, 0.0F, new Vec3(0.5, 0, 2.5));
+            trio[1] = spawnRaptor(helper, 180.0F, new Vec3(-20.5, 0, -30.5));
+            trio[2] = spawnRaptor(helper, 180.0F, new Vec3(-14.5, 0, -30.5));
+            for (Velociraptor raptor : trio) {
+                raptor.debugOverride(8.0, 16.0, null);
+                raptor.addTag(packTag);
+                run.cleanups.add(raptor::discard);
+            }
+        }, run -> {
+            run.player.setHealth(run.player.getMaxHealth());
+            int hunting = 0;
+            StringBuilder diag = new StringBuilder();
+            for (int i = 0; i < trio.length; i++) {
+                if (trio[i] == null) {
+                    continue;
+                }
+                if (trio[i].getTarget() == run.player) {
+                    hunting++;
+                }
+                diag.append(" r").append(i).append(trio[i].getTarget() == null ? ":-" : ":+")
+                        .append(String.format("%.0f", trio[i].distanceTo(run.player)));
+            }
+            run.status = "hunting=" + hunting + "/3" + diag;
+            if (run.age() > 300 && hunting < trio.length) {
+                run.fail("a pack stretched past earshot must still share one hunt: " + run.status);
+            }
+            if (run.age() >= 500 && hunting == trio.length) {
                 run.pass();
             }
         });
