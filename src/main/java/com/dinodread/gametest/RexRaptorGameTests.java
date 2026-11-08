@@ -87,6 +87,7 @@ public final class RexRaptorGameTests {
         test("raptor_pack_holds_the_hunt_together", RexRaptorGameTests::raptorPackHoldsTheHuntTogether);
         test("raptor_scatters_without_despawning", RexRaptorGameTests::raptorScattersWithoutDespawning);
         test("raptor_chase_outruns_a_walking_player", RexRaptorGameTests::raptorChaseOutrunsWalkingPlayer);
+        test("raptor_intercept_cutoff_catches_a_runner", RexRaptorGameTests::raptorInterceptCutoffCatchesARunner);
         test("raptor_climbs_out_of_water", RexRaptorGameTests::raptorClimbsOutOfWater);
         test("trex_ignores_hostile_mobs", RexRaptorGameTests::trexIgnoresHostileMobs);
         test("raptor_defaults_are_small_slow_and_quiet", RexRaptorGameTests::defaultsAreSmallSlowAndQuiet);
@@ -412,6 +413,65 @@ public final class RexRaptorGameTests {
     private static final int SHARE_WATCH_TICKS = 1200;
 
     /**
+     * The post-flank cut-off surge: a flanker that finishes its circle closes on where the quarry is GOING at
+     * flank speed, so running in a straight line gets you met ahead of your own nose. Live playtest design: the
+     * front bite should knock the player back INTO the pack. This drives the surge directly (flank completion
+     * is stochastic), with the quarry fleeing at 5.4 b/s - an ordinary chase (5.4) never closes that gap, the
+     * surge (7.9) must close it and bite.
+     */
+    private static void raptorInterceptCutoffCatchesARunner(GameTestHelper helper) {
+        Velociraptor[] striker = new Velociraptor[1];
+        Runnable[] undoGround = new Runnable[1];
+        double[] distanceAtStart = new double[]{-1};
+        boolean[] everBitten = new boolean[]{false};
+        boolean[] surgeArmed = new boolean[]{false};
+        scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, FLANK_PLAYER_AT, false, 400, origin -> {
+            // The runner needs a corridor to the arena front and past it (widenGround stops at z = player + 24).
+            undoGround[0] = widenGround(helper.getLevel(), origin);
+            net.minecraft.world.level.block.state.BlockState stone = net.minecraft.world.level.block.Blocks.STONE.defaultBlockState();
+            for (int x = -2; x <= 3; x++) {
+                for (int z = 25; z <= 44; z++) {
+                    helper.getLevel().setBlock(origin.offset(x, -1, z), stone, net.minecraft.world.level.block.Block.UPDATE_CLIENTS);
+                }
+            }
+            helper.getLevel().setChunkForced(net.minecraft.core.SectionPos.blockToSectionCoord(origin.getX()),
+                    net.minecraft.core.SectionPos.blockToSectionCoord(origin.getZ() + 44), true);
+        }, run -> {
+            run.rex.discard();
+            run.cleanups.add(() -> undoGround[0].run());
+            // The striker waits 12 blocks off the runner's line, facing down the corridor.
+            striker[0] = spawnRaptor(helper, 0.0F, new Vec3(12.5, 0, 8.5));
+            run.cleanups.add(striker[0]::discard);
+        }, run -> {
+            run.player.setHealth(run.player.getMaxHealth());
+            if (run.player.hurtTime > 0) {
+                everBitten[0] = true;
+            }
+            if (run.age() >= 30) {
+                // The runner flees straight down the corridor at ~5.4 b/s once the hunt is established.
+                run.player.setDeltaMovement(0.0, run.player.getDeltaMovement().y, 0.27);
+            }
+            if (run.age() >= 40 && !surgeArmed[0] && striker[0].getTarget() == run.player) {
+                // Arm once the hunt is real (acquisition is stochastic; a fixed tick could outrun it).
+                striker[0].debugIntercept(120);
+                surgeArmed[0] = true;
+            }
+            if (run.age() == 60) {
+                distanceAtStart[0] = striker[0].distanceTo(run.player);
+            }
+            run.status = "gap=" + String.format("%.1f", striker[0].distanceTo(run.player))
+                    + " at60=" + String.format("%.1f", distanceAtStart[0])
+                    + " surging=" + striker[0].interceptingThisTick() + " bitten=" + everBitten[0]
+                    + " armed=" + surgeArmed[0];
+            if (run.age() >= 160) {
+                run.check(surgeArmed[0], "test setup: the striker never took the runner as quarry: " + run.status);
+                run.check(everBitten[0], "the cut-off surge never bit the straight-line runner: " + run.status);
+                run.pass();
+            }
+        });
+    }
+
+    /**
      * The pack holds the hunt together: a raptor that can no longer perceive the quarry stays on it while a
      * pack-mate can. Live playtest: a sprinting player watched the pack peel away one raptor at a time - the
      * give-up clocks were individual, so every straggler that fell out of sight and hearing scattered on its
@@ -620,6 +680,7 @@ public final class RexRaptorGameTests {
                         String.format("%.2f", blocksPerSecond), samples[0]);
                 run.status = String.format("chase speed %.2f b/s over %d ticks", blocksPerSecond, samples[0]);
                 run.check(blocksPerSecond >= 4.7, run.status + " - a walking player does 4.32 b/s");
+                run.check(blocksPerSecond <= 5.61, run.status + " - the chase must stay under a sprinting player (5.61 b/s)");
                 run.pass();
                 return;
             }

@@ -12,7 +12,7 @@ something in.
 |---|---|
 | Tyrannosaurus Rex | Stalk → charge → bite hunt, block breaking, sound- and scent-driven tracking |
 | Super Rex | 1-in-20 rex variant: faster, larger, recoloured; timed hunt, gives up after 90 s of losing you |
-| Velociraptor pack | Spawns in packs of 3–4; the pack hunts as one (one sighting rallies every member in earshot); flankers circle the quarry; pack routs and despawns when one dies; scatters briefly when it loses sight of prey |
+| Velociraptor pack | Spawns in packs of 3–4; the pack hunts as one (one sighting rallies every member in earshot); flankers circle the quarry and cut off the runner's line; pack routs and despawns when one dies; scatters briefly when it loses sight of prey |
 
 Worldgen: mega-jungle-trunk "giant trees" in every forest/jungle/taiga/savanna biome (plus
 swamps, cherry grove, meadow) and taller vanilla jungle trees. See `Docs/GIANT-TREES.md`.

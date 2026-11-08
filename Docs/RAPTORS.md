@@ -17,6 +17,9 @@ mover, voice) on its own numbers. Everything raptor-specific lives in `config/di
   with the same tag starts fleeing from the nearest player for `fleeTicks` (default 30 s) and despawns when the
   flee ends. Spawn-egg / `/summon` raptors flee (loosely, with nearby untagged ones) but never despawn.
 - **No charge.** The hunt goal's CHARGE state is gated off for raptors (`canCharge()`); they walk their target down.
+- **The cut-off.** A raptor that finishes its flank circle surges at flank speed onto where you are GOING, not
+  where you are: hold a straight line and it meets you ahead of your own nose and bites - knocking you back
+  into the pack behind it. Turn and the prediction misses; the surge is a committed 5 s, then it chases straight.
 - **Terrible swimmers**: swim speed 0.5 (the T-rex is 8) and no submerged swim depth, so they float at the surface
   and any boat or swimming player outruns them. Water is safety from a pack.
 - **No ground shake.** The client camera shake listens for the `entity.trex.step`/`entity.trex.roar` sound ids;
@@ -41,13 +44,13 @@ mover, voice) on its own numbers. Everything raptor-specific lives in `config/di
 |---|---|---|
 | `maxHealth` | 24 | 4 iron-sword swings |
 | `attackDamage` | 10 | raw, before armor: full iron takes 6.0 per bite, unarmored 10 |
-| `movementSpeed` | 0.43 | this version's ground speed is quadratic: about 43 x (0.43 x 0.8 hunt)^2 = 5.1 blocks/s — faster than walking (4.3), just under sprinting (5.6) |
+| `movementSpeed` | 0.443 | this version's ground speed is quadratic: about 43 x (0.443 x 0.8 hunt)^2 = 5.4 blocks/s — faster than walking (4.3), just under sprinting (5.6) |
 | `scale` | 0.6 | Peridot Scout is 2.9 blocks tall at scale 1, so this matches the 3.8-block hitbox (~1.7-2.3 tall) |
 | `jumpStrength` | 0.3 | the raptor's stuck-hop height (the rex mover's 0.9, sized for its 3x body, made raptors grasshoppers in live play) |
 | `swimSpeedMultiplier` | 1.0 | slow in water but can reach the bank; a boat still wins |
 | `waterExitHeight` | 3.0 | highest bank it hauls itself onto from the water, like the T-rex |
 | `flankRadiusBlocks` / `flankSpeedBoost` | 20 / 1.25 | a flanker moves ~1.4x a sprinting player while circling (speed is quadratic in the boost); the waypoint rides a body-reachable lead ahead on the circle, so it runs the arc instead of spinning after it |
-| `flankSweepDegrees` | 180 | end hook: how far around the quarry a flanker commits before it quits the circle and joins the head-on chase (720 = laps until lost). Progress counts the BODY's bearing - a stalled circle (quarry sprinting away) is abandoned after ~5 s so a sprint can always outrun the pack |
+| `flankSweepDegrees` | 180 | end hook: how far around the quarry a flanker commits (progress counts the BODY's bearing). At the sweep it cuts off: a 5 s surge at flank speed onto where the quarry is GOING - a straight line gets met head-on and bitten. A stalled circle (quarry sprinting away) is abandoned after ~5 s and never surges; after the surge the ordinary chase is outrunnable (720 = laps until lost) |
 | `sightRange` / `hearingRadius` | 32 | half the T-rex's |
 | `huntHostileMobs` | true | off = players only |
 | `packMinSize` / `packMaxSize` | 3 / 4 | natural pack size |

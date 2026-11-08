@@ -336,17 +336,35 @@ public class Velociraptor extends TRex {
     private double flankSweep;
     /** Ticks without meaningful sweep: the quarry is outrunning the circle, so give the circle up (escape valve). */
     private int flankStallTicks;
+    /** Set when a flank sweep completes: the cut-off surge runs to where the quarry is GOING (see huntDestination). */
+    private int interceptUntilTick;
     /** Set by huntDestination() each tick the goal asks for a destination (before huntSpeedBoost() reads it). */
     private boolean flankingNow;
+    private boolean interceptingNow;
 
     @Override
     public Vec3 huntDestination(Vec3 chase, boolean visible) {
         LivingEntity target = getTarget();
         if (!visible || target == null || isInWater() || isFleeing() || isScattering()) {
             flankingNow = false;
+            interceptingNow = false;
             flankSlot = -2;
             return chase; // note: sweep progress deliberately survives a blink
         }
+        // The post-flank cut-off: run to where the quarry is going, not where it is (see the flank completion).
+        if (tickCount < interceptUntilTick) {
+            flankingNow = false;
+            interceptingNow = true;
+            double ddx = getX() - target.getX();
+            double ddz = getZ() - target.getZ();
+            double gap = Math.hypot(ddx, ddz);
+            double surgeBlocksPerTick = Math.max(0.02, 2.1 * getSpeed() * getSpeed() * RaptorConfig.FLANK_SPEED_BOOST.get());
+            double leadTicks = Mth.clamp(gap / surgeBlocksPerTick, 4.0, 40.0); // flight time of the lunge
+            return new Vec3(target.getX() + target.getDeltaMovement().x * leadTicks,
+                    target.getY(),
+                    target.getZ() + target.getDeltaMovement().z * leadTicks);
+        }
+        interceptingNow = false;
         if (flankSlot == -2 || !target.getUUID().equals(flankEvaluatedFor)) {
             boolean sameQuarry = target.getUUID().equals(flankEvaluatedFor);
             flankEvaluatedFor = target.getUUID();
@@ -406,6 +424,12 @@ public class Velociraptor extends TRex {
             flankStartBearing = Double.NaN;
             flankingNow = false;
             flankSlot = -1;
+            // The cut-off surge (live playtest design): a flanker that WORKED its way around commits to closing
+            // the last stretch at flank speed onto where the quarry is GOING, not where it is. Run straight and
+            // it meets you ahead of your own nose and bites - knocking you back into the pack behind it. Change
+            // course and the prediction walks away from you; the surge is a committed five seconds, then it is
+            // back to ordinary chase speed, which a sprint outruns. An abandoned (stalled) flank never surges.
+            interceptUntilTick = tickCount + INTERCEPT_TICKS;
             return chase;
         }
         // Escape valve (live playtest): a quarry sprinting straight away barely changes bearing, so a flanker
@@ -435,15 +459,27 @@ public class Velociraptor extends TRex {
 
     /** Ticks of negligible bearing progress before a flanker quits its circle and chases straight (5 seconds). */
     private static final int FLANK_STALL_TICKS = 100;
+    /** Length of the post-flank cut-off surge (5 seconds of committed closing at flank speed). */
+    private static final int INTERCEPT_TICKS = 100;
 
     @Override
     public double huntSpeedBoost() {
-        return flankingNow ? RaptorConfig.FLANK_SPEED_BOOST.get() : 1.0;
+        return flankingNow || interceptingNow ? RaptorConfig.FLANK_SPEED_BOOST.get() : 1.0;
     }
 
     /** True while this raptor is running its circle: read by tests and debugging. */
     public boolean flankingThisTick() {
         return flankingNow;
+    }
+
+    /** True while this raptor is surging to cut off the quarry's line of travel after a finished flank. */
+    public boolean interceptingThisTick() {
+        return interceptingNow;
+    }
+
+    /** Game-test hook: start the cut-off surge directly (flank completion is stochastic; this is not). */
+    public void debugIntercept(int ticks) {
+        interceptUntilTick = tickCount + ticks;
     }
 
     /** True once this raptor has completed its circle against the current quarry and rejoined the straight chase. */
@@ -498,6 +534,7 @@ public class Velociraptor extends TRex {
         // A completed (or abandoned) circle belongs to the hunt that ran it. When that hunt ends, the next one
         // starts fresh: a player who outran a flank once must be flankable again on the next encounter.
         flankCompletedFor = null;
+        interceptUntilTick = 0;
         // A pack-death flight already owns the running state; mid-swim goal churn (the float goal) is not losing quarry.
         if (isFleeing() || isInWater() || !(level() instanceof ServerLevel level)) {
             return;
