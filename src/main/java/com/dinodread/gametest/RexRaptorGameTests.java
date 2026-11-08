@@ -89,6 +89,7 @@ public final class RexRaptorGameTests {
         test("raptor_hunts_a_zombie_and_never_charges", RexRaptorGameTests::raptorHuntsZombieAndNeverCharges);
         test("raptor_pack_flanks_its_quarry", RexRaptorGameTests::raptorPackFlanksItsQuarry);
         test("raptor_flank_survives_slow_retreat", RexRaptorGameTests::raptorFlankSurvivesSlowRetreat);
+        test("raptor_flank_gives_up_when_pinned_terrain_beats_it", RexRaptorGameTests::raptorFlankGivesUpWhenPinnedTerrainBeatsIt);
         test("raptor_pack_shares_the_hunt", RexRaptorGameTests::raptorPackSharesTheHunt);
         test("raptor_pack_holds_the_hunt_together", RexRaptorGameTests::raptorPackHoldsTheHuntTogether);
         test("raptor_scatters_without_despawning", RexRaptorGameTests::raptorScattersWithoutDespawning);
@@ -632,6 +633,77 @@ public final class RexRaptorGameTests {
                 run.check(striker[0].getTarget() == run.player && !striker[0].interceptingThisTick(),
                         "the 90-degree turn inside the dodge window did not break the cut-off: " + run.status);
                 run.pass();
+            }
+        });
+    }
+
+    /**
+     * The hills valve (live playtest, hilly worlds): a flanker the pathfinder cannot keep on the ring used to
+     * haunt the quarry forever - the stall valve is ring-gated, so a raptor flung off-ring by cliffs, ridges
+     * or washouts never counted stall, never completed, never abandoned (two hilly worlds: zero flankdiag
+     * lines while the user watched circles evaporate). Here the whole pack is PINNED mid-hunt - bodies frozen,
+     * bearings frozen, sweep can never earn a degree - so the 20 s unproductive ceiling is the only exit.
+     * Every raptor that ever started a circle must give it up (done, no longer circling) while STILL hunting:
+     * the circle ends and the ordinary chase takes over, instead of the silent periphery-haunting of before.
+     */
+    private static void raptorFlankGivesUpWhenPinnedTerrainBeatsIt(GameTestHelper helper) {
+        java.util.Set<java.util.UUID> everFlanked = new java.util.HashSet<>();
+        java.util.Set<java.util.UUID> packIds = new java.util.HashSet<>();
+        java.util.Map<java.util.UUID, org.joml.Vector3d> pinned = new java.util.HashMap<>();
+        Runnable[] undoGround = new Runnable[1];
+        scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, FLANK_PLAYER_AT, false, 1200, origin -> {
+            undoGround[0] = widenGround(helper.getLevel(), origin);
+        }, run -> {
+            run.rex.discard();
+            run.cleanups.add(() -> undoGround[0].run());
+            int spawned = withMobSpawning(helper, () -> RaptorSpawner.trySpawnPack(helper.getLevel(), run.player, closeRing(), helper.getLevel().getRandom()));
+            run.check(spawned >= 3, "test setup: the pack did not spawn (got " + spawned + ")");
+            for (Velociraptor raptor : helper.getLevel().getEntities(EntityTypeTest.forClass(Velociraptor.class), r -> true)) {
+                if (raptor.isAlive()) {
+                    packIds.add(raptor.getUUID());
+                    run.cleanups.add(raptor::discard);
+                }
+            }
+        }, run -> {
+            run.player.setHealth(run.player.getMaxHealth());
+            List<? extends Velociraptor> pack = helper.getLevel().getEntities(EntityTypeTest.forClass(Velociraptor.class),
+                    raptor -> raptor.isAlive() && packIds.contains(raptor.getUUID()));
+            if (run.age() >= 30) {
+                // Freeze every body from tick 30 on: bearings cannot move, so no circle can EVER earn a
+                // degree - the only way out is the unproductive ceiling (400 ticks + slack below).
+                for (Velociraptor raptor : pack) {
+                    org.joml.Vector3d at = pinned.computeIfAbsent(raptor.getUUID(),
+                            id -> new org.joml.Vector3d(raptor.getX(), raptor.getY(), raptor.getZ()));
+                    raptor.setPos(at.x, at.y, at.z);
+                    raptor.setDeltaMovement(0.0, 0.0, 0.0);
+                }
+            }
+            boolean anyFlanked = false;
+            boolean allGaveUp = true;
+            int hunting = 0;
+            for (Velociraptor raptor : pack) {
+                if (raptor.getTarget() != null) {
+                    hunting++;
+                }
+                if (raptor.flankingThisTick()) {
+                    everFlanked.add(raptor.getUUID());
+                }
+                if (everFlanked.contains(raptor.getUUID())) {
+                    anyFlanked = true;
+                    if (raptor.flankingThisTick() || !raptor.hasCompletedFlank()) {
+                        allGaveUp = false;
+                    }
+                }
+            }
+            run.status = "pack=" + pack.size() + " hunting=" + hunting + " flankedEver=" + everFlanked.size();
+            if (anyFlanked && allGaveUp) {
+                run.check(hunting == pack.size(), "the pack dropped the quarry instead of reverting to the chase: " + run.status);
+                run.pass();
+            } else if (run.age() > 900) {
+                for (Velociraptor raptor : pack) {
+                    run.status += " [" + raptor.flankDebug() + "]";
+                }
+                run.fail("the pinned pack never gave up its doomed circles within the ceiling: " + run.status);
             }
         });
     }

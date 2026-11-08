@@ -339,6 +339,8 @@ public class Velociraptor extends TRex {
     private double flankSweep;
     /** Ticks without meaningful sweep: the quarry is outrunning the circle, so give the circle up (escape valve). */
     private int flankStallTicks;
+    /** Ticks without ANY sweep progress since the circle (re)started - the ring guard cannot reset this one. */
+    private int flankUnproductiveTicks;
     /** Set when a flank sweep completes: the cut-off surge runs to where the quarry is GOING (see huntDestination). */
     private int interceptUntilTick;
     /** Surge bookkeeping for the turn dodge: arm tick, quarry position then, and its unit travel direction then. */
@@ -439,6 +441,7 @@ public class Velociraptor extends TRex {
             flankLastBodyBearing = bearing;
             flankSweep = 0.0;
             flankStallTicks = 0;
+            flankUnproductiveTicks = 0;
         }
         // Progress is the BODY's travel around the quarry, never the waypoint's: a waypoint advancing on its own
         // books circles the body never ran, and the flank "finished" before it got near the front (playtest).
@@ -448,8 +451,10 @@ public class Velociraptor extends TRex {
         if (delta > 0.0) {
             flankSweep += Math.min(delta, tickArc * 2.0);
             flankStallTicks = delta >= tickArc * 0.4 ? 0 : flankStallTicks + 1;
+            flankUnproductiveTicks = 0; // ANY real sweep progress - a slow hill-climber keeps its circle
         } else {
             flankStallTicks++;
+            flankUnproductiveTicks++;
         }
         // Running onto (or back onto) the circle is not a stall - the bearing sits still while the body heads for
         // the ring. Only a raptor that IS on the circle and still cannot sweep is being outrun.
@@ -484,6 +489,24 @@ public class Velociraptor extends TRex {
                     String.format(java.util.Locale.ROOT, "%.1f", distance),
                     String.format(java.util.Locale.ROOT, "%.2f", getSpeed()),
                     getName().getString());
+            flankCompletedFor = target.getUUID();
+            flankReopenTick = tickCount + FLANK_REOPEN_TICKS;
+            flankStartBearing = Double.NaN;
+            flankingNow = false;
+            flankSlot = -1;
+            return chase;
+        }
+        // Hills valve (live playtest, hilly worlds): the ring guard below deliberately forgives a flanker that
+        // is off-circle but CONVERGING; off flat ground the pathfinder can keep a flanker off-ring forever
+        // (cliffs, ridges, washouts), its stall timer never expires, and the circle dies without a single log
+        // line or ever rejoining the straight chase (two hilly worlds: zero COMPLETED, zero ABANDONED, the
+        // user watched circles evaporate). This ceiling cannot be disarmed: 20 s without ANY sweep progress
+        // means the terrain beat the circle - go back to the pack's outrunnable chase instead of haunting the
+        // quarry's periphery. A slow hill-climber that is genuinely earning degrees is never touched.
+        if (flankUnproductiveTicks > FLANK_UNPRODUCTIVE_TICKS) {
+            DinoDread.LOGGER.info("[flankdiag] flank ABANDONED (unproductive) sweep={}deg idleTicks={} dist={} raptor={}",
+                    String.format(java.util.Locale.ROOT, "%.0f", Math.toDegrees(flankSweep)), flankUnproductiveTicks,
+                    String.format(java.util.Locale.ROOT, "%.1f", distance), getName().getString());
             flankCompletedFor = target.getUUID();
             flankReopenTick = tickCount + FLANK_REOPEN_TICKS;
             flankStartBearing = Double.NaN;
@@ -533,6 +556,8 @@ public class Velociraptor extends TRex {
 
     /** Ticks of negligible bearing progress before a flanker quits its circle and chases straight (5 seconds). */
     private static final int FLANK_STALL_TICKS = 100;
+    /** Hard ceiling on zero sweep progress even with the ring guard forgiving every detour (20 seconds). */
+    private static final int FLANK_UNPRODUCTIVE_TICKS = 400;
     /** A flanked quarry stays "already circled" this long before the same raptor may try it again (15 s). */
     private static final int FLANK_REOPEN_TICKS = 300;
     /** Half a second: how long the surge stays dodgeable by a 60-degree swing of the quarry's line (see config). */
@@ -594,9 +619,9 @@ public class Velociraptor extends TRex {
     public String flankDebug() {
         LivingEntity t = getTarget();
         double d = t == null ? -1 : Math.hypot(getX() - t.getX(), getZ() - t.getZ());
-        return String.format(java.util.Locale.ROOT, "slot=%d dist=%.1f circling=%b done=%b sweep=%.0f stall=%d state=%s destAge=%d visible=%b contact=%d",
+        return String.format(java.util.Locale.ROOT, "slot=%d dist=%.1f circling=%b done=%b sweep=%.0f stall=%d idle=%d state=%s destAge=%d visible=%b contact=%d",
                 flankSlot, d, flankingNow, flankCompletedFor != null, Math.toDegrees(flankSweep), flankStallTicks,
-                getHuntState(), tickCount - flankLastDestTick, getSenses().isTargetVisible(), getSenses().contactAge());
+                flankUnproductiveTicks, getHuntState(), tickCount - flankLastDestTick, getSenses().isTargetVisible(), getSenses().contactAge());
     }
 
     /** Current circle progress in degrees, for tests and diagnostics. */
