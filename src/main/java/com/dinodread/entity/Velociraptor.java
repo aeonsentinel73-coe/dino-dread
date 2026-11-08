@@ -537,6 +537,7 @@ public class Velociraptor extends TRex {
     @Override
     protected void customServerAiStep(ServerLevel level) {
         super.customServerAiStep(level);
+        shareThePackHunt(level);
         if (sprintingVisual() && !isInWater()) {
             if (tickCount >= nextRunSoundTick) {
                 nextRunSoundTick = tickCount + RUN_SOUND_PERIOD_TICKS;
@@ -555,6 +556,42 @@ public class Velociraptor extends TRex {
             startAction(Action.TAIL_WHIP);
         }
     }
+
+    /**
+     * The pack hunts as one: a raptor that has neither seen nor heard the quarry follows the pack-mate that has.
+     * Live playtest: without this each raptor needed its own first contact (running past one at a time), the pack
+     * straggled, and a half-hunting pack is too small to flank. The hunt state machine then owns the shared
+     * quarry like any other: it persists until the standard sight/hearing give-up, and the pack re-shares it
+     * from whichever member still holds it.
+     */
+    private void shareThePackHunt(ServerLevel level) {
+        if (tickCount % PACK_SHARE_INTERVAL_TICKS != 0 || getTarget() != null || isFleeing() || isScattering()) {
+            return;
+        }
+        String tag = packTag();
+        if (tag == null) {
+            return; // a spawn-egg raptor is its own pack of one: nobody to hear
+        }
+        // Within earshot (the raptors coordinate by calls, so the range is their hearing, scaled by activity).
+        double radius = Math.max(RaptorConfig.HEARING_RADIUS.get(), 4.0) * Math.max(0.25, activity());
+        Velociraptor caller = null;
+        double closest = Double.MAX_VALUE;
+        for (Velociraptor other : level.getEntitiesOfClass(Velociraptor.class,
+                getBoundingBox().inflate(radius),
+                other -> other != this && other.isAlive() && tag.equals(other.packTag())
+                        && other.getTarget() != null && other.getTarget().isAlive())) {
+            double d = other.distanceToSqr(this);
+            if (d < closest) {
+                closest = d;
+                caller = other;
+            }
+        }
+        if (caller != null) {
+            getSenses().shareQuarry(caller.getTarget());
+        }
+    }
+
+    private static final int PACK_SHARE_INTERVAL_TICKS = 10;
 
     /** The pack tag this raptor carries, or null for a lone spawn-egg raptor (each of which is its own pack of one). */
     public @Nullable String packTag() {

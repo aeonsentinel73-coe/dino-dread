@@ -83,6 +83,7 @@ public final class RexRaptorGameTests {
         test("raptor_pack_flees_and_despawns_when_one_dies", RexRaptorGameTests::packFleesAndDespawnsWhenOneDies);
         test("raptor_hunts_a_zombie_and_never_charges", RexRaptorGameTests::raptorHuntsZombieAndNeverCharges);
         test("raptor_pack_flanks_its_quarry", RexRaptorGameTests::raptorPackFlanksItsQuarry);
+        test("raptor_pack_shares_the_hunt", RexRaptorGameTests::raptorPackSharesTheHunt);
         test("raptor_scatters_without_despawning", RexRaptorGameTests::raptorScattersWithoutDespawning);
         test("raptor_chase_outruns_a_walking_player", RexRaptorGameTests::raptorChaseOutrunsWalkingPlayer);
         test("raptor_climbs_out_of_water", RexRaptorGameTests::raptorClimbsOutOfWater);
@@ -353,6 +354,61 @@ public final class RexRaptorGameTests {
     private static int expectedFlankers(int packSize) {
         return packSize >= 4 ? 2 : packSize == 3 ? 1 : 0;
     }
+
+    /**
+     * The pack hunts as one: a raptor that can neither see nor hear the player must still join through a
+     * pack-mate that can. Live playtest: raptors only chased after the player ran past each one individually.
+     * A stone wall hides two of three raptors from the (motionless, therefore silent) player fixture; only the
+     * third can see the player at all. All three must end up hunting the same quarry.
+     */
+    private static void raptorPackSharesTheHunt(GameTestHelper helper) {
+        Velociraptor[] trio = new Velociraptor[3];
+        scenario(helper, MIDNIGHT_TICKS, FACING_SOUTH, FLANK_PLAYER_AT, false, SHARE_WATCH_TICKS, origin -> {
+            // Wall across the arena at z = -4, three blocks tall: no line of sight between z < -4 and the player.
+            net.minecraft.world.level.block.state.BlockState stone = net.minecraft.world.level.block.Blocks.STONE.defaultBlockState();
+            for (int x = -RexGameTests.ARENA_HALF_WIDTH; x <= RexGameTests.ARENA_HALF_WIDTH; x++) {
+                for (int y = 0; y <= 2; y++) {
+                    helper.getLevel().setBlock(origin.offset(x, y, -4), stone, net.minecraft.world.level.block.Block.UPDATE_CLIENTS);
+                }
+            }
+        }, run -> {
+            run.rex.discard();
+            String packTag = Velociraptor.PACK_TAG_PREFIX + "gametest";
+            // The caller stands in front of the wall, facing the player (yaw 0 = +z). The hidden pair wait behind it.
+            trio[0] = spawnRaptor(helper, 0.0F, new Vec3(0.5, 0, 2.5));
+            trio[1] = spawnRaptor(helper, 180.0F, new Vec3(-2.5, 0, -6.5));
+            trio[2] = spawnRaptor(helper, 180.0F, new Vec3(2.5, 0, -9.5));
+            for (Velociraptor raptor : trio) {
+                raptor.addTag(packTag);
+                run.cleanups.add(raptor::discard);
+            }
+            // The hidden pair must start blind: the wall, not luck, is what the test proves.
+            run.check(!trio[1].getSenses().hasQuarry() && !trio[2].getSenses().hasQuarry(),
+                    "test setup: a raptor behind the wall already has quarry");
+        }, run -> {
+            run.player.setHealth(run.player.getMaxHealth());
+            int hunting = 0;
+            StringBuilder diag = new StringBuilder();
+            for (int i = 0; i < trio.length; i++) {
+                if (trio[i] == null) {
+                    continue;
+                }
+                if (trio[i].getTarget() == run.player) {
+                    hunting++;
+                }
+                diag.append(" r").append(i).append(trio[i].getTarget() == null ? ":-" : ":+")
+                        .append(String.format("%.0f", trio[i].distanceTo(run.player)));
+            }
+            run.status = "hunting=" + hunting + "/3" + diag;
+            if (hunting == trio.length) {
+                run.pass();
+            } else if (run.age() > SHARE_WATCH_TICKS - 200) {
+                run.fail("the pack must hunt as one; the pair behind the wall never got the shared quarry: " + run.status);
+            }
+        });
+    }
+
+    private static final int SHARE_WATCH_TICKS = 1200;
 
     /**
      * Extends the arena floor out to {@code FLANK_GROUND_HALF} blocks wide so a flank circle fits, forces those

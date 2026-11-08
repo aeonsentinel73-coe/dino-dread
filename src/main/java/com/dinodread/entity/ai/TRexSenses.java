@@ -127,6 +127,18 @@ public class TRexSenses {
         }
     }
 
+    /**
+     * A pack-mate already hunts this quarry: join it. This is the raptors' coordination call - it starts the
+     * contact clock at zero like a fresh sighting, so the shared quarry sticks even in the dark, and the
+     * sight scan naturally refuses to steal it (the pack hunts as one, not six lone hunters).
+     */
+    public void shareQuarry(LivingEntity quarry) {
+        rex.setTarget(quarry);
+        lastKnownPos = quarry.position();
+        targetVisible = canSee(quarry, true);
+        ticksSinceContact = 0;
+    }
+
     private void scanForTargets(ServerLevel level) {
         LivingEntity current = rex.getTarget();
         LivingEntity closest = null;
