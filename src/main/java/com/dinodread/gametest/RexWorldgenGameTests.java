@@ -87,12 +87,34 @@ public final class RexWorldgenGameTests {
 
         PlacedFeature baseFeature = placedReg
                 .getOrThrow(ResourceKey.create(Registries.PLACED_FEATURE, baseId)).value();
+        // 26.3 hands every decorated feature the RAW chunk origin (y = build bottom, -64 overworld). Vanilla tree
+        // chains never carry a count/heightmap themselves - the biome points at a wrapper placed feature whose
+        // chain lifts the origin to the surface. A chain without a heightmap modifier runs thousands of times,
+        // inspects bedrock, and silently places nothing (confirmed via a logging Feature: 100% of rejections at
+        // y=-64 while a walked world showed zero trunks).
+        boolean hasHeightmap = false;
+        double countMean = 0.0;
+        int countSamples = 0;
         for (var modifier : baseFeature.placement()) {
-            if (modifier instanceof net.minecraft.world.level.levelgen.placement.CountPlacement counter
-                    && counter.count(RandomSource.create(1L), BlockPos.ZERO) <= 0) {
-                helper.fail("giant_tree placement contains a CountPlacement that samples 0 - it would never run");
-                return;
+            if (modifier instanceof net.minecraft.world.level.levelgen.placement.HeightmapPlacement) {
+                hasHeightmap = true;
             }
+            if (modifier instanceof net.minecraft.world.level.levelgen.placement.CountPlacement counter) {
+                for (int seed = 0; seed < 200; seed++) {
+                    countMean += counter.count(RandomSource.create((long) seed + 1L), BlockPos.ZERO);
+                    countSamples++;
+                }
+            }
+        }
+        if (!hasHeightmap) {
+            helper.fail("giant_tree placement has no heightmap modifier - decoration would run it at the chunk "
+                    + "origin below bedrock and it would silently place nothing");
+            return;
+        }
+        if (countSamples == 0 || countMean / countSamples <= 0.0) {
+            helper.fail("giant_tree CountPlacement averages " + countMean + " over " + countSamples
+                    + " seeds - it would never run");
+            return;
         }
 
         // 26.3: Biome.getGenerationSettings().features() is a list of HolderSets across steps; presence of the
