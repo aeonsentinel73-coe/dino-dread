@@ -40,7 +40,7 @@ authors="Thomas"
 
 # The description text for the mod (multi line!) (#mandatory)
 description='''
-Big dinosaurs that hunt you, plus the fog and dread audio to make them frightening.
+This world is not ours. They're out there, and they can smell your fear. Adds dinosaurs to Minecraft. They're lethal. Griefing can be disabled in the config - we'll pretend we didn't see it.
 '''
 
 # The [[mixins]] block allows you to declare your mixin config to FML so that it gets loaded.
