@@ -17,6 +17,11 @@ something in.
 Worldgen: mega-jungle-trunk "giant trees" in every forest/jungle/taiga/savanna biome (plus
 swamps, cherry grove, meadow) and taller vanilla jungle trees. See `Docs/GIANT-TREES.md`.
 
+## Just want to play it?
+Grab `dinodread-1.2.0.jar` from [Releases](../../releases) and follow
+[`INSTALL.md`](INSTALL.md). Needs Minecraft Java 26.3 + NeoForge + GeckoLib —
+two `.jar` files in the mods folder, no launcher required.
+
 ## Building
 Requires Java 25; Minecraft 26.3 / NeoForge 26.3.0.85 / GeckoLib 5.5.7 (see `gradle.properties`).
 
