@@ -1,4 +1,4 @@
-# Super Rex — tuning guide
+﻿# Super Rex — tuning guide
 
 The super rex is a variant T-rex, added on the `superrex` branch. It is a separate entity type
 (`dinodread:super_rex`) that reuses the T-rex's model, animations, sounds and hunting brain, with its
@@ -61,3 +61,8 @@ The super rex hunt is an event with a clock:
   reads per-variant numbers; the T-rex defaults are the old RexConfig reads.
 - `spawn/RexSpawner.pickType` — the one-in-20 substitution.
 - Client: `SuperRexRenderer` reuses `TRexRenderer`; assets under the `super_rex` ids.
+
+## Kill reward (XP)
+Super Rex pays 20 XP (Ravager/Piglin-Brute tier) and the ordinary rex 10 (Blaze tier). Under the
+Warden's 50 on purpose: even the rarest catastrophe must not pay more than it hurts, so players
+defend and avoid rather than hunt. See Docs/RAPTORS.md for the design rule and the guard test.

@@ -87,6 +87,9 @@ public class Velociraptor extends TRex {
 
     public Velociraptor(EntityType<? extends Velociraptor> type, Level level) {
         super(type, level);
+        // Back down from the rex's 10: one raptor pays like a zombie (5). Packs kill players for a
+        // pocketful of orbs - hunting them must always look like a bad trade.
+        this.xpReward = 5;
     }
 
     // The flee outranks the hunt: a raptor whose pack broke runs, it does not fight back.

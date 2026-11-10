@@ -141,8 +141,10 @@ public final class RexWorldgenGameTests {
         BlockPos probe = helper.absolutePos(new BlockPos(2, 0, 2));
         // The batch floor sits where it sits: find the first solid block near the probe, make its top grass,
         // and give the tree a clear 40-block air column so the free-height scan cannot clip it.
+        // The search reaches far (±24): the batch floor has holes and cold first runs land the probe inside
+        // one - a ±8 window once found no soil at all and failed the test for terrain reasons.
         BlockPos soil = null;
-        for (int dy = 8; dy >= -8 && soil == null; dy--) {
+        for (int dy = 24; dy >= -24 && soil == null; dy--) {
             if (!level.getBlockState(probe.offset(0, dy, 0)).isAir()) {
                 soil = probe.offset(0, dy, 0);
             }

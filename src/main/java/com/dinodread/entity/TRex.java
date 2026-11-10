@@ -106,6 +106,10 @@ public class TRex extends Monster implements GeoEntity {
 
     public TRex(EntityType<? extends TRex> type, Level level) {
         super(type, level);
+        // Kill reward deliberately BELOW the threat (blaze tier, vs a Ravager's 20): the dinos must never
+        // pay enough to read as walk-around XP bottles, or players will hunt them like livestock.
+        // Explicit in every species (raptor 5, rex 10, super rex 20) so inheritance can never drift it.
+        this.xpReward = 10;
         // The scale attribute comes from the attribute defaults, which never fire the "scale changed" update that
         // resizes the hitbox: without this the model is 3x but the hitbox stays at the unscaled 3 x 4 blocks.
         refreshDimensions();

@@ -45,6 +45,7 @@ public final class RexItemGameTests {
         test("something_fancy_feeds_a_bite_raw_a_whole_bar_cooked", RexItemGameTests::foodValues);
         test("something_fancy_cooks_in_lava_and_returns_the_bucket", RexItemGameTests::lavaCrafting);
         test("dinosaur_corpses_drop_something_fancy", RexItemGameTests::dinoLootTables);
+        test("dinosaur_kill_rewards_stay_under_their_threat", RexItemGameTests::xpRewards);
     }
 
     private RexItemGameTests() {}
@@ -158,6 +159,36 @@ public final class RexItemGameTests {
             return;
         }
         helper.succeed();
+    }
+
+    /**
+     * The dinos must never read as XP piñatas (design rule: reward < threat, so players don't hunt
+     * them): raptor 5 (zombie tier), rex 10 (blaze tier), super rex 20 (Ravager tier). Read straight
+     * off constructor-built instances - no world placement, no killing, fully deterministic.
+     */
+    private static void xpRewards(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        int raptor = rewardOf(ModEntities.VELOCIRAPTOR.get(), level);
+        int rex = rewardOf(ModEntities.TREX.get(), level);
+        int superRex = rewardOf(ModEntities.SUPER_REX.get(), level);
+        if (raptor != 5 || rex != 10 || superRex != 20) {
+            helper.fail("xp rewards drifted: raptor=" + raptor + " rex=" + rex + " superRex=" + superRex
+                + " (want 5/10/20 - below their threat level)");
+            return;
+        }
+        helper.succeed();
+    }
+
+    private static int rewardOf(EntityType<?> type, ServerLevel level) {
+        try {
+            net.minecraft.world.entity.Mob mob = (net.minecraft.world.entity.Mob)
+                type.create(level, net.minecraft.world.entity.EntitySpawnReason.MOB_SUMMONED);
+            java.lang.reflect.Field field = net.minecraft.world.entity.Mob.class.getDeclaredField("xpReward");
+            field.setAccessible(true);
+            return field.getInt(mob);
+        } catch (ReflectiveOperationException failure) {
+            throw new IllegalStateException("cannot read xpReward from " + type, failure);
+        }
     }
 
     private static LootTable lootTable(ServerLevel level, EntityType<?> type) {

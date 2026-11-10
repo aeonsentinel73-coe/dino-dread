@@ -35,6 +35,9 @@ public class SuperRex extends TRex {
 
     public SuperRex(EntityType<? extends SuperRex> type, Level level) {
         super(type, level);
+        // 20 = Ravager/Piglin-Brute tier: the biggest payout we give, and still under a Warden's 50, so even
+        // this catastrophe is not worth more than it hurts.
+        this.xpReward = 20;
     }
 
     @Override

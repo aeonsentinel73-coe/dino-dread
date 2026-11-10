@@ -1,4 +1,4 @@
-# Velociraptor packs (raptors branch)
+﻿# Velociraptor packs (raptors branch)
 
 A second dinosaur: the velociraptor, a small fast pack hunter that shares the T-rex's brain (senses, hunt goal,
 mover, voice) on its own numbers. Everything raptor-specific lives in `config/dinodread-raptors.toml`.
@@ -94,3 +94,10 @@ independent.
 `raptor_scatters_without_despawning`, `raptor_chase_outruns_a_walking_player`,
 `raptor_climbs_out_of_water`, `trex_ignores_hostile_mobs`,
 `raptor_defaults_are_small_slow_and_quiet`.
+
+## Kill reward (XP)
+One raptor pays 5 XP — zombie tier. Deliberate design rule: **a dinosaur's kill reward stays below
+its threat**, so farming the dinos never pays and they never read as prey. Pack kills (5 × N) still
+underpay for the danger. Explicit in each constructor (raptor 5 / rex 10 / super rex 20) because
+raptor and super rex *extend* TRex — inheritance must not silently reprice them. Guarded by
+`dinosaur_kill_rewards_stay_under_their_threat`.
