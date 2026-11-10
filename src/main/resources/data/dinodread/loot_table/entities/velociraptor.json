@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:entity",
+  "random_sequence": "dinodread:entities/velociraptor",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "condition": {
+            "type": "minecraft:random_chance",
+            "chance": 0.45
+          },
+          "name": "dinodread:something_fancy"
+        }
+      ]
+    }
+  ]
+}

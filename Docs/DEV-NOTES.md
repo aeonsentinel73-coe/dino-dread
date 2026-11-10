@@ -71,3 +71,27 @@ cross-cutting engine quirks and dev recipes live.
 - At `start`: uint32 length, one type byte (2 = zlib), then `zlib.decompress`.
 - The decompressed chunk NBT stores ids as plain strings, so substring-testing for
   `jungle_log`, a biome id, etc. is a reliable presence/absence check.
+
+## Loot tables (26.3)
+- Bind to entities **by id**: `data/<ns>/loot_table/entities/<entity>.json`; `EntityType.Builder`
+  derives the key from the registry name automatically (only `noLootTable()` opts out).
+- JSON keys are **singular**: `condition` and `modifier` (not `conditions`/`functions`). There is no
+  `set_probability` function — chance is `{"condition": {"type": "minecraft:random_chance",
+  "chance": 0.45}}` on a pool or entry.
+- Count providers are the new **ContextIntProvider** system: `uniform` takes plain `min`/`max`.
+  Do NOT paste worldgen provider syntax (`min_inclusive`/`max_inclusive`) into loot JSON —
+  the two codecs look alike and are not the same system.
+- Not reachable via `registryAccess()` in a gametest; use
+  `level.getServer().reloadableRegistries().getLootTable(key)`.
+
+## Randomness in game tests
+- `LootTable.getRandomItems(params, random)` honors the passed source, but do not seed each roll
+  with `RandomSource.create(i*k + c)`: arithmetic-progression seeds correlate in the low bits, and a
+  `nextInt(2)`-sized draw reads only those (observed: 60/60 identical outcomes). Pass ONE stream
+  advanced across all rolls; variance is then deterministic but sane.
+
+## Crafting recipes (26.3)
+- `crafting_shapeless`/`crafting_shaped` codecs no longer accept `category` (parse failure = whole
+  datapack refuses to load). Ingredients accept plain `"ns:id"` / `"#tag"` strings.
+- Bucket items return their empty bucket from any crafting grid (vanilla `craftRemainder` on
+  BucketItem) — lava-bucket cooking needs no code.

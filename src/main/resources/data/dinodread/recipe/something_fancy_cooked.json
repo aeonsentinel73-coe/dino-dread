@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "group": "something_fancy",
+  "ingredients": [
+    "dinodread:something_fancy",
+    "minecraft:lava_bucket"
+  ],
+  "result": {
+    "id": "dinodread:something_fancy_cooked",
+    "count": 1
+  }
+}

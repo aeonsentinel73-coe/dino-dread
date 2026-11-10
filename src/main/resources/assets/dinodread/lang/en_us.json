@@ -1,10 +1,12 @@
-{
+﻿{
   "entity.dinodread.trex": "Tyrannosaurus Rex",
   "entity.dinodread.velociraptor": "Velociraptor",
   "item.dinodread.trex_spawn_egg": "Tyrannosaurus Rex Spawn Egg",
   "entity.dinodread.super_rex": "Super Rex",
   "item.dinodread.super_rex_spawn_egg": "Super Rex Spawn Egg",
-  "item.dinodread.velociraptor_spawn_egg": "Velociraptor Spawn Egg",
+  "item.dinodread.velociraptor_spawn_egg": "Velociraptor Spawn Egg",
+  "item.dinodread.something_fancy": "Something Fancy",
+  "item.dinodread.something_fancy_cooked": "Something Fancy, Cooked",
 
   "subtitles.dinodread.entity.trex.roar": "Tyrannosaurus Rex roars",
   "subtitles.dinodread.entity.trex.roar_distant": "Distant roar",
